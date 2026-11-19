@@ -1,0 +1,11 @@
+// Structural boilerplate only: domain entities and relations remain unapproved.
+// Business tables are intentionally absent. Do not invent User, Room, Booking, etc.
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+# Build outputs
+.next/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+# Database generation (Prisma v7)
+apps/api/src/generated/
+# Environment secrets (retain templates)
+.env
+.env.*
+!.env.example
+!.env.*.example
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+.idea/
+.DS_Store
+Thumbs.db
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+# Test artifacts
+playwright-report/
+test-results/

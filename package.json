@@ -1,0 +1,36 @@
+{
+  "name": "dylan-grand-hotel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dylan Grand Hotel — source-first pnpm monorepo (User Site, Admin Site, API)",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:web": "pnpm --filter @dylan/web dev",
+    "dev:admin": "pnpm --filter @dylan/admin dev",
+    "dev:api": "pnpm --filter @dylan/api dev",
+    "build": "pnpm --filter \"./apps/*\" -r build",
+    "lint": "pnpm --filter \"./apps/*\" -r lint",
+    "typecheck": "pnpm --filter \"./apps/*\" -r typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:structure": "node --test tools/smoke/structure.test.mjs",
+    "db:up": "docker compose -f infra/docker/compose.yaml up -d",
+    "db:down": "docker compose -f infra/docker/compose.yaml down",
+    "db:validate": "pnpm --filter @dylan/api db:validate",
+    "db:generate": "pnpm --filter @dylan/api db:generate",
+    "db:migrate:dev": "pnpm --filter @dylan/api db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @dylan/api db:migrate:deploy"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "prettier": "^3.6.2",
+    "typescript": "6.0.2",
+    "typescript-eslint": "^8.73.0"
+  }
+}

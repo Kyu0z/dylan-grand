@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dylan: All apps dev",
+      "type": "shell",
+      "command": "pnpm dev",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dylan: Verify structure",
+      "type": "shell",
+      "command": "pnpm check:structure",
+      "problemMatcher": []
+    }
+  ]
+}
