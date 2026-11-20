@@ -1,4 +1,5 @@
 'use client';
+import { T, useI18n } from '@/components/language-provider';
 import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { photos, rooms, money } from '@/lib/data';
@@ -6,6 +7,7 @@ import { getAccount, getCurrentUser, getWishlist, write, type Account } from '@/
 import { Photo, PageIntro, Eyebrow, InfoNote, Arrow } from '@/components/ui';
 type Mode = 'login' | 'register' | 'forgot';
 export default function AccountPage() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>('login'),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
@@ -68,30 +70,30 @@ export default function AccountPage() {
     setFeedback('Your profile preferences were saved in this browser.');
   };
   return <>
-    <PageIntro crumb="MY ACCOUNT"
-      title="A more"
-      italic="personal stay."
-      description="A space for your preferences, the rooms you love and the little details that make a stay yours."
+    <PageIntro crumb={t("MY ACCOUNT")}
+      title={t("A more")}
+      italic={t("personal stay.")}
+      description={t("A space for your preferences, the rooms you love and the little details that make a stay yours.")}
     />
     <section className="container-site grid gap-10 pb-25 lg:grid-cols-[44%_56%]">
       <Photo src={photos.interior}
-        alt="Luxury hotel welcome lounge"
+        alt={t("Luxury hotel welcome lounge")}
         className="min-h-[420px] lg:min-h-[740px]"
       />
       <div className="border border-line bg-paper p-7 md:p-12">
         {!signed
           ?
           <>
-            <Eyebrow>YOUR PERSONAL SPACE</Eyebrow>
+            <Eyebrow><T>{"YOUR PERSONAL SPACE"}</T></Eyebrow>
             <h2 className="display mt-7 text-6xl">
-              {mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Join the story.' : 'A fresh start.'}
+              {t(mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Join the story.' : 'A fresh start.')}
             </h2>
             <p className="body-copy mt-5">
               {mode === 'forgot'
                 ?
-                'This is a visual-only flow. No reset email can be delivered.'
+                t('This is a visual-only flow. No reset email can be delivered.')
                 :
-                'Create or open a local demo profile. Password input is visual only; do not use a real password.'}
+                t('Create or open a local demo profile. Password input is visual only; do not use a real password.')}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {(['login', 'register', 'forgot'] as Mode[]).map(x => <button onClick={() => {
@@ -101,16 +103,16 @@ export default function AccountPage() {
                 key={x}
                 className={`pill ${mode === x ? 'border-gold bg-surface-alt' : ''}`}
               >
-                {x === 'forgot' ? 'RESET' : x.toUpperCase()}
+                {t(x === 'forgot' ? 'RESET' : x.toUpperCase())}
               </button>)}
             </div>
             <form onSubmit={submit} className="mt-8 grid gap-5">
               {mode === 'register' && <label>
-                <span className="field-label">FULL NAME</span>
+                <span className="field-label"><T>{"FULL NAME"}</T></span>
                 <input className="field-control" value={name} required onChange={e => setName(e.target.value)} />
               </label>}
               <label>
-                <span className="field-label">EMAIL ADDRESS</span>
+                <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
                 <input className="field-control"
                   type="email"
                   required
@@ -119,7 +121,7 @@ export default function AccountPage() {
                 />
               </label>
               {mode !== 'forgot' && <label>
-                <span className="field-label">DEMO PASSWORD (NOT VERIFIED OR STORED)</span>
+                <span className="field-label"><T>{"DEMO PASSWORD (NOT VERIFIED OR STORED)"}</T></span>
                 <input className="field-control"
                   type="password"
                   minLength={6}
@@ -128,76 +130,76 @@ export default function AccountPage() {
                   onChange={e => setPassword(e.target.value)}
                 />
               </label>}
-              <button type="submit" className="btn-primary">{mode === 'forgot' ? 'REQUEST DEMO RESET' : mode === 'register' ? 'CREATE DEMO ACCOUNT' : 'SIGN IN'} <Arrow /></button>
+              <button type="submit" className="btn-primary">{t(mode === 'forgot' ? 'REQUEST DEMO RESET' : mode === 'register' ? 'CREATE DEMO ACCOUNT' : 'SIGN IN')} <Arrow /></button>
             </form>
             {feedback && <p role="status" className="mt-5 text-xs leading-6 text-muted">
-              {feedback}
+              {t(feedback)}
             </p>}
           </>
           :
           <>
             <div className="flex flex-wrap justify-between gap-4">
-              <Eyebrow>YOUR PRIVATE PROFILE</Eyebrow>
+              <Eyebrow><T>{"YOUR PRIVATE PROFILE"}</T></Eyebrow>
               <button onClick={() => {
                 write('current-user', null);
                 setSigned(false);
                 setFeedback('Signed out.');
               }}
                 className="line-link"
-              >SIGN OUT ↗</button>
+              ><T>{"SIGN OUT ↗"}</T></button>
             </div>
-            <h2 className="display mt-6 text-6xl">Hello, <em>{name.split(' ')[0] || 'guest'}.</em></h2>
-            <p className="body-copy mt-5">A few thoughtful details can make every stay more personal.</p>
+            <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{ " " }<em>{name.split(' ')[0] || 'guest'}.</em></h2>
+            <p className="body-copy mt-5"><T>{"A few thoughtful details can make every stay more personal."}</T></p>
             <form className="mt-8 grid gap-5" onSubmit={saveProfile}>
               <label>
-                <span className="field-label">FULL NAME</span>
+                <span className="field-label"><T>{"FULL NAME"}</T></span>
                 <input className="field-control" value={name} onChange={e => setName(e.target.value)} required />
               </label>
               <label>
-                <span className="field-label">EMAIL (DEMO ID)</span>
+                <span className="field-label"><T>{"EMAIL (DEMO ID)"}</T></span>
                 <input className="field-control" value={email} readOnly />
               </label>
               <label>
-                <span className="field-label">PHONE</span>
+                <span className="field-label"><T>{"PHONE"}</T></span>
                 <input className="field-control" value={phone} onChange={e => setPhone(e.target.value)} />
               </label>
               <label>
-                <span className="field-label">STAY PREFERENCES</span>
+                <span className="field-label"><T>{"STAY PREFERENCES"}</T></span>
                 <textarea className="field-control min-h-24"
-                  placeholder="A quiet room, twin beds…"
+                  placeholder={t("A quiet room, twin beds…")}
                   value={preferences}
                   onChange={e => setPreferences(e.target.value)}
                 />
               </label>
-              <button className="btn-primary" type="submit">SAVE PROFILE <Arrow /></button>
+              <button className="btn-primary" type="submit"><T>{"SAVE PROFILE"}</T>{ " " }<Arrow /></button>
             </form>
             {feedback && <p role="status" className="mt-5 text-xs text-muted">
-              {feedback}
+              {t(feedback)}
             </p>}
           </>}
       </div>
     </section>
     <section className="section-pad bg-paper">
       <div className="container-site">
-        <Eyebrow>YOUR FAVOURITES</Eyebrow>
-        <h2 className="section-heading mt-5">Consider every moment, <em>yours.</em></h2>
+        <Eyebrow><T>{"YOUR FAVOURITES"}</T></Eyebrow>
+        <h2 className="section-heading mt-5"><T>{"Consider every moment,"}</T>{ " " }<em><T>{"yours."}</T></em></h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {rooms.filter(r => wishlist.includes(r.id)).map(r => <Link href={`/rooms?room=${r.id}`} className="group" key={r.id}>
-            <Photo src={r.images[0]} alt={r.name} className="aspect-[4/3]" />
+            <Photo src={r.images[0]} alt={t(r.name)} className="aspect-[4/3]" />
             <h3 className="font-display mt-4 text-4xl">
-              {r.name}
+              {t(r.name)}
             </h3>
-            <span className="text-xs text-muted">{money(r.price)} / night</span>
+            <span className="text-xs text-muted">{money(r.price)} <T>{"/ night"}</T></span>
           </Link>)}
           {wishlist.length === 0 && <div className="border border-line p-9 md:col-span-3">
-            <p className="body-copy">No favourite rooms yet. Select the heart icon on any room to save it here.</p>
-            <Link href="/rooms" className="line-link mt-7">DISCOVER ROOMS <Arrow /></Link>
+            <p className="body-copy"><T>{"No favourite rooms yet. Select the heart icon on any room to save it here."}</T></p>
+            <Link href="/rooms" className="line-link mt-7"><T>{"DISCOVER ROOMS"}</T>{ " " }<Arrow /></Link>
           </div>}
         </div>
       </div>
     </section>
     <div className="container-site py-10">
-      <InfoNote>Local demo only: passwords entered here are not stored or verified. This page does not authenticate a real user. Never enter real credentials; production requires a secure backend identity provider.</InfoNote>
+      <InfoNote><T>{"Local demo only: passwords entered here are not stored or verified. This page does not authenticate a real user. Never enter real credentials; production requires a secure backend identity provider."}</T></InfoNote>
     </div>
   </>;
 }

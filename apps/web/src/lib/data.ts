@@ -123,4 +123,4 @@ export const addDays = (iso: string, n: number) => {
   return dayISO(d);
 };
 export const nights = (a: string, b: string) => Math.max(1, Math.round((new Date(b + 'T12:00:00').getTime() - new Date(a + 'T12:00:00').getTime()) / 86400000));
-export const prettyDate = (s: string) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(s + 'T12:00:00'));
+export const prettyDate = (s: string, locale: 'en' | 'vi' = 'en') => new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(s + 'T12:00:00'));

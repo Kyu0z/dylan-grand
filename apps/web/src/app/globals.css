@@ -20,6 +20,7 @@
   --font-display: 'Cormorant Garamond',Georgia,serif;
   --radius-card: 3px;
   --radius-button: 2px;
+  --focus-ring: color-mix(in srgb, var(--gold) 28%, transparent);
   --motion-ease: cubic-bezier(.22,1,.36,1);
   --motion-duration: 600ms;
 }
@@ -60,6 +61,16 @@
 
 html {
   scroll-behavior: smooth;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+#main-content {
+  min-width: 0;
+}
+
+img, video, svg {
+  max-width: 100%;
 }
 
 body {
@@ -124,7 +135,7 @@ button:disabled {
     @apply mb-2 block text-[10px] font-semibold tracking-[.17em] uppercase text-muted;
   }
   .field-control {
-    @apply min-h-12 w-full rounded-btn border border-line bg-paper px-4 py-3 text-sm text-ink outline-none transition-colors focus:border-gold;
+    @apply min-h-12 w-full min-w-0 rounded-btn border border-line bg-paper px-4 py-3 text-sm text-ink outline-none transition-[border-color,box-shadow,background-color] duration-200;
   }
   .card-panel {
     @apply rounded-card border border-line bg-paper p-6 shadow-sm md:p-8;
@@ -348,4 +359,59 @@ button:disabled {
   .lux-popover {
     animation: none;
   }
+}
+
+
+/* Field focus is a subtle luxury accent, with an accessible visible keyboard ring. */
+.field-control:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--gold) 65%, var(--line));
+}
+
+.field-control:focus,
+.field-control:focus-visible,
+textarea.field-control:focus,
+.lux-trigger:focus-visible {
+  border-color: var(--gold);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.field-control::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 1000px var(--paper) inset, 0 0 0 3px var(--focus-ring);
+  transition: background-color 9999s;
+}
+
+.language-option {
+  display: inline-flex;
+  min-width: 36px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  transition: background-color 180ms var(--motion-ease), color 180ms var(--motion-ease);
+}
+
+.language-option:hover { color: var(--ink); }
+.language-option-active { background: var(--forest); color: var(--surface); }
+.language-option-active:hover { color: var(--surface); }
+.language-option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+@media (max-width: 639px) {
+  .lux-popover { max-width: min(326px, calc(100vw - 32px)); }
+  .lux-calendar { padding: 12px; }
+  .display { overflow-wrap: break-word; }
+  .section-heading { overflow-wrap: break-word; }
+  .btn-primary, .btn-outline { max-width: 100%; text-align: center; }
+  .container-site { min-width: 0; }
 }

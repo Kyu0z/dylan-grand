@@ -1,4 +1,5 @@
 'use client';
+import { T, useI18n } from '@/components/language-provider';
 
 import {
   useEffect,
@@ -111,6 +112,7 @@ export function SelectField({
   disabled = false,
 }: SelectFieldProps) {
   const id = useId();
+  const { t } = useI18n();
   const { open, setOpen, rootRef } = usePopover();
   const [activeIndex, setActiveIndex] = useState(0);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -162,7 +164,7 @@ export function SelectField({
 
   return (
     <div ref={rootRef} className={`lux-control relative min-w-0 ${className}`}>
-      <span className="field-label" id={`${id}-label`}>{label}</span>
+      <span className="field-label" id={`${id}-label`}>{t(label)}</span>
       <button
         type="button"
         disabled={disabled}
@@ -174,7 +176,7 @@ export function SelectField({
         onClick={() => setOpen((previous) => !previous)}
         className={`field-control lux-trigger flex items-center justify-between gap-3 text-left ${open ? 'lux-trigger-open' : ''}`}
       >
-        <span id={`${id}-value`} className="truncate">{chosen?.label ?? placeholder}</span>
+        <span id={`${id}-value`} className="truncate">{t(chosen?.label ?? placeholder)}</span>
         <span className={`lux-chevron shrink-0 ${open ? 'rotate-180' : ''}`}><ChevronIcon /></span>
       </button>
 
@@ -196,7 +198,7 @@ export function SelectField({
               }}
               className={`lux-option ${index === activeIndex ? 'lux-option-active' : ''} ${option.value === value ? 'lux-option-selected' : ''}`}
             >
-              <span>{option.label}</span>
+              <span>{t(option.label)}</span>
               {option.value === value && <span aria-hidden="true">✓</span>}
             </button>
           ))}
@@ -226,6 +228,7 @@ export function DateField({
   disabled = false,
   className = '',
 }: DateFieldProps) {
+  const { t, locale } = useI18n();
   const id = useId();
   const { open, setOpen, rootRef } = usePopover();
   const initialDate = value || minDate || '2026-01-01';
@@ -236,9 +239,9 @@ export function DateField({
     if (open) setVisibleMonth(fromISO(value || minDate || '2026-01-01'));
   }, [open, value, minDate]);
 
-  const monthTitle = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(visibleMonth);
+  const monthTitle = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' }).format(visibleMonth);
   const selectedLabel = value
-    ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(fromISO(value))
+    ? new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(fromISO(value))
     : 'Select date';
 
   const days = useMemo(() => {
@@ -260,7 +263,7 @@ export function DateField({
 
   return (
     <div ref={rootRef} className={`lux-control relative min-w-0 ${className}`}>
-      <span className="field-label" id={`${id}-label`}>{label}</span>
+      <span className="field-label" id={`${id}-label`}>{t(label)}</span>
       <button
         type="button"
         ref={triggerRef}
@@ -281,18 +284,18 @@ export function DateField({
         <section
           id={`${id}-calendar`}
           role="dialog"
-          aria-label={`${label} calendar`}
+          aria-label={`${t(label)} ${locale === 'vi' ? 'lịch' : 'calendar'}`}
           className="lux-popover lux-calendar"
         >
           <header className="mb-5 flex items-center justify-between gap-3">
             <span className="font-display text-[27px] leading-none">{monthTitle}</span>
             <div className="flex gap-1">
-              <button type="button" aria-label="Previous month" className="lux-month-button" disabled={cannotPrev} onClick={() => changeMonth(-1)}><ChevronIcon direction="left" /></button>
-              <button type="button" aria-label="Next month" className="lux-month-button" disabled={cannotNext} onClick={() => changeMonth(1)}><ChevronIcon direction="right" /></button>
+              <button type="button" aria-label={t("Previous month")} className="lux-month-button" disabled={cannotPrev} onClick={() => changeMonth(-1)}><ChevronIcon direction="left" /></button>
+              <button type="button" aria-label={t("Next month")} className="lux-month-button" disabled={cannotNext} onClick={() => changeMonth(1)}><ChevronIcon direction="right" /></button>
             </div>
           </header>
           <div className="lux-calendar-grid mb-2" aria-hidden="true">
-            {WEEKDAYS.map((day) => <span className="lux-weekday" key={day}>{day}</span>)}
+            {(locale === 'vi' ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : WEEKDAYS).map((day) => <span className="lux-weekday" key={day}>{day}</span>)}
           </div>
           <div className="lux-calendar-grid">
             {days.map(({ date, day, inMonth }) => {
@@ -302,7 +305,7 @@ export function DateField({
                   key={date}
                   type="button"
                   disabled={unavailable}
-                  aria-label={new Intl.DateTimeFormat('en-GB', { dateStyle: 'full' }).format(fromISO(date))}
+                  aria-label={new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-GB', { dateStyle: 'full' }).format(fromISO(date))}
                   aria-pressed={date === value}
                   className={`lux-calendar-day ${inMonth ? '' : 'lux-calendar-adjacent'} ${date === value ? 'lux-calendar-selected' : ''}`}
                   onClick={() => {
@@ -317,8 +320,8 @@ export function DateField({
             })}
           </div>
           <div className="mt-4 flex items-center justify-between border-t border-line pt-3 text-[11px] tracking-[.1em]">
-            <button type="button" className="lux-calendar-link" onClick={() => setVisibleMonth(new Date())}>THIS MONTH</button>
-            <button type="button" className="lux-calendar-link" onClick={() => setOpen(false)}>CLOSE</button>
+            <button type="button" className="lux-calendar-link" onClick={() => setVisibleMonth(new Date())}><T>{"THIS MONTH"}</T></button>
+            <button type="button" className="lux-calendar-link" onClick={() => setOpen(false)}><T>{"CLOSE"}</T></button>
           </div>
         </section>
       )}

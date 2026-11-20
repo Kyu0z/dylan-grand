@@ -1,4 +1,5 @@
 'use client';
+import { T, useI18n } from '@/components/language-provider';
 import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { rooms, money, prettyDate, nights } from '@/lib/data';
@@ -6,6 +7,7 @@ import { getStay, saveStay, getBookings, saveBookings, type Stay, type Guest } f
 import { Photo, PageIntro, Eyebrow, Arrow, InfoNote } from '@/components/ui';
 type Stage = 0 | 1 | 2 | 3;
 export default function BookingPage() {
+  const { t, locale } = useI18n();
   const [stay, setStay] = useState<Stay | null>(null),
     [stage, setStage] = useState<Stage>(0),
     [guest, setGuest] = useState<Guest>({ firstName: '', lastName: '', email: '', phone: '', notes: '' }),
@@ -13,7 +15,7 @@ export default function BookingPage() {
     [error, setError] = useState(''),
     [code, setCode] = useState('');
   useEffect(() => setStay(getStay()), []);
-  if (!stay) return <div className="container-site py-24">Loading your stay…</div>;
+  if (!stay) return <div className="container-site py-24"><T>{"Loading your stay…"}</T></div>;
   const room = rooms.find(r => r.id === stay.room) || rooms[0];
   const nightCount = nights(stay.checkin, stay.checkout);
   const base = room.price * nightCount * stay.count;
@@ -65,10 +67,10 @@ export default function BookingPage() {
     setStage((stage + 1) as Stage);
   };
   return <>
-    <PageIntro crumb="YOUR RESERVATION"
-      title="Make yourself"
-      italic="at home."
-      description="A few thoughtful details and your stay is almost arranged. Complete this frontend-only reservation preview."
+    <PageIntro crumb={t("YOUR RESERVATION")}
+      title={t("Make yourself")}
+      italic={t("at home.")}
+      description={t("A few thoughtful details and your stay is almost arranged. Complete this frontend-only reservation preview.")}
     />
     <section className="container-site pb-25">
       <div className="grid gap-10 lg:grid-cols-[1fr_370px]">
@@ -77,14 +79,14 @@ export default function BookingPage() {
             ?
             <div className="border border-line bg-paper px-8 py-20 text-center">
               <span className="font-display text-7xl text-gold">✓</span>
-              <Eyebrow>YOUR STAY IS ARRANGED — DEMO ONLY</Eyebrow>
-              <h2 className="display mt-7 text-6xl">See you <em>soon.</em></h2>
-              <p className="mt-6 text-sm">Sample booking reference:</p>
+              <Eyebrow><T>{"YOUR STAY IS ARRANGED — DEMO ONLY"}</T></Eyebrow>
+              <h2 className="display mt-7 text-6xl"><T>{"See you"}</T>{ " " }<em><T>{"soon."}</T></em></h2>
+              <p className="mt-6 text-sm"><T>{"Sample booking reference:"}</T></p>
               <strong className="mt-3 block break-words font-mono text-xl">
                 {code}
               </strong>
-              <p className="body-copy mx-auto mt-6 max-w-md">We have saved this preview reservation in your browser. No actual room was reserved and no email or payment was processed.</p>
-              <Link href="/reservations" className="btn-primary mt-9">MANAGE YOUR DEMO BOOKING <Arrow /></Link>
+              <p className="body-copy mx-auto mt-6 max-w-md"><T>{"We have saved this preview reservation in your browser. No actual room was reserved and no email or payment was processed."}</T></p>
+              <Link href="/reservations" className="btn-primary mt-9"><T>{"MANAGE YOUR DEMO BOOKING"}</T>{ " " }<Arrow /></Link>
             </div>
             :
             <>
@@ -92,14 +94,14 @@ export default function BookingPage() {
                 {steps.map((name, i) => <div key={name} className={`min-w-0 border-t-2 pt-3 ${i <= stage ? 'border-gold' : 'border-line'}`}>
                   <span className="text-[9px] font-semibold tracking-wider text-muted">0{i + 1}</span>
                   <p className="mt-2 text-[10px] font-semibold tracking-wider uppercase max-sm:text-[8px]">
-                    {name}
+                    {t(name)}
                   </p>
                 </div>)}
               </div>
               {stage === 0 && <div className="animate-in">
-                <Eyebrow>01 / SELECT YOUR RATE</Eyebrow>
-                <h2 className="font-display mt-5 text-5xl">Stay your way.</h2>
-                <p className="body-copy mt-3 mb-9">Select the pricing and flexibility option that feels right for you.</p>
+                <Eyebrow><T>{"01 / SELECT YOUR RATE"}</T></Eyebrow>
+                <h2 className="font-display mt-5 text-5xl"><T>{"Stay your way."}</T></h2>
+                <p className="body-copy mt-3 mb-9"><T>{"Select the pricing and flexibility option that feels right for you."}</T></p>
                 <div className="grid gap-4">
                   {[{
                     id: 'flexible',
@@ -118,10 +120,10 @@ export default function BookingPage() {
                   >
                     <span>
                       <strong className="font-display text-3xl">
-                        {r.name}
+                        {t(r.name)}
                       </strong>
                       <span className="body-copy mt-2 block max-w-md">
-                        {r.desc}
+                        {t(r.desc)}
                       </span>
                     </span>
                     <strong className="text-sm">
@@ -131,9 +133,9 @@ export default function BookingPage() {
                 </div>
               </div>}
               {stage === 1 && <div className="animate-in">
-                <Eyebrow>02 / PERSONALISE YOUR STAY</Eyebrow>
-                <h2 className="font-display mt-5 text-5xl">A little extra.</h2>
-                <p className="body-copy mt-3 mb-8">Choose the touches that make your trip feel entirely yours.</p>
+                <Eyebrow><T>{"02 / PERSONALISE YOUR STAY"}</T></Eyebrow>
+                <h2 className="font-display mt-5 text-5xl"><T>{"A little extra."}</T></h2>
+                <p className="body-copy mt-3 mb-8"><T>{"Choose the touches that make your trip feel entirely yours."}</T></p>
                 {[
                   {
                     key: 'breakfast',
@@ -148,10 +150,10 @@ export default function BookingPage() {
                 >
                   <span>
                     <strong className="font-display text-3xl">
-                      {x.title}
+                      {t(x.title)}
                     </strong>
                     <span className="body-copy block">
-                      {x.desc}
+                      {t(x.desc)}
                     </span>
                     <span className="mt-2 block text-xs">+ {money(x.price)}</span>
                   </span>
@@ -162,18 +164,18 @@ export default function BookingPage() {
                   />
                 </label>)}
                 <label className="mt-7 block">
-                  <span className="field-label">PROMO CODE (OPTIONAL)</span>
+                  <span className="field-label"><T>{"PROMO CODE (OPTIONAL)"}</T></span>
                   <input className="field-control max-w-sm"
-                    placeholder="Try DYLAN10"
+                    placeholder={t("Try DYLAN10")}
                     value={stay.promo}
                     onChange={e => update({ promo: e.target.value })}
                   />
                 </label>
               </div>}
               {stage === 2 && <div className="animate-in">
-                <Eyebrow>03 / YOUR DETAILS</Eyebrow>
-                <h2 className="font-display mt-5 text-5xl">Who is joining us?</h2>
-                <p className="body-copy mt-3 mb-8">We only keep these details in your browser for the demonstration.</p>
+                <Eyebrow><T>{"03 / YOUR DETAILS"}</T></Eyebrow>
+                <h2 className="font-display mt-5 text-5xl"><T>{"Who is joining us?"}</T></h2>
+                <p className="body-copy mt-3 mb-8"><T>{"We only keep these details in your browser for the demonstration."}</T></p>
                 <div className="grid gap-5 md:grid-cols-2">
                   {[
                     ['firstName', 'FIRST NAME', 'text'],
@@ -182,7 +184,7 @@ export default function BookingPage() {
                     ['phone', 'PHONE NUMBER', 'tel']
                   ].map(([key, label, type]) => <label key={key}>
                     <span className="field-label">
-                      {label}
+                      {t(label)}
                     </span>
                     <input className="field-control"
                       type={type}
@@ -192,7 +194,7 @@ export default function BookingPage() {
                     />
                   </label>)}
                   <label className="md:col-span-2">
-                    <span className="field-label">SPECIAL REQUESTS (OPTIONAL)</span>
+                    <span className="field-label"><T>{"SPECIAL REQUESTS (OPTIONAL)"}</T></span>
                     <textarea className="field-control min-h-28"
                       value={guest.notes}
                       onChange={e => setGuest(s => ({ ...s, notes: e.target.value }))}
@@ -201,37 +203,37 @@ export default function BookingPage() {
                 </div>
               </div>}
               {stage === 3 && <div className="animate-in">
-                <Eyebrow>04 / REVIEW YOUR STAY</Eyebrow>
-                <h2 className="font-display mt-5 text-5xl">Almost there.</h2>
+                <Eyebrow><T>{"04 / REVIEW YOUR STAY"}</T></Eyebrow>
+                <h2 className="font-display mt-5 text-5xl"><T>{"Almost there."}</T></h2>
                 <div className="my-8 border border-line bg-paper p-6 text-sm leading-9">
                   <div className="flex justify-between gap-3">
-                    <span>Lead guest</span>
+                    <span><T>{"Lead guest"}</T></span>
                     <strong>{guest.firstName} {guest.lastName}</strong>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span>Email</span>
+                    <span><T>{"Email"}</T></span>
                     <strong className="break-all">
                       {guest.email}
                     </strong>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span>Room</span>
+                    <span><T>{"Room"}</T></span>
                     <strong>
-                      {room.name}
+                      {t(room.name)}
                     </strong>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span>Stay dates</span>
-                    <strong>{prettyDate(stay.checkin)} – {prettyDate(stay.checkout)}</strong>
+                    <span><T>{"Stay dates"}</T></span>
+                    <strong>{prettyDate(stay.checkin, locale)} – {prettyDate(stay.checkout, locale)}</strong>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span>Rate</span>
+                    <span><T>{"Rate"}</T></span>
                     <strong>
                       {stay.rate === 'flexible' ? 'Flexible' : 'Advance'}
                     </strong>
                   </div>
                   <div className="flex justify-between gap-3 border-t border-line pt-3">
-                    <span>Total estimate</span>
+                    <span><T>{"Total estimate"}</T></span>
                     <strong>
                       {money(total)}
                     </strong>
@@ -241,10 +243,10 @@ export default function BookingPage() {
                   checked={accepted}
                   onChange={e => setAccepted(e.target.checked)}
                   className="mt-1.5 accent-gold"
-                />I understand that this is a portfolio demonstration, not a real reservation, payment or hotel confirmation.</label>
+                /><T>{"I understand that this is a portfolio demonstration, not a real reservation, payment or hotel confirmation."}</T></label>
               </div>}
               {error && <p role="alert" className="mt-6 text-sm text-red-700">
-                {error}
+                {t(error)}
               </p>}
               <div className="mt-10 flex flex-wrap justify-between gap-4 border-t border-line pt-7">
                 {stage > 0
@@ -252,59 +254,59 @@ export default function BookingPage() {
                   <button className="btn-outline" onClick={() => {
                     setError('');
                     setStage((stage - 1) as Stage);
-                  }}>← PREVIOUS STEP</button>
+                  }}><T>{"← PREVIOUS STEP"}</T></button>
                   :
-                  <Link className="btn-outline" href="/availability">← BACK TO ROOMS</Link>}
+                  <Link className="btn-outline" href="/availability"><T>{"← BACK TO ROOMS"}</T></Link>}
                 <button className="btn-primary" onClick={next}>{stage === 3 ? 'CONFIRM DEMO BOOKING' : 'CONTINUE'} <Arrow /></button>
               </div>
             </>}
         </div>
         <aside className="self-start border border-line bg-paper lg:sticky lg:top-32">
-          <Photo src={room.images[0]} alt={`${room.name} sample hotel room`} className="aspect-[16/10]" />
+          <Photo src={room.images[0]} alt={`${t(room.name)} sample hotel room`} className="aspect-[16/10]" />
           <div className="p-6">
-            <Eyebrow>YOUR RESERVATION</Eyebrow>
+            <Eyebrow><T>{"YOUR RESERVATION"}</T></Eyebrow>
             <h3 className="font-display mt-3 text-4xl">
-              {room.name}
+              {t(room.name)}
             </h3>
-            <p className="body-copy mt-4">{prettyDate(stay.checkin)} — {prettyDate(stay.checkout)} · {nightCount} nights</p>
-            <p className="body-copy">{stay.adults} adults · {stay.count} room(s)</p>
+            <p className="body-copy mt-4">{prettyDate(stay.checkin, locale)} — {prettyDate(stay.checkout, locale)} · {nightCount} <T>{"nights"}</T></p>
+            <p className="body-copy">{stay.adults} <T>{"adults ·"}</T>{ " " }{stay.count} <T>{"room(s)"}</T></p>
             <div className="my-7 grid gap-3 border-t border-line pt-5 text-xs">
               <div className="flex justify-between">
-                <span>Accommodation</span>
+                <span><T>{"Accommodation"}</T></span>
                 <span>
                   {money(base)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Rate adjustment</span>
+                <span><T>{"Rate adjustment"}</T></span>
                 <span>
                   {money(rateAdjusted - base)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Extras</span>
+                <span><T>{"Extras"}</T></span>
                 <span>
                   {money(addOn)}
                 </span>
               </div>
               {discount > 0 && <div className="flex justify-between">
-                <span>Promo discount</span>
+                <span><T>{"Promo discount"}</T></span>
                 <span>-{money(discount)}</span>
               </div>}
             </div>
             <div className="flex justify-between border-t border-line pt-5">
-              <strong>ESTIMATED TOTAL</strong>
+              <strong><T>{"ESTIMATED TOTAL"}</T></strong>
               <strong>
                 {money(total)}
               </strong>
             </div>
-            <p className="mt-5 text-[11px] leading-6 text-muted">All amounts are illustrative; no live pricing, taxes or payment processing.</p>
+            <p className="mt-5 text-[11px] leading-6 text-muted"><T>{"All amounts are illustrative; no live pricing, taxes or payment processing."}</T></p>
           </div>
         </aside>
       </div>
     </section>
     <div className="container-site pb-12">
-      <InfoNote>Booking is intentionally browser-only. No inventory is reserved, no account is authenticated and no payment is charged.</InfoNote>
+      <InfoNote><T>{"Booking is intentionally browser-only. No inventory is reserved, no account is authenticated and no payment is charged."}</T></InfoNote>
     </div>
   </>;
 }
