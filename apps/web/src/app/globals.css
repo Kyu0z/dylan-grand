@@ -1,1 +1,351 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+
 @import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  --surface: #f7f4ee;
+  --surface-2: #ede7de;
+  --paper: #fffefa;
+  --ink: #26352e;
+  --muted: #75776d;
+  --forest: #35483e;
+  --forest-hover: #263b30;
+  --gold: #bba57f;
+  --line: #dedbd2;
+  --shadow: 0 20px 65px -40px rgba(19,37,29,.3);
+  --overlay: rgba(9,20,14,.64);
+  --error: #b84b3d;
+  --font-body: 'DM Sans',sans-serif;
+  --font-display: 'Cormorant Garamond',Georgia,serif;
+  --radius-card: 3px;
+  --radius-button: 2px;
+  --motion-ease: cubic-bezier(.22,1,.36,1);
+  --motion-duration: 600ms;
+}
+
+[data-theme='night'] {
+  color-scheme: dark;
+  --surface: #1d2923;
+  --surface-2: #28382f;
+  --paper: #24332a;
+  --ink: #f0eadf;
+  --muted: #c1c3b7;
+  --forest: #bda983;
+  --forest-hover: #d5c09a;
+  --gold: #dbc397;
+  --line: #47584c;
+  --shadow: 0 18px 55px -20px rgba(0,0,0,.35);
+  --overlay: rgba(0,0,0,.72);
+  --error: #e58d7d;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-2);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-forest: var(--forest);
+  --color-forest-hover: var(--forest-hover);
+  --color-gold: var(--gold);
+  --color-line: var(--line);
+  --color-overlay: var(--overlay);
+  --color-error: var(--error);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --radius-card: var(--radius-card);
+  --radius-btn: var(--radius-button);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+*,*::before,*::after {
+  box-sizing: border-box;
+}
+
+button,a,input,select,textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+::selection {
+  background: var(--gold);
+  color: #17251a;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+
+@layer components {
+  .container-site {
+    @apply mx-auto w-full max-w-[1400px] px-5 sm:px-9 lg:px-16 xl:px-[88px];
+  }
+  .eyebrow {
+    @apply text-[10px] font-semibold tracking-[.23em] uppercase;
+  }
+  .display {
+    @apply font-display font-normal leading-[.91] tracking-[-.025em];
+  }
+  .section-heading {
+    @apply font-display font-normal leading-[.91] tracking-[-.025em] text-[clamp(3.3rem,6vw,6.1rem)];
+  }
+  .body-copy {
+    @apply text-[14px] leading-[2] text-muted;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-12 items-center justify-center gap-5 rounded-btn bg-forest px-7 py-3 text-[10px] font-semibold tracking-[.16em] uppercase text-surface transition-all duration-300 hover:-translate-y-0.5 hover:bg-forest-hover hover:shadow-lg;
+  }
+  .btn-outline {
+    @apply inline-flex min-h-12 items-center justify-center gap-4 rounded-btn border border-line px-7 py-3 text-[10px] font-semibold tracking-[.16em] uppercase transition-all duration-300 hover:border-gold hover:bg-surface-alt;
+  }
+  .line-link {
+    @apply inline-flex items-center gap-4 border-b border-current pb-2 text-[11px] font-semibold tracking-[.12em] uppercase transition-[gap] duration-300 hover:gap-7;
+  }
+  .field-label {
+    @apply mb-2 block text-[10px] font-semibold tracking-[.17em] uppercase text-muted;
+  }
+  .field-control {
+    @apply min-h-12 w-full rounded-btn border border-line bg-paper px-4 py-3 text-sm text-ink outline-none transition-colors focus:border-gold;
+  }
+  .card-panel {
+    @apply rounded-card border border-line bg-paper p-6 shadow-sm md:p-8;
+  }
+  .section-pad {
+    @apply py-20 md:py-28;
+  }
+  .photo-frame {
+    @apply relative overflow-hidden bg-surface-alt;
+  }
+  .photo-img {
+    @apply h-full w-full object-cover transition-transform duration-1000 ease-out group-hover:scale-[1.045];
+  }
+  .pill {
+    @apply rounded-full border border-line px-4 py-2 text-[11px] transition-colors hover:border-gold;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: fadeUp 850ms var(--motion-ease) both;
+}
+
+.animate-delay {
+  animation-delay: 180ms;
+}
+
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (prefers-reduced-motion:no-preference) {
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 800ms var(--motion-ease),transform 800ms var(--motion-ease);
+  }
+  .scroll-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessible, theme-aware booking controls. All colors inherit semantic tokens. */
+.lux-control {
+  isolation: isolate;
+}
+
+.lux-control:has(.lux-popover) {
+  z-index: 30;
+}
+
+.lux-trigger {
+  background-color: var(--paper);
+  border-color: var(--line);
+  color: var(--ink);
+  transition: border-color 200ms var(--motion-ease), box-shadow 200ms var(--motion-ease);
+}
+
+.lux-trigger:hover,
+.lux-trigger-open {
+  border-color: var(--gold);
+}
+
+.lux-trigger-open {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 24%, transparent);
+}
+
+.lux-chevron {
+  transition: transform 240ms var(--motion-ease);
+}
+
+.lux-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 80;
+  width: max(100%, 280px);
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 22px 65px -26px var(--overlay);
+  animation: luxPopoverIn 220ms var(--motion-ease) both;
+}
+
+.lux-select-popover {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.lux-option {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border-radius: var(--radius-button);
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.lux-option-active {
+  background: var(--surface-2);
+}
+
+.lux-option-selected {
+  color: var(--forest);
+  font-weight: 600;
+}
+
+.lux-calendar {
+  width: 326px;
+  padding: 20px;
+}
+
+.lux-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.lux-weekday {
+  padding-block: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lux-calendar-day {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: var(--radius-button);
+  font-size: 12px;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.lux-calendar-day:not(:disabled):hover {
+  background: var(--surface-2);
+}
+
+.lux-calendar-day:disabled {
+  cursor: not-allowed;
+  opacity: 0.25;
+}
+
+.lux-calendar-adjacent {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.lux-calendar-selected,
+.lux-calendar-selected:not(:disabled):hover {
+  background: var(--forest);
+  color: var(--surface);
+}
+
+.lux-month-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-button);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.lux-month-button:not(:disabled):hover {
+  border-color: var(--gold);
+  background: var(--surface-2);
+}
+
+.lux-calendar-link {
+  padding: 6px 0;
+  color: var(--muted);
+  font-weight: 600;
+  transition: color 160ms ease;
+}
+
+.lux-calendar-link:hover {
+  color: var(--ink);
+}
+
+@keyframes luxPopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-popover {
+    animation: none;
+  }
+}
