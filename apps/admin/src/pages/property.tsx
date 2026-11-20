@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { L, formatMoney, type Room, type RoomType } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Badge, Button, Card, Icon, IconAction, InfoBanner, Modal, NativeSelect, PageHeader, SearchBox, Status, Switch, Tabs, TextArea, TextInput, useToast } from '../components/ui';
+import { Badge, Button, Card, FileUploadField, Icon, IconAction, InfoBanner, Modal, NativeSelect, PageHeader, SearchBox, Status, Switch, Tabs, TextArea, TextInput, useToast } from '../components/ui';
 
 const propertyTabs = [
   { id: 'details', label: L('Property details', 'Thông tin khách sạn') },
@@ -23,6 +23,7 @@ export function HotelContent() {
     }
   });
   const [amenities, setAmenities] = useState(['Complimentary Wi-Fi', 'Breakfast', 'Spa', 'Airport transfer', 'Room service']);
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
   const { notify, Toast } = useToast();
   const saveSettings = () => {
     try { localStorage.setItem('dgh-admin-hotel-settings', JSON.stringify(settings)); } catch { /* Optional demo storage. */ }
@@ -136,19 +137,24 @@ export function HotelContent() {
         </div>
       </Card>
       <Card title={t(L('Photo library', 'Thư viện ảnh'))}>
-        <div className="gallery-tiles">
+        <FileUploadField
+          label={t(L('Feature photo uploader', 'Tải ảnh nổi bật'))}
+          value={galleryPhotos[0] ?? ''}
+          onChange={(next) => setGalleryPhotos((current) => next ? [next, ...current.filter((_, index) => index !== 0)] : current.slice(1))}
+          help={t(L('This reusable upload control is ready to be shared across admin forms when other image fields are added.', 'Bộ chọn ảnh này được thiết kế để có thể tái sử dụng cho các form admin khác khi bổ sung thêm trường hình ảnh.'))} />
+        <div className="gallery-tiles top-gap">
           <div className="gallery-tile tall">
-            <img alt="Concept hotel interior" src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80" />
+            <img alt="Concept hotel interior" src={galleryPhotos[0] ?? 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=80'} />
           </div>
           <div className="gallery-tile">
-            <img alt="Concept hotel room" src="https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=600&q=80" />
+            <img alt="Concept hotel room" src={galleryPhotos[1] ?? 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=600&q=80'} />
           </div>
           <div className="gallery-tile">
-            <img alt="Concept hospitality service" src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80" />
+            <img alt="Concept hospitality service" src={galleryPhotos[2] ?? 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80'} />
           </div>
         </div>
         <p className="image-disclaimer">
-          {t(L('Illustrative photography. Upload integration is not yet enabled.', 'Ảnh minh họa. Chưa tích hợp tính năng tải ảnh.'))}
+          {t(L('Default photos remain as placeholders until the admin uploads replacements in the demo workspace.', 'Ảnh mặc định sẽ được giữ làm placeholder cho đến khi admin tải ảnh thay thế trong workspace demo.'))}
         </p>
       </Card>
     </div>}
@@ -270,10 +276,11 @@ export function RoomTypesPage() {
             onChange={e => setDraft({ ...draft, status: e.target.value })}
             choices={['Published', 'Hidden', 'Draft'].map(s => ({ value: s, label: s }))} />
         </div>
-        <TextInput
-          label={t(L('Photo URL (concept image)', 'URL ảnh minh họa'))}
+        <FileUploadField
+          label={t(L('Room hero image', 'Ảnh đại diện hạng phòng'))}
           value={draft.image}
-          onChange={e => setDraft({ ...draft, image: e.target.value })} />
+          onChange={(next) => setDraft({ ...draft, image: next })}
+          help={t(L('Stored locally in demo state after selection.', 'Ảnh được lưu tạm trong demo state sau khi chọn.'))} />
         <TextInput
           label={t(L('Amenities (comma separated)', 'Tiện ích (cách nhau bằng dấu phẩy)'))}
           value={draft.amenities.join(', ')}

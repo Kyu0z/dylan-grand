@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { L, formatDate, type Reservation } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, Icon, InfoBanner, Modal, NativeSelect, PageHeader, Status, Tabs, useToast } from '../components/ui';
+import { Button, Card, DateField, Icon, InfoBanner, Modal, NativeSelect, PageHeader, Status, Tabs, useToast } from '../components/ui';
 
 export function FrontDeskPage() {
   const { t, language } = useLocale();
@@ -30,10 +30,9 @@ export function FrontDeskPage() {
       eyebrow="AD-08 / FRONT DESK"
       title={t(L('Front desk', 'Lễ tân'))}
       description={t(L('A thoughtful arrival and departure experience, from one workspace.', 'Quản lý đón khách và trả phòng thuận tiện trong một màn hình.'))}
-      action={<span className="date-chip">
-        <Icon name="calendar" size={16} />
-        <input className="plain-date" aria-label="Front desk date" type="date" value={date} onChange={e => setDate(e.target.value)} />
-      </span>} />
+      action={<div className="date-chip">
+        <DateField aria-label="Front desk date" value={date} onChange={e => setDate(e.target.value)} />
+      </div>} />
     <div className="metric-grid three">
       <div className="metric compact">
         <span>
