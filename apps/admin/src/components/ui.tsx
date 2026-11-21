@@ -221,7 +221,11 @@ export function Status({ value }: { value: string; }) {
   return <Badge tone={statusTone(value)}>{language === 'vi' ? (statusTranslations[value] ?? value) : value}</Badge>;
 }
 
-function useDismissLayer(open: boolean, refs: React.RefObject<HTMLElement>[], onDismiss: () => void) {
+function useDismissLayer(
+  open: boolean,
+  refs: React.RefObject<HTMLElement | null>[],
+  onDismiss: () => void,
+) {
   useEffect(() => {
     if (!open) return;
     const onPointer = (event: MouseEvent) => {
