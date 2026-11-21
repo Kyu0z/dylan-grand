@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Dylan Grand Hotel</title>
+  <rect width="64" height="64" rx="15" fill="#263b30"/>
+  <rect x="6" y="6" width="52" height="52" rx="11" fill="none" stroke="#c5ab7a" stroke-width="1.25"/>
+  <path fill="#f6efe1" fill-rule="evenodd" d="M17 15h14c13 0 20 8 20 17S44 49 31 49H17V15Zm9 5v24h5c9 0 13-5 13-12S40 20 31 20h-5Z"/>
+  <path d="M20 55h24" stroke="#c5ab7a" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

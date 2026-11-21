@@ -2,11 +2,12 @@
 import { T, useI18n } from '@/components/language-provider';
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { Icon } from '@/components/icons';
 import { money, rooms, type Room } from '@/lib/data';
 import { getWishlist, toggleWishlist } from '@/lib/storage';
 export function Arrow({ diagonal = false }: { diagonal?: boolean; }) {
   return <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-1">
-    {diagonal ? '↗' : '→'}
+    <Icon name={diagonal ? 'arrow-up-right' : 'arrow-right'} size={15} />
   </span>;
 }
 export function Eyebrow({ children, light = false }: { children: ReactNode; light?: boolean; }) {
@@ -42,7 +43,7 @@ export function RoomCard({ room, compact = false }: { room: Room; compact?: bool
         }}
         className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-paper text-xl text-ink shadow-md"
       >
-        {liked ? '♥' : '♡'}
+        <Icon name="heart" filled={liked} size={20} />
       </button>
     </div>
     <div className="flex flex-1 flex-col gap-3 px-1 py-6">
@@ -90,7 +91,7 @@ export function RoomDetail({ room, onClose }: { room: Room; onClose: () => void;
     >
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-paper px-6 py-5">
         <Eyebrow><T>{"ROOMS & SUITES /"}</T>{ " " }{t(room.subtitle)}</Eyebrow>
-        <button className="text-2xl" onClick={onClose} aria-label={t("Close room detail")}>×</button>
+        <button className="text-2xl" onClick={onClose} aria-label={t("Close room detail")}><Icon name="close" size={19} /></button>
       </div>
       <div className="p-6 md:p-10">
         <Photo src={room.images[photo]}
@@ -123,7 +124,7 @@ export function RoomDetail({ room, onClose }: { room: Room; onClose: () => void;
         </div>
         <Eyebrow><T>{"IN-ROOM AMENITIES"}</T></Eyebrow>
         <div className="mt-4 grid grid-cols-2 gap-y-3 text-sm">
-          {room.amenities.map(x => <span key={x}>✓ &nbsp;{t(x)}</span>)}
+          {room.amenities.map(x => <span key={x}><Icon name="check" size={14} className="inline-block align-middle mr-1 text-gold" />{t(x)}</span>)}
         </div>
         <div className="mt-9 flex flex-wrap items-center justify-between gap-4">
           <strong>{money(room.price)} <T>{"/ night"}</T></strong>

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 :root {
@@ -27,8 +27,8 @@
   --overlay: rgba(20, 31, 26, 0.48);
   --focus-ring: rgba(187, 165, 127, 0.23);
   --shadow: 0 14px 48px -34px rgba(23, 39, 30, 0.23);
-  --font-body: 'DM Sans', sans-serif;
-  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Be Vietnam Pro', sans-serif;
+  --font-display: 'Be Vietnam Pro', sans-serif;
   --radius-sm: 7px;
   --radius-md: 11px;
   --radius-lg: 15px;
@@ -733,4 +733,38 @@ button.mono-link:hover { text-decoration: underline; }
   .upload-field { grid-template-columns: 1fr; }
   .inventory-toolbar .search-box { width: 100%; }
   .inventory-nav { justify-content: flex-start; }
+}
+
+
+/* Consistent slim, theme-aware scrollbars throughout Admin. */
+:root {
+  --scrollbar-thumb: color-mix(in srgb, var(--gold) 68%, var(--line));
+  --scrollbar-hover: var(--gold);
+  --scrollbar-track: var(--surface);
+}
+
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
 }

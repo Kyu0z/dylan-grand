@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { photos, rooms, addDays, dayISO } from '@/lib/data';
 import { saveStay } from '@/lib/storage';
 import { Arrow, Eyebrow, Photo, RoomCard, SectionTitle, InfoNote } from '@/components/ui';
+import { Icon, type IconName } from '@/components/icons';
 export default function HomePage() {
   const { t } = useI18n();
   const router = useRouter();
@@ -116,13 +117,13 @@ export default function HomePage() {
         <SectionTitle index={t("05 / AMENITIES")} title={t("The little things,")} italic={t("beautifully done.")} />
         <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
           {[
-            ['♨', 'Rooftop Pool', 'A pause above the rhythm of the city, from golden hour to twilight.'],
-            ['♢', 'Thoughtful Dining', 'Seasonal flavours and intimate spaces to savour every moment.'],
-            ['✳', 'Wellness Rituals', 'Restore your rhythm with considered therapies and tranquil surroundings.'],
-            ['⌁', 'Seamless Comfort', 'Thoughtful essentials for moments of discovery and days of rest.']
+            ['pool', 'Rooftop Pool', 'A pause above the rhythm of the city, from golden hour to twilight.'],
+            ['dining', 'Thoughtful Dining', 'Seasonal flavours and intimate spaces to savour every moment.'],
+            ['wellness', 'Wellness Rituals', 'Restore your rhythm with considered therapies and tranquil surroundings.'],
+            ['comfort', 'Seamless Comfort', 'Thoughtful essentials for moments of discovery and days of rest.']
           ].map(([icon, title, copy]) => <div className="border-t border-line pt-7" key={t(title)}>
-            <span className="font-display text-5xl text-gold">
-              {icon}
+            <span className="inline-flex h-14 items-center text-gold">
+              <Icon name={icon as IconName} size={38} strokeWidth={1.35} />
             </span>
             <h3 className="font-display mt-7 text-3xl">
               {t(title)}
@@ -193,7 +194,7 @@ export default function HomePage() {
             >
               {t(q)}
               <span className="text-xl text-gold">
-                {faq === i ? '−' : '+'}
+                <Icon name={faq === i ? 'minus' : 'plus'} size={20} />
               </span>
             </button>
             {faq === i && <p className="body-copy pb-6">

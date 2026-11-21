@@ -1,6 +1,7 @@
 'use client';
 import { T, useI18n } from '@/components/language-provider';
 import Link from 'next/link';
+import { Icon } from '@/components/icons';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 const links = [
@@ -93,7 +94,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
             title={t("Toggle theme")}
             className="hidden h-10 w-10 place-items-center border border-line text-lg sm:grid"
           >
-            {theme === 'light' ? '☾' : '☀'}
+            <Icon name={theme === 'light' ? 'moon' : 'sun'} size={19} />
           </button>
           <Link href="/availability" className="btn-primary hidden whitespace-nowrap lg:inline-flex"><T>{"BOOK A STAY ↗"}</T></Link>
           <button onClick={() => setMenu(!menu)}
@@ -101,7 +102,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
             aria-label={t("Toggle navigation")}
             className="grid h-10 w-10 place-items-center border border-line text-xl xl:hidden"
           >
-            {menu ? '×' : '☰'}
+            <Icon name={menu ? 'close' : 'menu'} size={21} />
           </button>
         </div>
       </div>
@@ -124,7 +125,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
             className="grid h-10 w-10 place-items-center border border-line"
             aria-label={t('Toggle color theme')}
           >
-            {theme === 'light' ? '☾' : '☀'}
+            <Icon name={theme === 'light' ? 'moon' : 'sun'} size={19} />
           </button>
         </div>
       </nav>}
@@ -170,6 +171,6 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
     <button className="fixed bottom-4 right-4 z-40 grid h-10 w-10 sm:bottom-6 sm:right-6 sm:h-12 sm:w-12 place-items-center border border-line bg-paper text-ink shadow-lg"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label={t("Back to top")}
-    >↑</button>
+    ><Icon name="arrow-up" size={19} /></button>
   </>;
 }

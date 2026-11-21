@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
 @import 'tailwindcss';
 
@@ -23,6 +23,10 @@
   --focus-ring: color-mix(in srgb, var(--gold) 28%, transparent);
   --motion-ease: cubic-bezier(.22,1,.36,1);
   --motion-duration: 600ms;
+}
+
+html[lang='vi'] {
+  --font-display: 'Playfair Display', Georgia, serif;
 }
 
 [data-theme='night'] {
@@ -414,4 +418,42 @@ input:-webkit-autofill:focus {
   .section-heading { overflow-wrap: break-word; }
   .btn-primary, .btn-outline { max-width: 100%; text-align: center; }
   .container-site { min-width: 0; }
+}
+
+
+/* Fine, theme-aware scrollbars. WebKit/Blink and Firefox. */
+:root {
+  --scrollbar-thumb: color-mix(in srgb, var(--gold) 64%, var(--line));
+  --scrollbar-hover: var(--gold);
+  --scrollbar-track: var(--surface);
+}
+
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  html { scrollbar-width: auto; }
 }

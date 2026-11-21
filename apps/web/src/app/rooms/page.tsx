@@ -1,4 +1,5 @@
 'use client';
+import { Icon } from '@/components/icons';
 import { T, useI18n } from '@/components/language-provider';
 import { SelectField } from '@/components/form-controls';
 import { useState, useEffect, useCallback } from 'react';
@@ -95,7 +96,7 @@ function RoomsContent() {
       >
         <div className="flex justify-between">
           <h2 className="font-display text-5xl"><T>{"Compare your spaces."}</T></h2>
-          <button onClick={() => setCompareOpen(false)} className="text-3xl" aria-label={t("Close compare")}>×</button>
+          <button onClick={() => setCompareOpen(false)} className="text-3xl" aria-label={t("Close compare")}><Icon name="close" size={22} /></button>
         </div>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {rooms.filter(r => compare.includes(r.id)).map(r => <div key={r.id} className="border border-line p-3">

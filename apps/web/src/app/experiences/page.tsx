@@ -6,6 +6,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { photos, services, money, rooms } from '@/lib/data';
 import { getReviews, getWishlist, write } from '@/lib/storage';
 import { Photo, PageIntro, Eyebrow, SectionTitle, Arrow, InfoNote } from '@/components/ui';
+import { Icon } from '@/components/icons';
 type Review = { name: string; rating: number; message: string; createdAt: string; };
 const starters: Review[] = [{
   name: 'A guest perspective',
@@ -113,7 +114,7 @@ export default function ExperiencesPage() {
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {reviews.map((r, i) => <article className="border border-line bg-surface p-8" key={`${t(r.name)}-${i}`}>
             <span className="text-xl tracking-[.3em] text-gold">
-              {'★'.repeat(r.rating)}
+              {Array.from({ length: r.rating }, (_, star) => <Icon key={star} name="star" filled size={17} className="inline-block mr-1" />)}
             </span>
             <p className="font-display mt-6 text-3xl leading-9">“{t(r.message)}”</p>
             <div className="mt-9 border-t border-line pt-5">
@@ -198,14 +199,14 @@ export default function ExperiencesPage() {
     <button className="fixed bottom-6 left-6 z-40 border border-gold bg-forest px-5 py-4 text-[10px] tracking-wider text-surface uppercase shadow-xl"
       onClick={() => setChatOpen(v => !v)}
       aria-expanded={chatOpen}
-    ><T>{"✦ CONCIERGE"}</T></button>
+    ><Icon name="sparkle" size={15} className="inline-block mr-2 align-middle" />{t('✦ CONCIERGE').replace(/^✦\s*/, '')}</button>
     {chatOpen && <section role="dialog"
       aria-label={t("Demo concierge chat")}
       className="fixed bottom-24 left-5 z-50 flex h-[480px] max-h-[70vh] w-[min(390px,calc(100vw-40px))] flex-col border border-line bg-paper shadow-2xl"
     >
       <div className="flex items-center justify-between bg-forest p-5 text-surface">
         <strong className="font-display text-2xl"><T>{"Dylan Concierge"}</T></strong>
-        <button aria-label={t("Close chat")} onClick={() => setChatOpen(false)} className="text-2xl">×</button>
+        <button aria-label={t("Close chat")} onClick={() => setChatOpen(false)} className="text-2xl"><Icon name="close" size={20} /></button>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto p-5">
         {thread.map((m, i) => <p key={i}
@@ -226,7 +227,7 @@ export default function ExperiencesPage() {
           onChange={e => setDraft(e.target.value)}
           placeholder={t("Ask about your stay…")}
         />
-        <button className="btn-primary px-4" type="submit">→</button>
+        <button className="btn-primary px-4" type="submit" aria-label={t("Send message")}><Icon name="arrow-right" size={18} /></button>
       </form>
       <p className="px-3 pb-3 text-[10px] text-muted"><T>{"Scripted responses only. Not a real concierge."}</T></p>
     </section>}
@@ -239,7 +240,7 @@ export default function ExperiencesPage() {
       >
         <div className="flex justify-between">
           <h2 className="font-display text-5xl"><T>{"Share your thoughts."}</T></h2>
-          <button type="button" onClick={() => setReviewOpen(false)} className="text-3xl" aria-label={t("Close")}>×</button>
+          <button type="button" onClick={() => setReviewOpen(false)} className="text-3xl" aria-label={t("Close")}><Icon name="close" size={22} /></button>
         </div>
         <p className="body-copy mt-3"><T>{"Reviews are stored in this browser only, and are not verified stays."}</T></p>
         <div className="mt-7 grid gap-5">

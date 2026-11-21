@@ -1,4 +1,5 @@
 'use client';
+import { Icon } from '@/components/icons';
 import { T, useI18n } from '@/components/language-provider';
 import { DateField, SelectField } from '@/components/form-controls';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -167,7 +168,7 @@ export default function ReservationsPage() {
       >
         <div className="flex justify-between">
           <Eyebrow><T>{"RESERVATION /"}</T>{ " " }{selected.code}</Eyebrow>
-          <button onClick={() => setSelected(null)} aria-label={t("Close")} className="text-3xl">×</button>
+          <button onClick={() => setSelected(null)} aria-label={t("Close")} className="text-3xl"><Icon name="close" size={22} /></button>
         </div>
         <h2 className="font-display mt-5 text-5xl">
           {t(rooms.find(r => r.id === selected.room)?.name ?? '')}
