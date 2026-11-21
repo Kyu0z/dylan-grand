@@ -51,9 +51,7 @@ export function HotelContent() {
       </Card>
       <Card title={t(L('Property identity', 'Nhận diện khách sạn'))}>
         <div className="brand-preview">
-          <div className="brand-preview-symbol">DG</div>
-          <strong>DYLAN</strong>
-          <span>GRAND HOTEL</span>
+          <div className="admin-brand-stacked" role="img" aria-label="Dylan Grand Hotel — Art Deco logo" />
           <p>
             {t(L('A refined stay, thoughtfully curated.', 'Một kỳ nghỉ tinh tế, được chăm chút.'))}
           </p>

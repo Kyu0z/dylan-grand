@@ -57,9 +57,8 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
         style={{ width: `${scroll * 100}%` }}
       />
       <div className="container-site flex h-[74px] items-center justify-between gap-2 sm:h-[88px] sm:gap-4">
-        <Link href="/" className="flex min-w-0 shrink-0 flex-col leading-none">
-          <span className="font-display text-[29px] tracking-[.035em] sm:text-[34px]"><T>{"DYLAN"}</T></span>
-          <span className="mt-1 text-[8px] tracking-[.34em]"><T>{"GRAND HOTEL"}</T></span>
+        <Link href="/" className="site-brand-link" aria-label="Dylan Grand Hotel — Home">
+          <span className="site-brand-horizontal" aria-hidden="true" />
         </Link>
         <nav aria-label={t("Main navigation")} className="hidden items-center gap-4 xl:flex 2xl:gap-7">
           {links.map(([href, label]) => <Link key={href}
@@ -137,7 +136,9 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
       <div className="container-site">
         <div className="grid gap-12 border-b border-surface/25 pb-14 md:grid-cols-2 lg:grid-cols-4">
           <div>
-            <h2 className="font-display text-4xl"><T>{"DYLAN GRAND HOTEL"}</T></h2>
+            <Link href="/" className="site-footer-brand-link" aria-label="Dylan Grand Hotel — Home">
+              <span className="site-brand-stacked" aria-hidden="true" />
+            </Link>
             <p className="mt-6 max-w-[260px] text-sm leading-8 text-surface/70"><T>{"An intimate escape in the heart of Saigon. Quietly extraordinary, effortlessly yours."}</T></p>
           </div>
           <div>

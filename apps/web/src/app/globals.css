@@ -457,3 +457,48 @@ body,
 @media (hover: none) and (pointer: coarse) {
   html { scrollbar-width: auto; }
 }
+
+/* Approved Dylan Grand Hotel Art Deco brand lockups, traced from concept 03. */
+.site-brand-link,
+.site-footer-brand-link {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
+.site-brand-horizontal,
+.site-brand-stacked {
+  display: block;
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.site-brand-link {
+  color: var(--ink);
+  transition: color 180ms ease;
+}
+.site-brand-link:hover { color: var(--gold); }
+.site-brand-horizontal {
+  width: clamp(142px, 14vw, 208px);
+  aspect-ratio: 474 / 110;
+  -webkit-mask-image: url('/brand/dylan-art-deco-horizontal.svg');
+  mask-image: url('/brand/dylan-art-deco-horizontal.svg');
+}
+.site-footer-brand-link { color: #e8d9bf; }
+.site-footer-brand-link:hover { color: #f9eee0; }
+.site-brand-stacked {
+  width: clamp(135px, 15vw, 187px);
+  aspect-ratio: 650 / 516;
+  -webkit-mask-image: url('/brand/dylan-art-deco-stacked.svg');
+  mask-image: url('/brand/dylan-art-deco-stacked.svg');
+}
+@media (max-width: 420px) {
+  .site-brand-horizontal { width: 134px; }
+}

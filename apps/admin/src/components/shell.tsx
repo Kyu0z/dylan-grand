@@ -40,9 +40,11 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
   return <div className={`admin-layout ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className="sidebar" aria-label="Admin navigation">
       <div className="sidebar-brand">
-        <div className="brand-logo">
-          <span>DYLAN</span>
-          <small>GRAND HOTEL</small>
+        <div className="brand-logo" role="img" aria-label="Dylan Grand Hotel">
+          <div className="admin-brand-horizontal" aria-hidden="true" />
+        </div>
+        <div className="brand-logo-compact" role="img" aria-label="Dylan Grand Hotel">
+          <div className="admin-brand-symbol" aria-hidden="true" />
         </div>
         <button
           className="sidebar-collapse"
@@ -53,7 +55,9 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
         </button>
       </div>
       <div className="sidebar-property">
-        <div className="property-monogram">D</div>
+        <div className="property-monogram" aria-label="Dylan Grand Hotel">
+          <span className="admin-brand-symbol" aria-hidden="true" />
+        </div>
         <div className="property-copy">
           <strong>Dylan Grand Hotel</strong>
           <span>
