@@ -1,13 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import { ApiPlanned, pendingFeature } from '../../common/pending-feature';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ReportService } from '../../core/report.service';
 
+@ApiBearerAuth('access-token')
 @ApiTags('Admin · Dashboard')
 @Controller('admin/dashboard')
 export class AdminDashboardController {
-  @Get()
-  @ApiPlanned('View operational overview', 'Occupancy, arrivals, departures and revenue need authoritative database queries.')
-  overview(): never {
-    return pendingFeature('View operational overview');
-  }
+  constructor(private readonly reports: ReportService) {}
+  @Get() @ApiOperation({ summary: '[DB] Operational overview for current hotel-local day' })
+  overview() { return this.reports.dashboard(); }
 }

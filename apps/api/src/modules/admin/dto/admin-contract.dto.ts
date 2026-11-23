@@ -55,7 +55,7 @@ export class CreatePhysicalRoomDto {
   number!: string;
 
   @ApiProperty({ example: 'deluxe' })
-  @IsString()
+  @Matches(/^[a-z0-9-]{2,40}$/)
   roomTypeCode!: string;
 
   @ApiProperty({ example: 2 })

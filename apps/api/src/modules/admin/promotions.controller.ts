@@ -1,21 +1,24 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiBody, ApiTags } from '@nestjs/swagger';
-import { ApiPlanned, pendingFeature } from '../../common/pending-feature';
-import { CreatePromotionDto } from './dto/admin-contract.dto';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../../common/auth/auth.guard';
+import { FinanceService } from '../../core/finance.service';
+import { ExtraServiceDto, PromotionDto, ServiceOrderDto } from '../../core/contracts';
 
+@ApiBearerAuth('access-token')
 @ApiTags('Admin · Promotions')
 @Controller('admin/promotions')
 export class AdminPromotionsController {
-  @Get()
-  @ApiPlanned('List promotions and extras', 'Promotion applicability and stacking rules are not finalized.')
-  list(): never {
-    return pendingFeature('List promotions and extras');
-  }
-
-  @Post()
-  @ApiPlanned('Create promotion', 'Actual limits and stacking rules must be approved.')
-  @ApiBody({ type: CreatePromotionDto })
-  create(@Body() _dto: CreatePromotionDto): never {
-    return pendingFeature('Create promotion');
-  }
+  constructor(private readonly finance: FinanceService) {}
+  @Get() @ApiOperation({ summary: '[DB] Promotion codes and extra services' })
+  async list() { return { promotions: await this.finance.promotions(), extraServices: await this.finance.services() }; }
+  @Post() @Roles('ADMIN','MANAGER') @ApiOperation({ summary: '[DB] Create single-use-per-booking percentage promotion, max 30%' })
+  create(@Body() dto: PromotionDto) { return this.finance.createPromotion(dto); }
+  @Post('services') @Roles('ADMIN','MANAGER') @ApiOperation({ summary: '[DB] Create extra service' })
+  addService(@Body() dto: ExtraServiceDto) { return this.finance.createService(dto); }
+  @Post('reservations/:code/services') @Roles('ADMIN','MANAGER','RECEPTIONIST') @ApiOperation({ summary: '[DB] Order and charge extra service to folio' })
+  order(@Param('code') code: string, @Body() dto: ServiceOrderDto, @Req() req: { user: { id: string } }) { return this.finance.orderService(code, dto, req.user.id); }
+  @Post('orders/:id/fulfill') @Roles('ADMIN','MANAGER','RECEPTIONIST') @ApiOperation({ summary: '[DB] Fulfill requested service' })
+  fulfill(@Param('id') id: string, @Req() req: { user: { id: string } }) { return this.finance.updateServiceOrder(id, 'FULFILLED', req.user.id); }
+  @Post('orders/:id/cancel') @Roles('ADMIN','MANAGER','RECEPTIONIST') @ApiOperation({ summary: '[DB] Cancel unfulfilled service and reverse charge' })
+  cancel(@Param('id') id: string, @Req() req: { user: { id: string } }) { return this.finance.updateServiceOrder(id, 'CANCELLED', req.user.id); }
 }

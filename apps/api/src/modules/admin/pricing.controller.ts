@@ -1,22 +1,19 @@
-import { Body, Controller, Get, Put, Param } from '@nestjs/common';
-import { ApiBody, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiPlanned, pendingFeature } from '../../common/pending-feature';
+import { Body, Controller, Get, Param, Put, Post, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../../common/auth/auth.guard';
+import { SetDailyRateDto } from '../../core/contracts';
+import { HotelService } from '../../core/hotel.service';
 import { SetBaseRateDto } from './dto/admin-contract.dto';
 
+@ApiBearerAuth('access-token')
 @ApiTags('Admin · Pricing')
+@Roles('ADMIN','MANAGER')
 @Controller('admin/pricing')
 export class AdminPricingController {
-  @Get()
-  @ApiPlanned('View rates and rate plans', 'Daily rates, rate restrictions and quote snapshots are not implemented.')
-  rates(): never {
-    return pendingFeature('View rates and rate plans');
-  }
-
-  @Put('room-types/:code/base-rate')
-  @ApiParam({ name: 'code', example: 'deluxe' })
-  @ApiPlanned('Set a room-type base rate', 'Changes must not rewrite prices on existing confirmed bookings.')
-  @ApiBody({ type: SetBaseRateDto })
-  upsertRate(@Param('code') _code: string, @Body() _dto: SetBaseRateDto): never {
-    return pendingFeature('Set a room-type base rate');
-  }
+  constructor(private readonly hotel: HotelService) {}
+  @Get() @ApiOperation({ summary: '[DB] Base rates, daily rate overrides and plan policies' }) rates() { return this.hotel.pricing(); }
+  @Put('room-types/:code/base-rate') @ApiOperation({ summary: '[DB] Update future base price, not existing booking snapshots' })
+  setBase(@Param('code') code: string, @Body() dto: SetBaseRateDto, @Req() req: { user: { id: string } }) { return this.hotel.setBaseRate(code, dto.amountVnd, req.user.id); }
+  @Post('room-types/:code/daily-rates') @ApiOperation({ summary: '[DB] Set day-specific room price' })
+  daily(@Param('code') code: string, @Body() dto: SetDailyRateDto, @Req() req: { user: { id: string } }) { return this.hotel.setDailyRate(code, dto, req.user.id); }
 }

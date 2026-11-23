@@ -1,22 +1,14 @@
-import { Body, Controller, Get, Patch, Param } from '@nestjs/common';
-import { ApiBody, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ApiPlanned, pendingFeature } from '../../common/pending-feature';
+import { Body, Controller, Get, Param, Patch, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { HotelService } from '../../core/hotel.service';
 import { UpdateHousekeepingDto } from './dto/admin-contract.dto';
 
+@ApiBearerAuth('access-token')
 @ApiTags('Admin · Housekeeping')
 @Controller('admin/housekeeping')
 export class AdminHousekeepingController {
-  @Get()
-  @ApiPlanned('List housekeeping tasks', 'Room cleaning state is distinct from occupancy and sellability.')
-  list(): never {
-    return pendingFeature('List housekeeping tasks');
-  }
-
-  @Patch('rooms/:roomNumber')
-  @ApiParam({ name: 'roomNumber', example: '201' })
-  @ApiPlanned('Update room cleaning status', 'Dirty/Clean/Inspected transitions must respect the configured workflow.')
-  @ApiBody({ type: UpdateHousekeepingDto })
-  update(@Param('roomNumber') _roomNumber: string, @Body() _dto: UpdateHousekeepingDto): never {
-    return pendingFeature('Update room cleaning status');
-  }
+  constructor(private readonly hotel: HotelService) {}
+  @Get() @ApiOperation({ summary: '[DB] Housekeeping board' }) list() { return this.hotel.housekeeping(); }
+  @Patch('rooms/:number') @ApiOperation({ summary: '[DB] DIRTY → CLEAN → INSPECTED; valid transitions only' })
+  update(@Param('number') number: string, @Body() dto: UpdateHousekeepingDto, @Req() req: { user: { id: string } }) { return this.hotel.updateCleaning(number, dto, req.user.id); }
 }

@@ -1,21 +1,16 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
-import { ApiBody, ApiTags } from '@nestjs/swagger';
-import { ApiPlanned, pendingFeature } from '../../common/pending-feature';
+import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../../common/auth/auth.guard';
+import { HotelService } from '../../core/hotel.service';
 import { UpdateHotelDto } from './dto/admin-contract.dto';
 
+@ApiBearerAuth('access-token')
 @ApiTags('Admin · Hotel')
+@Roles('ADMIN','MANAGER')
 @Controller('admin/hotel')
 export class AdminHotelController {
-  @Get()
-  @ApiPlanned('Read property configuration', 'Admin CMS and policy data are not stored yet.')
-  details(): never {
-    return pendingFeature('Read property configuration');
-  }
-
-  @Patch()
-  @ApiPlanned('Update property information', 'Hotel changes need authorization, audits and persistence.')
-  @ApiBody({ type: UpdateHotelDto })
-  update(@Body() _dto: UpdateHotelDto): never {
-    return pendingFeature('Update property information');
-  }
+  constructor(private readonly hotel: HotelService) {}
+  @Get() @ApiOperation({ summary: '[DB] Property settings' }) details() { return this.hotel.hotel(); }
+  @Patch() @ApiOperation({ summary: '[DB] Update property name or contact email' })
+  update(@Body() dto: UpdateHotelDto, @Req() req: { user: { id: string } }) { return this.hotel.updateHotel(dto, req.user.id); }
 }
