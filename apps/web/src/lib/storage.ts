@@ -31,7 +31,6 @@ export type Booking = {
   lateCheckout: boolean;
   isDemo: true;
 };
-export type Account = { name: string; email: string; phone?: string; preferences?: string; };
 const prefix = 'dylan-grand-v3-';
 export const defaultStay = (): Stay => ({
   checkin: addDays(dayISO(), 14),
@@ -69,8 +68,6 @@ export const saveStay = (patch: Partial<Stay>) => {
 };
 export const getBookings = () => read<Booking[]>('bookings', []);
 export const saveBookings = (items: Booking[]) => write('bookings', items);
-export const getAccount = () => read<Account | null>('account', null);
-export const getCurrentUser = () => read<string | null>('current-user', null);
 export const getWishlist = () => read<string[]>('wishlist', []);
 export const toggleWishlist = (id: string) => {
   const current = getWishlist();

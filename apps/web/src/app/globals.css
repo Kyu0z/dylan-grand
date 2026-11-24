@@ -789,3 +789,21 @@ html[lang='vi'] .font-display.leading-9 {
 @media (prefers-reduced-motion: reduce) {
   .account-auth-view { animation: none; }
 }
+
+/* Google entry is visual only until OAuth is configured. */
+.account-auth-social { margin-top: 22px; }
+.account-auth-social-divider {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 15px;
+  color: var(--muted); font-size: 11px; letter-spacing: .12em;
+}
+.account-auth-social-divider::before, .account-auth-social-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+.account-auth-google {
+  display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%;
+  min-height: 48px; border: 1px solid var(--line); border-radius: var(--radius-button);
+  color: var(--ink); font-size: 13px; font-weight: 600;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.account-auth-google:hover { background: var(--surface-2); border-color: var(--gold); }
+.account-auth-google:disabled { opacity: .6; }

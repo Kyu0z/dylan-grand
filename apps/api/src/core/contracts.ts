@@ -5,14 +5,18 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class RegisterDto {
-  @ApiProperty({ example: 'guest@example.com' }) @IsEmail() email!: string;
+export class CredentialsDto {
+  @ApiProperty({ example: 'guest@example.com' }) @IsEmail() @MaxLength(180) email!: string;
   @ApiProperty({ example: 'StrongPassword!2026', minLength: 12 }) @IsString() @MinLength(12) @MaxLength(128) password!: string;
 }
-export class SetupAdminDto extends RegisterDto {
+export class RegisterDto extends CredentialsDto {
+  @ApiProperty({ example: 'Nguyen Van An', maxLength: 120 })
+  @IsString() @Matches(/\S/) @MaxLength(120) fullName!: string;
+}
+export class SetupAdminDto extends CredentialsDto {
   @ApiProperty({ description: 'Value of BOOTSTRAP_KEY in apps/api/.env' }) @IsString() @MinLength(16) setupKey!: string;
 }
-export class CreateEmployeeDto extends RegisterDto {
+export class CreateEmployeeDto extends CredentialsDto {
   @ApiProperty({ enum: ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'] })
   @IsIn(['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING']) role!: string;
 }

@@ -41,7 +41,7 @@ async function bootstrap(): Promise<void> {
         '- **SECURITY**: staff endpoints require Bearer JWT + RBAC; use auth/setup-admin once in development, then auth/login.',
         '- **OPERATIONS**: check-out is exclusive, all dates use Asia/Ho_Chi_Minh hotel business date, expired holds release inventory.',
         '',
-        'One API for **User Site** (Next.js) and **Admin Site** (React/Vite). Frontend integration is intentionally deferred.',
+        'One API for **User Site** (Next.js) and **Admin Site** (React/Vite). Customer authentication integration is available; other frontend workflows remain independent.',
       ].join('\n'))
       .setVersion('1.0.0')
       .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'JWT access token from POST /api/v1/auth/login.' }, 'access-token');

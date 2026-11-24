@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { photos, rooms, money } from '@/lib/data';
-import { getAccount, getCurrentUser, getWishlist, write, type Account } from '@/lib/storage';
+import { getWishlist } from '@/lib/storage';
+import { AuthError, getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signOutCustomer } from '@/lib/customer-auth';
 import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
-type Mode = 'login' | 'register' | 'forgot';
+type Mode = 'login' | 'register' | 'forgot' | 'reset';
 export default function AccountPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [mode, setMode] = useState<Mode>('login'),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
@@ -18,15 +19,16 @@ export default function AccountPage() {
     [preferences, setPreferences] = useState(''),
     [signed, setSigned] = useState(false),
     [feedback, setFeedback] = useState(''),
+    [pending, setPending] = useState(false),
+    [resetToken, setResetToken] = useState(''),
+    [confirmPassword, setConfirmPassword] = useState(''),
     [wishlist, setWishlist] = useState<string[]>([]);
   const formHeading = useRef<HTMLHeadingElement>(null);
   const focusOnChange = useRef(false);
   const activeSession = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     const syncSession = () => {
-      const account = getAccount();
-      const active = getCurrentUser();
-      const validAccount = active && account?.email === active ? account : null;
+      const validAccount = getCustomerAccount();
       const nextSession = validAccount?.email ?? null;
       if (activeSession.current !== nextSession) {
         const previousSession = activeSession.current;
@@ -41,15 +43,34 @@ export default function AccountPage() {
           setPreferences(validAccount.preferences || '');
         } else if (previousSession) {
           setMode('login');
+          setName('');
+          setPhone('');
+          setPreferences('');
           setFeedback('Signed out.');
         }
       }
       setWishlist(getWishlist());
     };
+    const openResetLink = () => {
+      const token = new URLSearchParams(window.location.hash.slice(1)).get('resetToken');
+      if (!token) return;
+      signOutCustomer();
+      syncSession();
+      setResetToken(token);
+      setPassword('');
+      setConfirmPassword('');
+      setShowPassword(false);
+      setMode('reset');
+      setFeedback('');
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    };
+    openResetLink();
     syncSession();
+    window.addEventListener('hashchange', openResetLink);
     window.addEventListener('dylan-storage', syncSession);
     window.addEventListener('storage', syncSession);
     return () => {
+      window.removeEventListener('hashchange', openResetLink);
       window.removeEventListener('dylan-storage', syncSession);
       window.removeEventListener('storage', syncSession);
     };
@@ -61,52 +82,74 @@ export default function AccountPage() {
     }
   }, [mode]);
   const changeMode = (next: Mode) => {
-    if (next === mode) return;
+    if (next === mode || pending) return;
+    if (mode === 'reset') setResetToken('');
+    setConfirmPassword('');
     focusOnChange.current = true;
     setMode(next);
     setFeedback('');
     setPassword('');
     setShowPassword(false);
   };
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+    if (pending) return;
     setFeedback('');
     const normalized = email.trim().toLowerCase();
-    const account = getAccount();
-    if (mode === 'forgot') {
-      setFeedback('Password reset is not connected. No email has been sent.');
+    if (mode === 'reset' && password !== confirmPassword) {
+      setFeedback('Passwords do not match.');
       return;
     }
-    if (mode === 'register') {
-      if (account?.email === normalized) {
-        setFeedback('This email already has a local profile. Please sign in.');
-        return;
+    if (mode === 'register' && !name.trim()) {
+      setFeedback('Full name is required.');
+      return;
+    }
+    setPending(true);
+    let registered = false;
+    try {
+      if (mode === 'forgot') {
+        await requestPasswordReset(normalized, locale);
+        setFeedback('If an eligible account exists, a reset link will be sent.');
+      } else if (mode === 'reset') {
+        await resetCustomerPassword(resetToken, password);
+        setResetToken('');
+        setPassword('');
+        setConfirmPassword('');
+        setShowPassword(false);
+        setMode('login');
+        focusOnChange.current = true;
+        setFeedback('Password updated. Please sign in.');
+      } else {
+        if (mode === 'register') {
+          await registerCustomer(name.trim(), normalized, password);
+          registered = true;
+        }
+        await signInCustomer(normalized, password);
+        setPassword('');
       }
-      const next: Account = { name: name.trim(), email: normalized, phone, preferences };
-      write('account', next);
-      write('current-user', normalized);
-      setSigned(true);
-      setFeedback('');
-      return;
-    }
-    if (!account || account.email !== normalized) {
-      setFeedback('No local profile found. Create an account first.');
-      return;
-    }
-    setName(account.name);
-    setEmail(account.email);
-    setPhone(account.phone || '');
-    setPreferences(account.preferences || '');
-    write('current-user', normalized);
-    setSigned(true);
-    setFeedback('');
+    } catch (error) {
+      if (registered) {
+        setMode('login');
+        setPassword('');
+        setFeedback('Account created. Please sign in.');
+      } else if (mode === 'reset' && error instanceof AuthError && error.status === 400) {
+        setFeedback('Reset link is invalid or expired.');
+      } else {
+        setFeedback(error instanceof AuthError ? error.message : 'Something went wrong. Please try again.');
+      }
+    } finally { setPending(false); }
   };
-  const saveProfile = (e: FormEvent) => {
+  const saveProfile = async (e: FormEvent) => {
     e.preventDefault();
-    const account = getAccount();
-    if (!account) return;
-    write('account', { ...account, name, phone, preferences });
-    setFeedback('Profile preferences saved on this device.');
+    if (pending) return;
+    setFeedback('');
+    setPending(true);
+    try {
+      await saveCustomerProfile(name.trim(), phone, preferences);
+      setFeedback('Profile saved. Stay preferences are saved on this device.');
+    } catch (error) {
+      setFeedback(error instanceof AuthError ? error.message : 'Something went wrong. Please try again.');
+    } finally { setPending(false); }
   };
   return <>
     <PageIntro crumb={t("MY ACCOUNT")}
@@ -124,7 +167,7 @@ export default function AccountPage() {
           ?
           <div className={`account-auth-view account-auth-${mode}`} key={mode}>
             {mode === 'register' && (
-              <button type="button" className="account-auth-back line-link" onClick={() => changeMode('login')}>
+              <button type="button" disabled={pending} className="account-auth-back line-link" onClick={() => changeMode('login')}>
                 <Icon name="arrow-left" size={15} /> <T>{"BACK TO SIGN IN"}</T>
               </button>
             )}
@@ -133,68 +176,82 @@ export default function AccountPage() {
                 <span className="account-auth-brand site-brand-stacked" role="img" aria-label="Dylan Grand Hotel" />
               ) : <Eyebrow><T>{"YOUR PERSONAL SPACE"}</T></Eyebrow>}
               <h2 ref={formHeading} tabIndex={-1} className="display account-auth-title">
-                {t(mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Create your account.' : 'Reset your password.')}
+                {t(mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Create your account.' : mode === 'reset' ? 'Choose a new password.' : 'Reset your password.')}
               </h2>
-              {mode === 'forgot' && <span className="account-auth-rule" aria-hidden="true" />}
+              {(mode === 'forgot' || mode === 'reset') && <span className="account-auth-rule" aria-hidden="true" />}
               <p className="body-copy account-auth-description">
-                {t(mode === 'login' ? 'Sign in to manage your stay.' : mode === 'register' ? 'Make your next stay more personal.' : 'Enter your email address to request a password reset.')}
+                {t(mode === 'login' ? 'Sign in to manage your stay.' : mode === 'register' ? 'Make your next stay more personal.' : mode === 'reset' ? 'Choose a new password for your account.' : 'Enter your email address to request a password reset.')}
               </p>
             </div>
-            <form onSubmit={submit} className="account-auth-form grid gap-5">
+            <form onSubmit={submit} className="account-auth-form grid gap-5" aria-busy={pending}>
               {mode === 'register' && (
                 <label>
                   <span className="field-label"><T>{"FULL NAME"}</T></span>
-                  <input className="field-control" autoComplete="name" placeholder={t('Enter your full name')} value={name} required onChange={e => setName(e.target.value)} />
+                  <input className="field-control" autoComplete="name" placeholder={t('Enter your full name')} value={name} maxLength={120} disabled={pending} required onChange={e => setName(e.target.value)} />
                 </label>
               )}
-              <label>
+              {mode !== 'reset' && <label>
                 <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
                 <span className="account-auth-input">
                   {mode === 'login' && <Icon name="mail" size={18} className="account-auth-input-icon" />}
                   <input className={`field-control ${mode === 'login' ? 'account-auth-with-icon' : ''}`}
-                    type="email" autoComplete="email" required value={email}
+                    type="email" autoComplete="email" maxLength={180} disabled={pending} required value={email}
                     placeholder={t('Enter your email address')}
                     onChange={e => setEmail(e.target.value)} />
                 </span>
-              </label>
+              </label>}
               {mode !== 'forgot' && (
                 <div>
-                  <label htmlFor="account-password" className="field-label"><T>{"PASSWORD"}</T></label>
+                  <label htmlFor="account-password" className="field-label"><T>{mode === 'reset' ? 'NEW PASSWORD' : 'PASSWORD'}</T></label>
                   <div className="account-auth-input">
                     {mode === 'login' && <Icon name="lock" size={18} className="account-auth-input-icon" />}
                     <input id="account-password" className={`field-control account-auth-password ${mode === 'login' ? 'account-auth-with-icon' : ''}`}
-                      type={showPassword ? 'text' : 'password'} autoComplete="off"
-                      minLength={6} required value={password} placeholder={t('Enter a test password')}
-                      aria-describedby="account-password-note"
+                      type={showPassword ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      minLength={mode === 'login' ? undefined : 12} maxLength={128} disabled={pending} required value={password} placeholder={t('Enter your password')}
+                      aria-describedby={mode === 'login' ? undefined : 'account-password-note'}
                       onChange={e => setPassword(e.target.value)} />
                     <button type="button" className="account-auth-eye" aria-label={t(showPassword ? 'Hide password' : 'Show password')}
                       aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>
                       <Icon name={showPassword ? 'eye-off' : 'eye'} size={19} />
                     </button>
                   </div>
-                  <p id="account-password-note" className="account-auth-note"><T>{"Use a test password only; authentication is not connected."}</T></p>
+                  {mode !== 'login' && <p id="account-password-note" className="account-auth-note"><T>{"Use at least 12 characters."}</T></p>}
                   {mode === 'login' && (
                     <div className="mt-3 flex justify-end">
-                      <button type="button" className="account-auth-link" onClick={() => changeMode('forgot')}><T>{"Forgot password?"}</T></button>
+                      <button type="button" disabled={pending} className="account-auth-link" onClick={() => changeMode('forgot')}><T>{"Forgot password?"}</T></button>
                     </div>
                   )}
                 </div>
               )}
-              {mode === 'forgot' && <p className="account-auth-note"><T>{"Reset emails are not available yet."}</T></p>}
-              <button type="submit" className="btn-primary w-full">
-                {t(mode === 'forgot' ? 'SEND RESET LINK' : mode === 'register' ? 'CREATE ACCOUNT' : 'SIGN IN')} <Arrow />
+              {mode === 'reset' && <label>
+                <span className="field-label"><T>{"CONFIRM PASSWORD"}</T></span>
+                <input className="field-control" type={showPassword ? 'text' : 'password'} autoComplete="new-password" required minLength={12} maxLength={128} disabled={pending} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder={t('Confirm your new password')} />
+              </label>}
+              <button type="submit" disabled={pending} className="btn-primary w-full disabled:opacity-60">
+                {t(pending ? 'PLEASE WAIT…' : mode === 'forgot' ? 'SEND RESET LINK' : mode === 'reset' ? 'RESET PASSWORD' : mode === 'register' ? 'CREATE ACCOUNT' : 'SIGN IN')} <Arrow />
               </button>
             </form>
+            {mode === 'login' && <div className="account-auth-social">
+              <div className="account-auth-social-divider"><T>{"OR"}</T></div>
+              <button type="button" className="account-auth-google" disabled={pending} onClick={() => setFeedback('Google sign-in is not available yet.')}>
+                <svg aria-hidden="true" width="19" height="19" viewBox="0 0 48 48">
+                  <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.1z" />
+                  <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.4l-6.7-5.2c-1.8 1.2-4.1 1.9-6.8 1.9-5.3 0-9.8-3.6-11.4-8.4H5.7v5.4A20 20 0 0 0 24 44z" />
+                  <path fill="#FBBC05" d="M12.6 27.9a12 12 0 0 1 0-7.8v-5.4H5.7a20 20 0 0 0 0 18.6z" />
+                  <path fill="#EA4335" d="M24 11.7c3 0 5.7 1 7.8 3l5.8-5.8A19.2 19.2 0 0 0 24 4 20 20 0 0 0 5.7 14.7l6.9 5.4c1.6-4.8 6.1-8.4 11.4-8.4z" />
+                </svg><T>{"Continue with Google"}</T>
+              </button>
+            </div>}
             {feedback && <p role="status" className="mt-4 text-sm leading-6 text-muted">{t(feedback)}</p>}
-            <div className={`account-auth-alternative ${mode === 'forgot' ? 'account-auth-alternative-back' : ''}`}>
-              {mode === 'forgot' ? (
-                <button type="button" className="account-auth-back line-link" onClick={() => changeMode('login')}>
+            <div className={`account-auth-alternative ${(mode === 'forgot' || mode === 'reset') ? 'account-auth-alternative-back' : ''}`}>
+              {(mode === 'forgot' || mode === 'reset') ? (
+                <button type="button" disabled={pending} className="account-auth-back line-link" onClick={() => changeMode('login')}>
                   <Icon name="arrow-left" size={15} /> <T>{"BACK TO SIGN IN"}</T>
                 </button>
               ) : (
                 <p>
                   <T>{mode === 'login' ? 'New to Dylan Grand?' : 'Already have an account?'}</T>{' '}
-                  <button type="button" className="account-auth-link" onClick={() => changeMode(mode === 'login' ? 'register' : 'login')}>
+                  <button type="button" disabled={pending} className="account-auth-link" onClick={() => changeMode(mode === 'login' ? 'register' : 'login')}>
                     {t(mode === 'login' ? 'Create an account' : 'Sign in')}
                   </button>
                 </p>
@@ -206,19 +263,19 @@ export default function AccountPage() {
             <div className="flex flex-wrap justify-between gap-4">
               <Eyebrow><T>{"YOUR PRIVATE PROFILE"}</T></Eyebrow>
               <button onClick={() => {
-                write('current-user', null);
+                signOutCustomer();
                 setSigned(false);
                 setFeedback('Signed out.');
               }}
                 className="line-link"
               ><T>{"SIGN OUT ↗"}</T></button>
             </div>
-            <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{ " " }<em>{name.split(' ')[0] || 'guest'}.</em></h2>
+            <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{ " " }<em>{name.split(' ')[0] || t('guest')}.</em></h2>
             <p className="body-copy mt-5"><T>{"A few thoughtful details can make every stay more personal."}</T></p>
-            <form className="mt-8 grid gap-5" onSubmit={saveProfile}>
+            <form className="mt-8 grid gap-5" onSubmit={saveProfile} aria-busy={pending}>
               <label>
                 <span className="field-label"><T>{"FULL NAME"}</T></span>
-                <input className="field-control" value={name} onChange={e => setName(e.target.value)} required />
+                <input className="field-control" value={name} maxLength={120} disabled={pending} onChange={e => setName(e.target.value)} required />
               </label>
               <label>
                 <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
@@ -226,17 +283,18 @@ export default function AccountPage() {
               </label>
               <label>
                 <span className="field-label"><T>{"PHONE"}</T></span>
-                <input className="field-control" value={phone} onChange={e => setPhone(e.target.value)} />
+                <input className="field-control" value={phone} maxLength={32} disabled={pending} onChange={e => setPhone(e.target.value)} />
               </label>
               <label>
                 <span className="field-label"><T>{"STAY PREFERENCES"}</T></span>
                 <textarea className="field-control min-h-24"
                   placeholder={t("A quiet room, twin beds…")}
                   value={preferences}
+                  disabled={pending}
                   onChange={e => setPreferences(e.target.value)}
                 />
               </label>
-              <button className="btn-primary" type="submit"><T>{"SAVE PROFILE"}</T>{ " " }<Arrow /></button>
+              <button className="btn-primary disabled:opacity-60" type="submit" disabled={pending}><T>{pending ? "PLEASE WAIT…" : "SAVE PROFILE"}</T>{ " " }<Arrow /></button>
             </form>
             {feedback && <p role="status" className="mt-5 text-xs text-muted">
               {t(feedback)}

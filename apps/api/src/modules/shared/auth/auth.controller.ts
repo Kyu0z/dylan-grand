@@ -1,7 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Header, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from '../../../core/auth.service';
 import { RegisterDto, SetupAdminDto } from '../../../core/contracts';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/password-reset.dto';
 import { LoginDto } from './dto/login.dto';
 
 @ApiTags('Shared · Authentication')
@@ -14,7 +15,20 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: '[DB] Register customer account' })
   register(@Body() dto: RegisterDto) { return this.auth.register(dto); }
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request customer password reset by email', description: 'Generic response for known and unknown emails. Requires email delivery configuration.' })
+  forgot(@Body() dto: ForgotPasswordDto, @Req() req: { ip?: string }) {
+    return this.auth.forgotPassword(dto.email, req.ip ?? 'unknown', dto.locale);
+  }
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reset customer password using the emailed single-use token' })
+  reset(@Body() dto: ResetPasswordDto, @Req() req: { ip?: string }) {
+    return this.auth.resetPassword(dto.token, dto.password, req.ip ?? 'unknown');
+  }
   @Post('login')
+  @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: '[DB] Login; copy accessToken to Swagger Authorize', description: 'Roles come from database on every protected API request.' })
   login(@Body() dto: LoginDto) { return this.auth.login(dto.email, dto.password); }
 }

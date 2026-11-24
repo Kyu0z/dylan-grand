@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { getAccount, getCurrentUser, write, type Account } from '@/lib/storage';
+import { getCustomerAccount, refreshCustomerSession, signOutCustomer, type Account } from '@/lib/customer-auth';
 const links = [
   ['/', 'THE HOTEL'],
   ['/rooms', 'ROOMS & SUITES'],
@@ -24,16 +24,22 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
 
   useEffect(() => {
     const syncAccount = () => {
-      const saved = getAccount();
-      const active = getCurrentUser();
-      const profile = active && saved?.email === active ? saved : null;
+      const profile = getCustomerAccount();
       setAccount(profile);
       if (!profile) setProfileOpen(false);
     };
-    syncAccount();
+    const refresh = () => { syncAccount(); void refreshCustomerSession(); };
+    refresh();
+    const timer = window.setInterval(() => {
+      syncAccount();
+      window.dispatchEvent(new Event('dylan-storage'));
+    }, 15_000);
+    window.addEventListener('focus', refresh);
     window.addEventListener('dylan-storage', syncAccount);
     window.addEventListener('storage', syncAccount);
     return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
       window.removeEventListener('dylan-storage', syncAccount);
       window.removeEventListener('storage', syncAccount);
     };
@@ -73,7 +79,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
   }, [profileOpen, menu]);
 
   const signOut = () => {
-    write('current-user', null);
+    signOutCustomer();
     setProfileOpen(false);
     setMenu(false);
   };
