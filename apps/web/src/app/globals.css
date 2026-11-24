@@ -118,10 +118,10 @@ button:disabled {
     @apply text-[10px] font-semibold tracking-[.23em] uppercase;
   }
   .display {
-    @apply font-display font-normal leading-[.91] tracking-[-.025em];
+    @apply font-display font-normal leading-[1.08] tracking-[-.025em];
   }
   .section-heading {
-    @apply font-display font-normal leading-[.91] tracking-[-.025em] text-[clamp(3.3rem,6vw,6.1rem)];
+    @apply font-display font-normal leading-[1.08] tracking-[-.025em] text-[clamp(3.3rem,6vw,6.1rem)];
   }
   .body-copy {
     @apply text-[14px] leading-[2] text-muted;
@@ -691,4 +691,101 @@ body,
   .site-profile-menu > button {
     transition: none;
   }
+}
+
+
+/* Headline rhythm: preserve the editorial scale, allow accented Vietnamese lines to breathe. */
+.display,
+.section-heading,
+h1.font-display,
+h2.font-display,
+h3.font-display {
+  overflow-wrap: break-word;
+}
+html[lang='vi'] .display,
+html[lang='vi'] .section-heading {
+  line-height: 1.25;
+}
+html[lang='vi'] :is(h1, h2, h3).font-display {
+  line-height: 1.28;
+}
+html[lang='vi'] .font-display.leading-9 {
+  line-height: 1.4;
+}
+
+/* Account panel: context-specific forms; no persistent mode tabs. */
+.account-auth-view {
+  animation: account-form-enter 280ms var(--motion-ease) both;
+}
+@keyframes account-form-enter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.account-auth-brand {
+  width: 112px;
+  margin: 0 auto 18px;
+  color: var(--ink);
+}
+.account-auth-title {
+  margin-top: 18px;
+  font-size: clamp(2.5rem, 4vw, 3.75rem);
+  line-height: 1.12;
+}
+.account-auth-title:focus { outline: none; }
+.account-auth-description { margin-top: 12px; }
+.account-auth-form { margin-top: 30px; }
+.account-auth-input { position: relative; display: block; }
+.account-auth-input-icon {
+  position: absolute;
+  inset-inline-start: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.account-auth-with-icon { padding-inline-start: 43px; }
+.account-auth-password { padding-inline-end: 48px; }
+.account-auth-eye {
+  position: absolute;
+  inset-inline-end: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  color: var(--muted);
+  border-radius: var(--radius-button);
+}
+.account-auth-eye:hover { color: var(--ink); background: var(--surface-2); }
+.account-auth-link {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--gold);
+  text-underline-offset: 4px;
+  transition: color 180ms ease;
+}
+.account-auth-link:hover { color: var(--forest); }
+.account-auth-note { margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.account-auth-back { margin-bottom: 26px; }
+.account-auth-rule { display: block; width: 42px; height: 1px; background: var(--gold); margin-top: 20px; }
+.account-auth-alternative {
+  margin-top: 27px;
+  padding-top: 23px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.account-auth-alternative-back { text-align: start; }
+.account-auth-alternative-back .account-auth-back { margin-bottom: 0; }
+@media (max-width: 639px) {
+  .account-auth-brand { width: 90px; }
+  .account-auth-form { margin-top: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-auth-view { animation: none; }
 }

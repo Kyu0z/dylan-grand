@@ -102,7 +102,7 @@ export const services = [
     id: 'transfer',
     title: 'A seamless arrival',
     category: 'Travel',
-    description: 'Arrive with ease with a private airport transfer concept service.',
+    description: 'Arrive with ease with a private airport transfer.',
     image: photos.facade,
     price: 450000
   },

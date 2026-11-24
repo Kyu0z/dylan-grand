@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { rooms, money, nights, dayISO, addDays, type RoomId } from '@/lib/data';
 import { getStay, saveStay } from '@/lib/storage';
-import { PageIntro, Photo, Eyebrow, Arrow, InfoNote } from '@/components/ui';
+import { PageIntro, Photo, Eyebrow, Arrow } from '@/components/ui';
 function AvailabilityContent() {
   const { t } = useI18n();
   const router = useRouter(), params = useSearchParams();
@@ -44,7 +44,7 @@ function AvailabilityContent() {
     <PageIntro crumb={t("CHECK AVAILABILITY")}
       title={t("Your time to")}
       italic={t("unwind.")}
-      description={t("Tell us when you'd like to stay. Explore spaces that fit your plans, with transparent sample rates.")}
+      description={t("Tell us when you'd like to stay. Explore spaces that fit your plans.")}
     />
     <section className="container-site pb-24">
       <div className="grid gap-10 lg:grid-cols-[315px_1fr]">
@@ -149,7 +149,7 @@ function AvailabilityContent() {
                   <strong className="text-lg">
                     {money(room.price * nights(checkin, checkout) * count)}
                   </strong>
-                  <p className="mt-1 text-[11px] text-muted">{money(room.price)} <T>{"/ night · sample inventory:"}</T>{ " " }{room.available}</p>
+                  <p className="mt-1 text-[11px] text-muted">{money(room.price)} <T>{"/ night · estimated availability:"}</T>{ " " }{room.available}</p>
                 </div>
                 <button className="btn-primary" onClick={() => go(room.id)}><T>{"CHOOSE ROOM"}</T>{ " " }<Arrow /></button>
               </div>
@@ -162,9 +162,6 @@ function AvailabilityContent() {
         </div>
       </div>
     </section>
-    <div className="container-site pb-12">
-      <InfoNote><T>{"This availability calendar is illustrative. Prices and inventory are static sample values, not an active hotel inventory system."}</T></InfoNote>
-    </div>
   </>;
 }
 export default function AvailabilityPage() {

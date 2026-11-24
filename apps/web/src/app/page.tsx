@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { photos, rooms, addDays, dayISO } from '@/lib/data';
 import { saveStay } from '@/lib/storage';
-import { Arrow, Eyebrow, Photo, RoomCard, SectionTitle, InfoNote } from '@/components/ui';
+import { Arrow, Eyebrow, Photo, RoomCard, SectionTitle } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 export default function HomePage() {
   const { t } = useI18n();
@@ -179,14 +179,14 @@ export default function HomePage() {
         <div>
           <Eyebrow><T>{"08 / BEFORE YOU ARRIVE"}</T></Eyebrow>
           <h2 className="section-heading mt-6"><T>{"Good to"}</T>{ " " }<em><T>{"know."}</T></em></h2>
-          <p className="body-copy mt-6 max-w-md"><T>{"A considered stay begins with clear expectations. These are concept policies; operating policies are to be confirmed."}</T></p>
+          <p className="body-copy mt-6 max-w-md"><T>{"A considered stay begins with clear expectations."}</T></p>
         </div>
         <div>
           {[
             ['When can I check in and out?', 'Check-in and check-out times are determined by the hotel and shown on each confirmed reservation.'],
-            ['Can I change or cancel my reservation?', 'Changes and cancellations depend on the selected rate plan. This preview stores changes only in your browser.'],
-            ['Is breakfast included?', 'Breakfast inclusion varies by rate plan. Review additions before confirming a sample booking.'],
-            ['How do I contact the hotel?', 'Dylan Grand Hotel is a fictional concept property; no live guest support is available.']
+            ['Can I change or cancel my reservation?', 'Changes and cancellations depend on the selected rate plan.'],
+            ['Is breakfast included?', 'Breakfast inclusion varies by rate plan. Review your selected additions.'],
+            ['How do I contact the hotel?', 'Guest support is not available online yet.']
           ].map(([q, a], i) => <div className="border-b border-line" key={t(q)}>
             <button onClick={() => setFaq(faq === i ? null : i)}
               aria-expanded={faq === i}
@@ -204,8 +204,5 @@ export default function HomePage() {
         </div>
       </div>
     </section>
-    <div className="container-site pb-10">
-      <InfoNote><T>{"All photographs, rates and availability are illustrative. Dylan Grand Hotel is a portfolio concept, not a bookable real-world property."}</T></InfoNote>
-    </div>
   </>;
 }

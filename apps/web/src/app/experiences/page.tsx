@@ -5,19 +5,19 @@ import Link from 'next/link';
 import { useState, useEffect, type FormEvent } from 'react';
 import { photos, services, money, rooms } from '@/lib/data';
 import { getReviews, getWishlist, write } from '@/lib/storage';
-import { Photo, PageIntro, Eyebrow, SectionTitle, Arrow, InfoNote } from '@/components/ui';
+import { Photo, PageIntro, Eyebrow, SectionTitle, Arrow } from '@/components/ui';
 import { Icon } from '@/components/icons';
 type Review = { name: string; rating: number; message: string; createdAt: string; };
 const starters: Review[] = [{
   name: 'A guest perspective',
   rating: 5,
-  message: 'A peaceful setting and a thoughtful approach to hospitality. Sample guest review for layout demonstration.',
-  createdAt: 'Concept review'
+  message: 'A peaceful setting and thoughtful hospitality.',
+  createdAt: 'Sample review'
 }, {
   name: "A traveler's note",
   rating: 5,
-  message: 'Warm textures, gentle light and spaces designed to slow the day down. Illustrative review only.',
-  createdAt: 'Concept review'
+  message: 'Warm textures, gentle light and spaces designed to slow the day down.',
+  createdAt: 'Sample review'
 }];
 export default function ExperiencesPage() {
   const { t } = useI18n();
@@ -32,7 +32,7 @@ export default function ExperiencesPage() {
     [wish, setWish] = useState<string[]>([]),
     [thread, setThread] = useState<{ from: 'guest' | 'concierge'; text: string; }[]>([{
       from: 'concierge',
-      text: 'Welcome to the Dylan Grand concept concierge. Ask me about rooms, booking, or experiences.'
+      text: 'Welcome to the Dylan Grand concierge guide. Ask about rooms, booking or experiences.'
     }]),
     [draft, setDraft] = useState('');
   useEffect(() => {
@@ -51,12 +51,12 @@ export default function ExperiencesPage() {
   const reply = (text: string) => {
     const q = text.toLowerCase();
     return q.includes('room')
-      ? 'Explore Deluxe, Premier and Grand Suite in Rooms & Suites. All inventory is sample data.'
+      ? 'Explore Deluxe, Premier and Grand Suite in Rooms & Suites.'
       : q.includes('book') || q.includes('reserve')
-        ? 'You can complete a frontend-only booking journey from Check Availability. No real booking is made.'
+        ? 'Explore room options under Check Availability. Live booking is not connected yet.'
         : q.includes('spa') || q.includes('wellness')
-          ? 'Our wellness rituals are an illustrative hotel service; actual treatments are not available.'
-          : 'Dylan Grand is a fictional hotel concept. Browse our rooms and experiences to explore this UI demo.';
+          ? 'Explore wellness options under Experiences. Online appointments are not available yet.'
+          : 'Browse our rooms and experiences to plan your stay.';
   };
   const chat = (text: string) => {
     if (!text.trim()) return;
@@ -94,7 +94,7 @@ export default function ExperiencesPage() {
             </p>
             <div className="mt-6 flex items-center justify-between border-t border-line pt-5 text-xs">
               <span>
-                {s.price ? `${t('Illustrative from')} ${money(s.price)}` : t('Included concept amenity')}
+                {s.price ? `${t('Illustrative from')} ${money(s.price)}` : t('Included amenity preview')}
               </span>
               <Link href="/booking" className="line-link"><T>{"VIEW IN BOOKING"}</T>{ " " }<Arrow /></Link>
             </div>
@@ -109,7 +109,7 @@ export default function ExperiencesPage() {
             <Eyebrow><T>{"02 / GUEST PERSPECTIVES"}</T></Eyebrow>
             <h2 className="section-heading mt-5"><T>{"Memories worth"}</T>{ " " }<em><T>{"sharing."}</T></em></h2>
           </div>
-          <button className="btn-outline" onClick={() => setReviewOpen(true)}><T>{"WRITE A DEMO REVIEW"}</T>{ " " }<Arrow /></button>
+          <button className="btn-outline" onClick={() => setReviewOpen(true)}><T>{"WRITE A REVIEW"}</T>{ " " }<Arrow /></button>
         </div>
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {reviews.map((r, i) => <article className="border border-line bg-surface p-8" key={`${t(r.name)}-${i}`}>
@@ -149,13 +149,12 @@ export default function ExperiencesPage() {
         <div>
           <Eyebrow><T>{"04 / LET'S CONNECT"}</T></Eyebrow>
           <h2 className="section-heading mt-6"><T>{"We'd love to"}</T>{ " " }<em><T>{"hear from you."}</T></em></h2>
-          <p className="body-copy mt-6 max-w-lg"><T>{"Leave a sample enquiry or try our interactive concierge. These are presentation-only interactions."}</T></p>
+          <p className="body-copy mt-6 max-w-lg"><T>{"Explore your stay with our concierge guide."}</T></p>
           <Photo src={photos.lobby} alt={t("Hotel reception lobby")} className="mt-10 aspect-[16/9]" />
         </div>
         <form onSubmit={e => {
           e.preventDefault();
-          setContactStatus('Your enquiry was acknowledged in this browser preview. No email was sent.');
-          setContact({ name: '', email: '', topic: 'General enquiry', message: '' });
+          setContactStatus('Enquiry not sent. Online contact is not connected yet.');
         }}
           className="grid content-start gap-5"
         >
@@ -189,7 +188,7 @@ export default function ExperiencesPage() {
               onChange={e => setContact(s => ({ ...s, message: e.target.value }))}
             />
           </label>
-          <button type="submit" className="btn-primary"><T>{"SEND DEMO ENQUIRY"}</T>{ " " }<Arrow /></button>
+          <button type="submit" className="btn-primary"><T>{"SEND ENQUIRY"}</T>{ " " }<Arrow /></button>
           {contactStatus && <p role="status" className="text-sm text-muted">
             {t(contactStatus)}
           </p>}
@@ -201,7 +200,7 @@ export default function ExperiencesPage() {
       aria-expanded={chatOpen}
     ><Icon name="sparkle" size={15} className="inline-block mr-2 align-middle" />{t('✦ CONCIERGE').replace(/^✦\s*/, '')}</button>
     {chatOpen && <section role="dialog"
-      aria-label={t("Demo concierge chat")}
+      aria-label={t("Concierge guide")}
       className="fixed bottom-24 left-5 z-50 flex h-[480px] max-h-[70vh] w-[min(390px,calc(100vw-40px))] flex-col border border-line bg-paper shadow-2xl"
     >
       <div className="flex items-center justify-between bg-forest p-5 text-surface">
@@ -235,14 +234,14 @@ export default function ExperiencesPage() {
       <form onSubmit={submitReview}
         role="dialog"
         aria-modal="true"
-        aria-label={t("Add demo review")}
+        aria-label={t("Add review")}
         className="w-full max-w-xl bg-paper p-7 md:p-10"
       >
         <div className="flex justify-between">
           <h2 className="font-display text-5xl"><T>{"Share your thoughts."}</T></h2>
           <button type="button" onClick={() => setReviewOpen(false)} className="text-3xl" aria-label={t("Close")}><Icon name="close" size={22} /></button>
         </div>
-        <p className="body-copy mt-3"><T>{"Reviews are stored in this browser only, and are not verified stays."}</T></p>
+        <p className="body-copy mt-3"><T>{"Reviews are saved on this device."}</T></p>
         <div className="mt-7 grid gap-5">
           <label>
             <span className="field-label"><T>{"NAME"}</T></span>
@@ -266,12 +265,9 @@ export default function ExperiencesPage() {
               onChange={e => setReviewMessage(e.target.value)}
             />
           </label>
-          <button className="btn-primary"><T>{"PUBLISH DEMO REVIEW"}</T>{ " " }<Arrow /></button>
+          <button className="btn-primary"><T>{"SAVE REVIEW"}</T>{ " " }<Arrow /></button>
         </div>
       </form>
     </div>}
-    <div className="container-site py-10">
-      <InfoNote><T>{"Services, guest testimonials, chat replies and contact are simulated for the Dylan Grand Hotel portfolio interface."}</T></InfoNote>
-    </div>
   </>;
 }

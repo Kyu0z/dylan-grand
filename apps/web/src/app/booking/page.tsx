@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { rooms, money, prettyDate, nights } from '@/lib/data';
 import { getStay, saveStay, getBookings, saveBookings, type Stay, type Guest } from '@/lib/storage';
-import { Photo, PageIntro, Eyebrow, Arrow, InfoNote } from '@/components/ui';
+import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 type Stage = 0 | 1 | 2 | 3;
 export default function BookingPage() {
   const { t, locale } = useI18n();
@@ -38,7 +38,7 @@ export default function BookingPage() {
     }
     if (stage === 3) {
       if (!accepted) {
-        setError('Please acknowledge this is a non-binding demo booking.');
+        setError('Please confirm the reservation preview conditions.');
         return;
       }
       const reference = `DGH-DEMO-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -70,7 +70,7 @@ export default function BookingPage() {
     <PageIntro crumb={t("YOUR RESERVATION")}
       title={t("Make yourself")}
       italic={t("at home.")}
-      description={t("A few thoughtful details and your stay is almost arranged. Complete this frontend-only reservation preview.")}
+      description={t("A few thoughtful details and your stay is almost arranged.")}
     />
     <section className="container-site pb-25">
       <div className="grid gap-10 lg:grid-cols-[1fr_370px]">
@@ -79,14 +79,14 @@ export default function BookingPage() {
             ?
             <div className="border border-line bg-paper px-8 py-20 text-center">
               <span className="font-display text-7xl text-gold">✓</span>
-              <Eyebrow><T>{"YOUR STAY IS ARRANGED — DEMO ONLY"}</T></Eyebrow>
-              <h2 className="display mt-7 text-6xl"><T>{"See you"}</T>{ " " }<em><T>{"soon."}</T></em></h2>
-              <p className="mt-6 text-sm"><T>{"Sample booking reference:"}</T></p>
+              <Eyebrow><T>{"RESERVATION PREVIEW SAVED"}</T></Eyebrow>
+              <h2 className="display mt-7 text-6xl"><T>{"Your reservation preview"}</T></h2>
+              <p className="mt-6 text-sm"><T>{"Preview reference:"}</T></p>
               <strong className="mt-3 block break-words font-mono text-xl">
                 {code}
               </strong>
-              <p className="body-copy mx-auto mt-6 max-w-md"><T>{"We have saved this preview reservation in your browser. No actual room was reserved and no email or payment was processed."}</T></p>
-              <Link href="/reservations" className="btn-primary mt-9"><T>{"MANAGE YOUR DEMO BOOKING"}</T>{ " " }<Arrow /></Link>
+              <p className="body-copy mx-auto mt-6 max-w-md"><T>{"Saved on this device. No room has been reserved or payment taken."}</T></p>
+              <Link href="/reservations" className="btn-primary mt-9"><T>{"VIEW RESERVATION"}</T>{ " " }<Arrow /></Link>
             </div>
             :
             <>
@@ -106,12 +106,12 @@ export default function BookingPage() {
                   {[{
                     id: 'flexible',
                     name: 'Flexible stay',
-                    desc: 'Flexible conditions — illustrative. Final cancellation policy pending confirmation.',
+                    desc: 'Flexible rate · Cancellation terms pending.',
                     price: base
                   }, {
                     id: 'advance',
                     name: 'Advance purchase',
-                    desc: '12% sample discount. Concept non-refundable conditions.',
+                    desc: '12% estimated discount · Non-refundable rate preview.',
                     price: Math.round(base * .88)
                   }].map(r => <button type="button"
                     key={r.id}
@@ -175,7 +175,7 @@ export default function BookingPage() {
               {stage === 2 && <div className="animate-in">
                 <Eyebrow><T>{"03 / YOUR DETAILS"}</T></Eyebrow>
                 <h2 className="font-display mt-5 text-5xl"><T>{"Who is joining us?"}</T></h2>
-                <p className="body-copy mt-3 mb-8"><T>{"We only keep these details in your browser for the demonstration."}</T></p>
+                <p className="body-copy mt-3 mb-8"><T>{"Use test guest details only."}</T></p>
                 <div className="grid gap-5 md:grid-cols-2">
                   {[
                     ['firstName', 'FIRST NAME', 'text'],
@@ -243,7 +243,7 @@ export default function BookingPage() {
                   checked={accepted}
                   onChange={e => setAccepted(e.target.checked)}
                   className="mt-1.5 accent-gold"
-                /><T>{"I understand that this is a portfolio demonstration, not a real reservation, payment or hotel confirmation."}</T></label>
+                /><T>{"I understand this preview does not reserve a room or charge a payment."}</T></label>
               </div>}
               {error && <p role="alert" className="mt-6 text-sm text-red-700">
                 {t(error)}
@@ -257,7 +257,7 @@ export default function BookingPage() {
                   }}><T>{"← PREVIOUS STEP"}</T></button>
                   :
                   <Link className="btn-outline" href="/availability"><T>{"← BACK TO ROOMS"}</T></Link>}
-                <button className="btn-primary" onClick={next}>{stage === 3 ? 'CONFIRM DEMO BOOKING' : 'CONTINUE'} <Arrow /></button>
+                <button className="btn-primary" onClick={next}>{t(stage === 3 ? 'SAVE RESERVATION PREVIEW' : 'CONTINUE')} <Arrow /></button>
               </div>
             </>}
         </div>
@@ -300,13 +300,10 @@ export default function BookingPage() {
                 {money(total)}
               </strong>
             </div>
-            <p className="mt-5 text-[11px] leading-6 text-muted"><T>{"All amounts are illustrative; no live pricing, taxes or payment processing."}</T></p>
+            <p className="mt-5 text-[11px] leading-6 text-muted"><T>{"Estimated amounts; no payment is collected."}</T></p>
           </div>
         </aside>
       </div>
     </section>
-    <div className="container-site pb-12">
-      <InfoNote><T>{"Booking is intentionally browser-only. No inventory is reserved, no account is authenticated and no payment is charged."}</T></InfoNote>
-    </div>
   </>;
 }

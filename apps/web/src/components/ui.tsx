@@ -20,7 +20,6 @@ export function Photo({ src, alt, className = '', priority = false }: { src: str
   const { t } = useI18n();
   return <div className={`photo-frame group ${className}`}>
     <img className="photo-img" src={src} alt={t(alt)} loading={priority ? 'eager' : 'lazy'} />
-    <span className="absolute bottom-4 left-5 bg-ink/65 px-3 py-1 text-[9px] tracking-[.14em] text-surface uppercase"><T>{"Concept photography"}</T></span>
   </div>;
 }
 export function RoomCard({ room, compact = false }: { room: Room; compact?: boolean; }) {
@@ -49,7 +48,7 @@ export function RoomCard({ room, compact = false }: { room: Room; compact?: bool
     <div className="flex flex-1 flex-col gap-3 px-1 py-6">
       <Eyebrow>{t(room.subtitle)} · {room.size} <T>{"m²"}</T></Eyebrow>
       <Link href={`/rooms?room=${room.id}`}
-        className="font-display text-[40px] leading-none hover:text-forest"
+        className="font-display text-[40px] leading-[1.15] hover:text-forest"
       >
         {t(room.name)}
       </Link>

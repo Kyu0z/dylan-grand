@@ -292,12 +292,11 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
           <div>
             <h3 className="eyebrow text-gold"><T>{"THE LOCATION"}</T></h3>
             <p className="mt-5 text-sm leading-8"><T>{"Ho Chi Minh City, Vietnam"}</T></p>
-            <p className="mt-4 text-xs text-surface/60"><T>{"Fictional property · Design concept"}</T></p>
           </div>
         </div>
         <div className="flex flex-wrap justify-between gap-5 pt-8 text-[10px] tracking-widest text-surface/60">
           <span>© {new Date().getFullYear()} <T>{"DYLAN GRAND HOTEL"}</T></span>
-          <span><T>{"ILLUSTRATIVE IMAGERY & PRICING · NO REAL BOOKINGS"}</T></span>
+          <span><T>{"Preview · Sample rates and availability · No live bookings or payments"}</T></span>
         </div>
       </div>
     </footer>

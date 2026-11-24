@@ -2,9 +2,10 @@
 import { T, useI18n } from '@/components/language-provider';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { Icon } from '@/components/icons';
 import { photos, rooms, money } from '@/lib/data';
 import { getAccount, getCurrentUser, getWishlist, write, type Account } from '@/lib/storage';
-import { Photo, PageIntro, Eyebrow, InfoNote, Arrow } from '@/components/ui';
+import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 type Mode = 'login' | 'register' | 'forgot';
 export default function AccountPage() {
   const { t } = useI18n();
@@ -12,11 +13,14 @@ export default function AccountPage() {
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
     [password, setPassword] = useState(''),
+    [showPassword, setShowPassword] = useState(false),
     [phone, setPhone] = useState(''),
     [preferences, setPreferences] = useState(''),
     [signed, setSigned] = useState(false),
     [feedback, setFeedback] = useState(''),
     [wishlist, setWishlist] = useState<string[]>([]);
+  const formHeading = useRef<HTMLHeadingElement>(null);
+  const focusOnChange = useRef(false);
   const activeSession = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     const syncSession = () => {
@@ -29,6 +33,7 @@ export default function AccountPage() {
         activeSession.current = nextSession;
         setSigned(Boolean(validAccount));
         setPassword('');
+        setShowPassword(false);
         if (validAccount) {
           setName(validAccount.name);
           setEmail(validAccount.email);
@@ -49,6 +54,20 @@ export default function AccountPage() {
       window.removeEventListener('storage', syncSession);
     };
   }, []);
+  useEffect(() => {
+    if (focusOnChange.current) {
+      formHeading.current?.focus({ preventScroll: true });
+      focusOnChange.current = false;
+    }
+  }, [mode]);
+  const changeMode = (next: Mode) => {
+    if (next === mode) return;
+    focusOnChange.current = true;
+    setMode(next);
+    setFeedback('');
+    setPassword('');
+    setShowPassword(false);
+  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setFeedback('');
@@ -60,18 +79,18 @@ export default function AccountPage() {
     }
     if (mode === 'register') {
       if (account?.email === normalized) {
-        setFeedback('A demo profile with this email already exists in this browser.');
+        setFeedback('This email already has a local profile. Please sign in.');
         return;
       }
       const next: Account = { name: name.trim(), email: normalized, phone, preferences };
       write('account', next);
       write('current-user', normalized);
       setSigned(true);
-      setFeedback('Demo profile created locally. No real account was registered.');
+      setFeedback('');
       return;
     }
     if (!account || account.email !== normalized) {
-      setFeedback('No matching browser-only demo profile. Create one first.');
+      setFeedback('No local profile found. Create an account first.');
       return;
     }
     setName(account.name);
@@ -80,14 +99,14 @@ export default function AccountPage() {
     setPreferences(account.preferences || '');
     write('current-user', normalized);
     setSigned(true);
-    setFeedback('Signed in to browser-only demo.');
+    setFeedback('');
   };
   const saveProfile = (e: FormEvent) => {
     e.preventDefault();
     const account = getAccount();
     if (!account) return;
     write('account', { ...account, name, phone, preferences });
-    setFeedback('Your profile preferences were saved in this browser.');
+    setFeedback('Profile preferences saved on this device.');
   };
   return <>
     <PageIntro crumb={t("MY ACCOUNT")}
@@ -100,62 +119,88 @@ export default function AccountPage() {
         alt={t("Luxury hotel welcome lounge")}
         className="min-h-[420px] lg:min-h-[740px]"
       />
-      <div className="border border-line bg-paper p-7 md:p-12">
+      <div className="account-panel min-w-0 border border-line bg-paper p-7 md:p-12">
         {!signed
           ?
-          <>
-            <Eyebrow><T>{"YOUR PERSONAL SPACE"}</T></Eyebrow>
-            <h2 className="display mt-7 text-6xl">
-              {t(mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Join the story.' : 'A fresh start.')}
-            </h2>
-            <p className="body-copy mt-5">
-              {mode === 'forgot'
-                ?
-                t('This is a visual-only flow. No reset email can be delivered.')
-                :
-                t('Create or open a local demo profile. Password input is visual only; do not use a real password.')}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {(['login', 'register', 'forgot'] as Mode[]).map(x => <button onClick={() => {
-                setMode(x);
-                setFeedback('');
-              }}
-                key={x}
-                className={`pill ${mode === x ? 'border-gold bg-surface-alt' : ''}`}
-              >
-                {t(x === 'forgot' ? 'RESET' : x.toUpperCase())}
-              </button>)}
+          <div className={`account-auth-view account-auth-${mode}`} key={mode}>
+            {mode === 'register' && (
+              <button type="button" className="account-auth-back line-link" onClick={() => changeMode('login')}>
+                <Icon name="arrow-left" size={15} /> <T>{"BACK TO SIGN IN"}</T>
+              </button>
+            )}
+            <div className={mode === 'login' ? 'account-auth-intro text-center' : 'account-auth-intro'}>
+              {mode === 'login' ? (
+                <span className="account-auth-brand site-brand-stacked" role="img" aria-label="Dylan Grand Hotel" />
+              ) : <Eyebrow><T>{"YOUR PERSONAL SPACE"}</T></Eyebrow>}
+              <h2 ref={formHeading} tabIndex={-1} className="display account-auth-title">
+                {t(mode === 'login' ? 'Welcome back.' : mode === 'register' ? 'Create your account.' : 'Reset your password.')}
+              </h2>
+              {mode === 'forgot' && <span className="account-auth-rule" aria-hidden="true" />}
+              <p className="body-copy account-auth-description">
+                {t(mode === 'login' ? 'Sign in to manage your stay.' : mode === 'register' ? 'Make your next stay more personal.' : 'Enter your email address to request a password reset.')}
+              </p>
             </div>
-            <form onSubmit={submit} className="mt-8 grid gap-5">
-              {mode === 'register' && <label>
-                <span className="field-label"><T>{"FULL NAME"}</T></span>
-                <input className="field-control" value={name} required onChange={e => setName(e.target.value)} />
-              </label>}
+            <form onSubmit={submit} className="account-auth-form grid gap-5">
+              {mode === 'register' && (
+                <label>
+                  <span className="field-label"><T>{"FULL NAME"}</T></span>
+                  <input className="field-control" autoComplete="name" placeholder={t('Enter your full name')} value={name} required onChange={e => setName(e.target.value)} />
+                </label>
+              )}
               <label>
                 <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
-                <input className="field-control"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
+                <span className="account-auth-input">
+                  {mode === 'login' && <Icon name="mail" size={18} className="account-auth-input-icon" />}
+                  <input className={`field-control ${mode === 'login' ? 'account-auth-with-icon' : ''}`}
+                    type="email" autoComplete="email" required value={email}
+                    placeholder={t('Enter your email address')}
+                    onChange={e => setEmail(e.target.value)} />
+                </span>
               </label>
-              {mode !== 'forgot' && <label>
-                <span className="field-label"><T>{"DEMO PASSWORD (NOT VERIFIED OR STORED)"}</T></span>
-                <input className="field-control"
-                  type="password"
-                  minLength={6}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                />
-              </label>}
-              <button type="submit" className="btn-primary">{t(mode === 'forgot' ? 'REQUEST DEMO RESET' : mode === 'register' ? 'CREATE DEMO ACCOUNT' : 'SIGN IN')} <Arrow /></button>
+              {mode !== 'forgot' && (
+                <div>
+                  <label htmlFor="account-password" className="field-label"><T>{"PASSWORD"}</T></label>
+                  <div className="account-auth-input">
+                    {mode === 'login' && <Icon name="lock" size={18} className="account-auth-input-icon" />}
+                    <input id="account-password" className={`field-control account-auth-password ${mode === 'login' ? 'account-auth-with-icon' : ''}`}
+                      type={showPassword ? 'text' : 'password'} autoComplete="off"
+                      minLength={6} required value={password} placeholder={t('Enter a test password')}
+                      aria-describedby="account-password-note"
+                      onChange={e => setPassword(e.target.value)} />
+                    <button type="button" className="account-auth-eye" aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+                      aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>
+                      <Icon name={showPassword ? 'eye-off' : 'eye'} size={19} />
+                    </button>
+                  </div>
+                  <p id="account-password-note" className="account-auth-note"><T>{"Use a test password only; authentication is not connected."}</T></p>
+                  {mode === 'login' && (
+                    <div className="mt-3 flex justify-end">
+                      <button type="button" className="account-auth-link" onClick={() => changeMode('forgot')}><T>{"Forgot password?"}</T></button>
+                    </div>
+                  )}
+                </div>
+              )}
+              {mode === 'forgot' && <p className="account-auth-note"><T>{"Reset emails are not available yet."}</T></p>}
+              <button type="submit" className="btn-primary w-full">
+                {t(mode === 'forgot' ? 'SEND RESET LINK' : mode === 'register' ? 'CREATE ACCOUNT' : 'SIGN IN')} <Arrow />
+              </button>
             </form>
-            {feedback && <p role="status" className="mt-5 text-xs leading-6 text-muted">
-              {t(feedback)}
-            </p>}
-          </>
+            {feedback && <p role="status" className="mt-4 text-sm leading-6 text-muted">{t(feedback)}</p>}
+            <div className={`account-auth-alternative ${mode === 'forgot' ? 'account-auth-alternative-back' : ''}`}>
+              {mode === 'forgot' ? (
+                <button type="button" className="account-auth-back line-link" onClick={() => changeMode('login')}>
+                  <Icon name="arrow-left" size={15} /> <T>{"BACK TO SIGN IN"}</T>
+                </button>
+              ) : (
+                <p>
+                  <T>{mode === 'login' ? 'New to Dylan Grand?' : 'Already have an account?'}</T>{' '}
+                  <button type="button" className="account-auth-link" onClick={() => changeMode(mode === 'login' ? 'register' : 'login')}>
+                    {t(mode === 'login' ? 'Create an account' : 'Sign in')}
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
           :
           <>
             <div className="flex flex-wrap justify-between gap-4">
@@ -176,7 +221,7 @@ export default function AccountPage() {
                 <input className="field-control" value={name} onChange={e => setName(e.target.value)} required />
               </label>
               <label>
-                <span className="field-label"><T>{"EMAIL (DEMO ID)"}</T></span>
+                <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
                 <input className="field-control" value={email} readOnly />
               </label>
               <label>
@@ -218,8 +263,5 @@ export default function AccountPage() {
         </div>
       </div>
     </section>
-    <div className="container-site py-10">
-      <InfoNote><T>{"Local demo only: passwords entered here are not stored or verified. This page does not authenticate a real user. Never enter real credentials; production requires a secure backend identity provider."}</T></InfoNote>
-    </div>
   </>;
 }

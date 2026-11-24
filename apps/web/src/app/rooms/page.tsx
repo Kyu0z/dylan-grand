@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { rooms, money, type Room, type RoomId } from '@/lib/data';
-import { Photo, PageIntro, Eyebrow, RoomCard, RoomDetail, Arrow, InfoNote } from '@/components/ui';
+import { Photo, PageIntro, Eyebrow, RoomCard, RoomDetail, Arrow } from '@/components/ui';
 import { Suspense } from 'react';
 function RoomsContent() {
   const { t } = useI18n();
@@ -109,9 +109,8 @@ function RoomsContent() {
           </div>)}
         </div>
       </section>
-    </div>}<div className="container-site pb-10">
-      <InfoNote><T>{"Rooms and images are for a design concept only. Availability shown is mock data, not live inventory."}</T></InfoNote>
-    </div></>;
+    </div>}
+  </>;
 }
 export default function RoomsPage() {
   return <Suspense fallback={<div className="container-site py-24"><T>{"Loading rooms…"}</T></div>}>

@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { rooms, money, prettyDate, nights, dayISO, addDays, type RoomId } from '@/lib/data';
 import { getBookings, saveBookings, type Booking } from '@/lib/storage';
-import { Photo, PageIntro, Eyebrow, Arrow, InfoNote } from '@/components/ui';
+import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 export default function ReservationsPage() {
   const { t, locale } = useI18n();
   const [bookings, setBookings] = useState<Booking[]>([]),
@@ -30,7 +30,7 @@ export default function ReservationsPage() {
   };
   const cancel = () => {
     if (!selected) return;
-    if (!window.confirm('Cancel this demo booking? No refund is calculated or issued.')) return;
+    if (!window.confirm(t('Cancel this reservation preview? No refund will be issued.'))) return;
     persist(bookings.map(b => b.code === selected.code ? { ...b, status: 'cancelled' } : b));
     setSelected(null);
   };
@@ -45,15 +45,15 @@ export default function ReservationsPage() {
     const total = r.price * nights(dates.checkin, dates.checkout) * selected.count;
     persist(bookings.map(b => b.code === selected.code ? { ...b, ...dates, total } : b));
     setSelected(null);
-    setFeedback('Demo reservation updated. No live availability was verified.');
+    setFeedback('Changes saved on this device.');
   };
   const lookupBooking = (e: FormEvent) => {
     e.preventDefault();
     const b = bookings.find(b => b.code.toLowerCase() === lookup.code.trim().toLowerCase() && b.email.toLowerCase() === lookup.email.trim().toLowerCase());
     if (b) {
       show(b);
-      setFeedback('Found your browser-only booking.');
-    } else setFeedback('No matching booking in this browser. Complete a demo reservation in US-04 first.');
+      setFeedback('Reservation found.');
+    } else setFeedback('No matching reservation on this device.');
   };
   const download = (b: Booking) => {
     const content = `DYLAN GRAND HOTEL — DEMO RESERVATION\nReference: ${b.code}\nGuest: ${b.guest}\nRoom: ${rooms.find(r => r.id === b.room)?.name}\nDates: ${b.checkin} to ${b.checkout}\nStatus: ${t(b.status)}\nEstimated total: ${money(b.total)}\nNOT VALID AS A REAL BOOKING.`;
@@ -69,7 +69,7 @@ export default function ReservationsPage() {
     <PageIntro crumb={t("MY RESERVATIONS")}
       title={t("Your stay,")}
       italic={t("beautifully arranged.")}
-      description={t("Your personal space to revisit, adjust and relive the details of your stay — all in this browser-only preview.")}
+      description={t("Revisit, adjust and relive the details of your stay.")}
     />
     <section className="container-site pb-25">
       <div className="grid gap-6 md:grid-cols-3">
@@ -95,7 +95,7 @@ export default function ReservationsPage() {
               <Photo src={r.images[0]} alt={t(r.name)} className="min-h-[240px]" />
               <div className="p-7">
                 <div className="flex flex-wrap justify-between gap-4">
-                  <Eyebrow><T>{"DESIGN PREVIEW ·"}</T>{ " " }{b.code}</Eyebrow>
+                  <Eyebrow><T>{"PREVIEW ·"}</T>{ " " }{b.code}</Eyebrow>
                   <span className="text-xs font-semibold uppercase text-gold">
                     {t(b.status)}
                   </span>
@@ -111,7 +111,7 @@ export default function ReservationsPage() {
                 <p className="body-copy mt-4">{prettyDate(b.checkin, locale)} — {prettyDate(b.checkout, locale)} · {b.adults} <T>{"guests ·"}</T>{ " " }{nights(b.checkin, b.checkout)} <T>{"nights"}</T></p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <button onClick={() => show(b)} className="btn-outline"><T>{"VIEW DETAILS →"}</T></button>
-                  <button onClick={() => download(b)} className="btn-outline"><T>{"DOWNLOAD DEMO SUMMARY ↓"}</T></button>
+                  <button onClick={() => download(b)} className="btn-outline"><T>{"DOWNLOAD SUMMARY ↓"}</T></button>
                 </div>
               </div>
             </article>;
@@ -197,21 +197,18 @@ export default function ReservationsPage() {
               options={rooms.map((room) => ({ value: room.id, label: room.name }))}
               onValueChange={(value) => setDates((previous) => ({ ...previous, room: value as RoomId }))}
             />
-            <button className="btn-primary"><T>{"SAVE DEMO CHANGE"}</T></button>
+            <button className="btn-primary"><T>{"SAVE CHANGES"}</T></button>
           </form>
           :
           <div className="mt-7 flex flex-wrap gap-3">
             {selected.status === 'confirmed' && <>
               <button className="btn-primary" onClick={() => setEditing(true)}><T>{"CHANGE STAY"}</T></button>
-              <button className="btn-outline" onClick={cancel}><T>{"CANCEL DEMO BOOKING"}</T></button>
+              <button className="btn-outline" onClick={cancel}><T>{"CANCEL RESERVATION"}</T></button>
             </>}
             <button className="btn-outline" onClick={() => download(selected)}><T>{"DOWNLOAD SUMMARY"}</T></button>
           </div>}
-        <p className="body-copy mt-6 text-xs"><T>{"Any change here affects this browser only. No live inventory, refund or email processing."}</T></p>
+        <p className="body-copy mt-6 text-xs"><T>{"Changes are saved on this device only."}</T></p>
       </section>
     </div>}
-    <div className="container-site pb-10">
-      <InfoNote><T>{"Sample booking management, not a live guest service."}</T></InfoNote>
-    </div>
   </>;
 }
