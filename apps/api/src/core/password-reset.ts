@@ -53,31 +53,94 @@ export function limitResetRequest(scope: string, key: string, max: number, windo
   return true;
 }
 
+// Use one authorized sender mailbox. Recipients never need Google OAuth.
+function validMailbox(email: string) {
+  return !/[\r\n]/.test(email) && /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+$/.test(email);
+}
+
 export function resetEmailConfig() {
-  const key = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.RESET_EMAIL_FROM?.trim();
+  const clientId = process.env.GMAIL_CLIENT_ID?.trim();
+  const clientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
+  const refreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
+  const sender = process.env.GMAIL_SENDER_EMAIL?.trim();
   try {
     const url = new URL(process.env.CUSTOMER_RESET_URL ?? '');
     const local = process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(url.hostname) && url.protocol === 'http:';
-    if (!key || !from || (!local && url.protocol !== 'https:') || url.username || url.password || url.hash || url.search || url.pathname !== '/account') throw new Error();
-    return { key, from, url };
+    if (!clientId || !clientSecret || !refreshToken || !sender || !validMailbox(sender) ||
+      (!local && url.protocol !== 'https:') || url.username || url.password || url.hash || url.search || url.pathname !== '/account') {
+      throw new Error();
+    }
+    return { clientId, clientSecret, refreshToken, sender, url };
   } catch { throw new ServiceUnavailableException('Password reset is temporarily unavailable.'); }
 }
-export async function sendResetEmail(config: ReturnType<typeof resetEmailConfig>, email: string, token: string, locale: 'en' | 'vi') {
+
+type ResetEmailConfig = ReturnType<typeof resetEmailConfig>;
+
+// Request an access token with the long-lived OAuth refresh token. No customer OAuth is involved.
+async function getGmailAccessToken(config: ResetEmailConfig): Promise<string | null> {
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    signal: AbortSignal.timeout(7_000),
+    body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret,
+      refresh_token: config.refreshToken, grant_type: 'refresh_token' }),
+  });
+  if (!response.ok) {
+    // Never log response bodies, OAuth credentials, recipient addresses or reset links.
+    logger.error(`Gmail OAuth token request returned HTTP ${response.status}.`);
+    return null;
+  }
+  const payload = await response.json() as { access_token?: unknown };
+  if (typeof payload.access_token !== 'string' || !payload.access_token || /\s/.test(payload.access_token)) {
+    logger.error('Gmail OAuth token response did not contain a valid access token.');
+    return null;
+  }
+  return payload.access_token;
+}
+
+function encodeMime(sender: string, email: string, subject: string, text: string) {
+  // RFC 2047 subject and UTF-8 MIME body; base64 lines are limited to 76 characters.
+  // Sender and recipient are validated as single ASCII mailbox addresses before calling this.
+  const encodedSubject = Buffer.from(subject, 'utf8').toString('base64');
+  const encodedBody = Buffer.from(text, 'utf8').toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? '';
+  const message = [
+    `From: Dylan Grand Hotel <${sender}>`,
+    `To: <${email}>`,
+    `Subject: =?UTF-8?B?${encodedSubject}?=`,
+    `Date: ${new Date().toUTCString()}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'Content-Transfer-Encoding: base64',
+    '',
+    encodedBody,
+    '',
+  ].join('\r\n');
+  return Buffer.from(message, 'utf8').toString('base64url');
+}
+
+export async function sendResetEmail(config: ResetEmailConfig, email: string, token: string, locale: 'en' | 'vi') {
+  if (!validMailbox(email)) {
+    logger.error('Gmail reset recipient is not a supported single mailbox address.');
+    return;
+  }
   const url = new URL(config.url);
   url.hash = new URLSearchParams({ resetToken: token }).toString();
   const vi = locale === 'vi';
+  const subject = vi ? 'Dylan Grand Hotel - Đặt lại mật khẩu' : 'Dylan Grand Hotel — Reset your password';
+  const text = vi ? `Sử dụng liên kết sau để đặt lại mật khẩu: ${url}\nLiên kết hết hạn sau 20 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.` :
+    `Use this link to reset your password: ${url}\nThe link expires in 20 minutes. If you did not request it, ignore this email.`;
+  let stage = 'OAuth token';
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const accessToken = await getGmailAccessToken(config);
+    if (!accessToken) return;
+    stage = 'delivery';
+    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${config.key}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       signal: AbortSignal.timeout(10_000),
-      body: JSON.stringify({ from: config.from, to: [email],
-        subject: vi ? 'Dylan Grand Hotel — Đặt lại mật khẩu' : 'Dylan Grand Hotel — Reset your password',
-        text: vi ? `Sử dụng liên kết sau để đặt lại mật khẩu: ${url}\nLiên kết hết hạn sau 20 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.` : `Use this link to reset your password: ${url}\nThe link expires in 20 minutes. If you did not request it, ignore this email.`,
-      }),
+      body: JSON.stringify({ raw: encodeMime(config.sender, email, subject, text) }),
     });
-    if (!response.ok) logger.error(`Reset email provider returned HTTP ${response.status}.`);
-  } catch { logger.error('Reset email delivery request failed.'); }
+    if (!response.ok) logger.error(`Gmail reset email delivery returned HTTP ${response.status}.`);
+  } catch { logger.error(`Gmail reset email ${stage} request failed.`); }
   // Never expose provider errors, account existence, or tokens through the public endpoint.
 }

@@ -3,11 +3,13 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { AuthService } = require('../dist/core/auth.service');
-const { issueResetToken, verifyResetToken, readResetToken } = require('../dist/core/password-reset');
+const { issueResetToken, verifyResetToken, readResetToken, resetEmailConfig, sendResetEmail } = require('../dist/core/password-reset');
 
 process.env.JWT_ACCESS_SECRET = 'test-only-secret-not-for-deployment-123456789';
-process.env.RESEND_API_KEY = 'test-only';
-process.env.RESET_EMAIL_FROM = 'Test <test@example.test>';
+process.env.GMAIL_CLIENT_ID = 'test-client';
+process.env.GMAIL_CLIENT_SECRET = 'test-secret';
+process.env.GMAIL_REFRESH_TOKEN = 'test-refresh';
+process.env.GMAIL_SENDER_EMAIL = 'sender@example.test';
 process.env.CUSTOMER_RESET_URL = 'https://example.test/account';
 
 function fixture() {
@@ -55,16 +57,27 @@ test('email reset is generic, customer-only, single use and invalidates previous
   const staffLogin = await auth.login(staff.email, 'OriginalPassword!42');
   const calls = [];
   const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, options) => { calls.push({ url, body: JSON.parse(options.body) }); return new Response('{}', { status: 200 }); };
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    if (url === 'https://oauth2.googleapis.com/token') return Response.json({ access_token: 'mock-access' });
+    return Response.json({ id: 'mock-message' });
+  };
   try {
     const known = await auth.forgotPassword(user.email, 'test-reset-ip', 'vi');
     assert.deepEqual(await auth.forgotPassword('missing@example.test', 'test-reset-ip'), known);
     assert.deepEqual(await auth.forgotPassword(staff.email, 'test-reset-ip'), known);
     assert.deepEqual(await auth.forgotPassword(user.email, 'test-reset-ip'), known);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].url, 'https://api.resend.com/emails');
-    assert.match(calls[0].body.subject, /Đặt lại mật khẩu/);
-    const link = calls[0].body.text.match(/https:\/\/\S+/)[0];
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].url, 'https://oauth2.googleapis.com/token');
+    assert.equal(calls[0].options.body.get('grant_type'), 'refresh_token');
+    assert.equal(calls[0].options.body.get('refresh_token'), 'test-refresh');
+    assert.equal(calls[1].url, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send');
+    assert.equal(calls[1].options.headers.Authorization, 'Bearer mock-access');
+    const { headers, text } = decodeMime(calls[1].options.body);
+    assert.match(headers, /From: Dylan Grand Hotel <sender@example.test>/);
+    assert.match(headers, /To: <reset@example.test>/);
+    assert.match(decodeSubject(headers), /Đặt lại mật khẩu/);
+    const link = text.match(/https:\/\/\S+/)[0];
     const token = new URLSearchParams(new URL(link).hash.slice(1)).get('resetToken');
     assert.ok(token);
     await assert.rejects(auth.resetPassword(token.slice(0, -4) + 'AAAA', 'NewPassword!123', 'test-reset-ip'));
@@ -98,4 +111,75 @@ test('reset tokens reject different passwords, wrong secret, malformed and expir
     assert.equal(readResetToken(token), null);
     assert.equal(verifyResetToken(token, 'hash-one', secret), false);
   } finally { Date.now = originalNow; }
+});
+
+function decodeMime(body) {
+  const raw = Buffer.from(JSON.parse(body).raw, 'base64url').toString('utf8');
+  const [headers, encoded] = raw.split('\r\n\r\n');
+  return { headers, text: Buffer.from(encoded, 'base64').toString('utf8') };
+}
+function decodeSubject(headers) {
+  const encoded = headers.match(/Subject: =\?UTF-8\?B\?([^?]+)\?=/)[1];
+  return Buffer.from(encoded, 'base64').toString('utf8');
+}
+
+test('Gmail sends to different recipients and uses the correct language and link', async () => {
+  const calls = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'mock-access' });
+    calls.push(decodeMime(options.body));
+    return Response.json({ id: 'mock' });
+  };
+  try {
+    const config = resetEmailConfig();
+    await sendResetEmail(config, 'first@gmail.com', 'token-one', 'en');
+    await sendResetEmail(config, 'second@outlook.com', 'token-two', 'vi');
+    assert.equal(calls.length, 2);
+    assert.match(calls[0].headers, /To: <first@gmail.com>/);
+    assert.match(calls[1].headers, /To: <second@outlook.com>/);
+    assert.match(decodeSubject(calls[0].headers), /Reset your password/);
+    assert.match(decodeSubject(calls[1].headers), /Đặt lại mật khẩu/);
+    assert.match(calls[0].text, /https:\/\/example.test\/account#resetToken=token-one/);
+    assert.match(calls[1].text, /https:\/\/example.test\/account#resetToken=token-two/);
+    await sendResetEmail(config, 'bad@example.com\r\nBcc: other@example.com', 'token', 'en');
+    assert.equal(calls.length, 2);
+  } finally { globalThis.fetch = original; }
+});
+
+test('OAuth and delivery failures remain private and do not trigger unsafe retries', async () => {
+  const original = globalThis.fetch;
+  const config = resetEmailConfig();
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => { calls++; return Response.json({ error: 'invalid_grant' }, { status: 400 }); };
+    await sendResetEmail(config, 'first@gmail.com', 'token', 'en');
+    assert.equal(calls, 1);
+    globalThis.fetch = async (url) => {
+      calls++;
+      return url.includes('oauth2.googleapis.com') ? Response.json({ access_token: 'mock-access' }) : Response.json({}, { status: 403 });
+    };
+    await sendResetEmail(config, 'first@gmail.com', 'token', 'en');
+    assert.equal(calls, 3);
+  } finally { globalThis.fetch = original; }
+});
+
+test('Gmail configuration rejects missing secrets and invalid production reset URLs', () => {
+  const keys = ['NODE_ENV', 'CUSTOMER_RESET_URL', 'GMAIL_REFRESH_TOKEN'];
+  const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.CUSTOMER_RESET_URL = 'http://localhost:3000/account';
+    assert.throws(() => resetEmailConfig(), /Password reset is temporarily unavailable/);
+    process.env.CUSTOMER_RESET_URL = 'https://example.test/account';
+    delete process.env.GMAIL_REFRESH_TOKEN;
+    assert.throws(() => resetEmailConfig(), /Password reset is temporarily unavailable/);
+    process.env.GMAIL_REFRESH_TOKEN = 'test-refresh';
+    assert.equal(resetEmailConfig().url.href, 'https://example.test/account');
+    process.env.NODE_ENV = 'development';
+    process.env.CUSTOMER_RESET_URL = 'http://localhost:3000/account';
+    assert.equal(resetEmailConfig().url.href, 'http://localhost:3000/account');
+  } finally {
+    for (const key of keys) saved[key] === undefined ? delete process.env[key] : process.env[key] = saved[key];
+  }
 });
