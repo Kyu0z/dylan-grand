@@ -1,6 +1,6 @@
 'use client';
 import { T, useI18n } from '@/components/language-provider';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { photos, rooms, money } from '@/lib/data';
 import { getAccount, getCurrentUser, getWishlist, write, type Account } from '@/lib/storage';
@@ -17,17 +17,37 @@ export default function AccountPage() {
     [signed, setSigned] = useState(false),
     [feedback, setFeedback] = useState(''),
     [wishlist, setWishlist] = useState<string[]>([]);
+  const activeSession = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    const account = getAccount();
-    const active = getCurrentUser();
-    if (active && account?.email === active) {
-      setSigned(true);
-      setName(account.name);
-      setEmail(account.email);
-      setPhone(account.phone || '');
-      setPreferences(account.preferences || '');
-    }
-    setWishlist(getWishlist());
+    const syncSession = () => {
+      const account = getAccount();
+      const active = getCurrentUser();
+      const validAccount = active && account?.email === active ? account : null;
+      const nextSession = validAccount?.email ?? null;
+      if (activeSession.current !== nextSession) {
+        const previousSession = activeSession.current;
+        activeSession.current = nextSession;
+        setSigned(Boolean(validAccount));
+        setPassword('');
+        if (validAccount) {
+          setName(validAccount.name);
+          setEmail(validAccount.email);
+          setPhone(validAccount.phone || '');
+          setPreferences(validAccount.preferences || '');
+        } else if (previousSession) {
+          setMode('login');
+          setFeedback('Signed out.');
+        }
+      }
+      setWishlist(getWishlist());
+    };
+    syncSession();
+    window.addEventListener('dylan-storage', syncSession);
+    window.addEventListener('storage', syncSession);
+    return () => {
+      window.removeEventListener('dylan-storage', syncSession);
+      window.removeEventListener('storage', syncSession);
+    };
   }, []);
   const submit = (e: FormEvent) => {
     e.preventDefault();

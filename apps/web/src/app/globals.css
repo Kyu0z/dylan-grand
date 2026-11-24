@@ -502,3 +502,193 @@ body,
 @media (max-width: 420px) {
   .site-brand-horizontal { width: 134px; }
 }
+
+/* Header account controls — existing language switcher and theme tokens retained. */
+.site-header-public-nav {
+  gap: clamp(12px, 1.65vw, 26px);
+}
+
+.site-header-account {
+  margin-inline: 4px;
+  padding-inline: 12px;
+  border-inline-start: 1px solid var(--line);
+}
+
+.site-header-signin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  white-space: nowrap;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .10em;
+  transition: color 180ms var(--motion-ease);
+}
+
+.site-header-signin:hover,
+.site-header-signin[aria-current='page'] {
+  color: var(--forest);
+}
+
+.site-profile {
+  position: relative;
+}
+
+.site-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  max-width: 164px;
+  padding: 4px 9px 4px 5px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  transition: background-color 180ms var(--motion-ease), border-color 180ms var(--motion-ease);
+}
+
+.site-profile-trigger:hover,
+.site-profile-trigger[aria-expanded='true'] {
+  background: var(--surface-2);
+  border-color: var(--forest);
+}
+
+.site-profile-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--forest);
+  color: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.site-profile-name {
+  min-width: 0;
+  max-width: 94px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.site-profile-chevron {
+  flex: none;
+  transition: transform 180ms var(--motion-ease);
+}
+
+.site-profile-trigger[aria-expanded='true'] .site-profile-chevron {
+  transform: rotate(180deg);
+}
+
+.site-profile-menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 218px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 12px 32px -10px var(--overlay);
+}
+
+.site-profile-menu > a,
+.site-profile-menu > button,
+.site-mobile-account > a,
+.site-mobile-account > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: start;
+  transition: background-color 180ms var(--motion-ease), color 180ms var(--motion-ease);
+}
+
+.site-profile-menu > a:hover,
+.site-profile-menu > button:hover,
+.site-mobile-account > a:hover,
+.site-mobile-account > button:hover,
+.site-profile-menu > a[aria-current='page'],
+.site-mobile-account > a[aria-current='page'] {
+  background: var(--surface-2);
+  color: var(--forest);
+}
+
+.site-profile-menu > .site-profile-signout {
+  margin-top: 5px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 4px 4px;
+}
+
+.site-mobile-account {
+  display: grid;
+  gap: 2px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.site-mobile-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Rebalance the desktop header without changing other container-site layouts. */
+@media (min-width: 1280px) {
+  .site-header-row {
+    max-width: 1600px;
+    padding-inline: clamp(36px, 4vw, 72px);
+  }
+
+  .site-header-utilities {
+    gap: 10px;
+  }
+}
+
+@media (min-width: 1280px) and (max-width: 1399px) {
+  .site-header-row .site-brand-horizontal {
+    width: 158px;
+  }
+
+  .site-header-account {
+    margin-inline: 0;
+    padding-inline: 8px;
+  }
+
+  .site-profile-name {
+    max-width: 72px;
+  }
+
+  .site-header-utilities > .btn-primary {
+    padding-inline: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-profile-trigger,
+  .site-profile-chevron,
+  .site-profile-menu > a,
+  .site-profile-menu > button {
+    transition: none;
+  }
+}

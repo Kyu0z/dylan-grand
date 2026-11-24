@@ -17,7 +17,11 @@ export type IconName =
   | 'star'
   | 'plus'
   | 'minus'
-  | 'sparkle';
+  | 'sparkle'
+  | 'chevron-down'
+  | 'user'
+  | 'bed'
+  | 'log-out';
 
 type IconProps = SVGProps<SVGSVGElement> & {
   name: IconName;
@@ -69,6 +73,10 @@ export function Icon({ name, size = 24, filled = false, ...props }: IconProps) {
     star: <path d="m12 2 3.1 6.3 7 .9-5 4.9 1.2 6.9L12 17.7l-6.3 3.3 1.2-6.9-5-4.9 7-.9L12 2Z" />,
     plus: <path d="M12 5v14m-7-7h14" />,
     minus: <path d="M5 12h14" />,
+    'chevron-down': <path d="m6 9 6 6 6-6" />,
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2Z" /></>,
+    bed: <><path d="M3 18V8m18 10V8M3 15h18M5 11V6h14v5M3 18h18M3 18v3m18-3v3" /><path d="M3 15v-2a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2" /></>,
+    'log-out': <path d="M10 4H4v16h6m4-12 4 4-4 4m-5-4h13" />,
     sparkle: <path d="m12 2 2.3 7.7L22 12l-7.7 2.3L12 22l-2.3-7.7L2 12l7.7-2.3L12 2Z" />,
   };
 
