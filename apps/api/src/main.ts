@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { API_MESSAGE_HEADER, ApiExceptionFilter, ApiMessageInterceptor } from './common/http/api-messages';
 import { SWAGGER_TAGS } from './swagger/swagger-tags';
 
 async function bootstrap(): Promise<void> {
@@ -14,7 +15,9 @@ async function bootstrap(): Promise<void> {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  app.enableCors({ origin: origins });
+  app.enableCors({ origin: origins, exposedHeaders: [API_MESSAGE_HEADER] });
+  app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(new ApiMessageInterceptor());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({

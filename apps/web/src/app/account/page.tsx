@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { photos, rooms, money } from '@/lib/data';
 import { getWishlist } from '@/lib/storage';
-import { AuthError, getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signOutCustomer } from '@/lib/customer-auth';
+import { getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signOutCustomer } from '@/lib/customer-auth';
+import { errorMessages } from '@/lib/api-client';
+import { notify } from '@/lib/toast';
 import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 type Mode = 'login' | 'register' | 'forgot' | 'reset';
 export default function AccountPage() {
@@ -18,7 +20,6 @@ export default function AccountPage() {
     [phone, setPhone] = useState(''),
     [preferences, setPreferences] = useState(''),
     [signed, setSigned] = useState(false),
-    [feedback, setFeedback] = useState(''),
     [pending, setPending] = useState(false),
     [resetToken, setResetToken] = useState(''),
     [confirmPassword, setConfirmPassword] = useState(''),
@@ -46,7 +47,6 @@ export default function AccountPage() {
           setName('');
           setPhone('');
           setPreferences('');
-          setFeedback('Signed out.');
         }
       }
       setWishlist(getWishlist());
@@ -61,7 +61,6 @@ export default function AccountPage() {
       setConfirmPassword('');
       setShowPassword(false);
       setMode('reset');
-      setFeedback('');
       window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
     };
     openResetLink();
@@ -87,68 +86,61 @@ export default function AccountPage() {
     setConfirmPassword('');
     focusOnChange.current = true;
     setMode(next);
-    setFeedback('');
     setPassword('');
     setShowPassword(false);
   };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (pending) return;
-    setFeedback('');
     const normalized = email.trim().toLowerCase();
     if (mode === 'reset' && password !== confirmPassword) {
-      setFeedback('Passwords do not match.');
+      notify('error', 'Passwords do not match.');
       return;
     }
     if (mode === 'register' && !name.trim()) {
-      setFeedback('Full name is required.');
+      notify('error', 'Full name is required.');
       return;
     }
     setPending(true);
     let registered = false;
     try {
       if (mode === 'forgot') {
-        await requestPasswordReset(normalized, locale);
-        setFeedback('If an eligible account exists, a reset link will be sent.');
+        notify('success', await requestPasswordReset(normalized, locale));
       } else if (mode === 'reset') {
-        await resetCustomerPassword(resetToken, password);
+        const messages = await resetCustomerPassword(resetToken, password);
         setResetToken('');
         setPassword('');
         setConfirmPassword('');
         setShowPassword(false);
         setMode('login');
         focusOnChange.current = true;
-        setFeedback('Password updated. Please sign in.');
+        notify('success', messages);
       } else {
         if (mode === 'register') {
-          await registerCustomer(name.trim(), normalized, password);
+          const messages = await registerCustomer(name.trim(), normalized, password);
           registered = true;
+          notify('success', messages);
         }
-        await signInCustomer(normalized, password);
+        notify('success', await signInCustomer(normalized, password));
         setPassword('');
       }
     } catch (error) {
       if (registered) {
         setMode('login');
         setPassword('');
-        setFeedback('Account created. Please sign in.');
-      } else if (mode === 'reset' && error instanceof AuthError && error.status === 400) {
-        setFeedback('Reset link is invalid or expired.');
-      } else {
-        setFeedback(error instanceof AuthError ? error.message : 'Something went wrong. Please try again.');
+        focusOnChange.current = true;
       }
+      notify('error', errorMessages(error));
     } finally { setPending(false); }
   };
   const saveProfile = async (e: FormEvent) => {
     e.preventDefault();
     if (pending) return;
-    setFeedback('');
     setPending(true);
     try {
-      await saveCustomerProfile(name.trim(), phone, preferences);
-      setFeedback('Profile saved. Stay preferences are saved on this device.');
+      notify('success', await saveCustomerProfile(name.trim(), phone, preferences));
     } catch (error) {
-      setFeedback(error instanceof AuthError ? error.message : 'Something went wrong. Please try again.');
+      notify('error', errorMessages(error));
     } finally { setPending(false); }
   };
   return <>
@@ -183,7 +175,7 @@ export default function AccountPage() {
                 {t(mode === 'login' ? 'Sign in to manage your stay.' : mode === 'register' ? 'Make your next stay more personal.' : mode === 'reset' ? 'Choose a new password for your account.' : 'Enter your email address to request a password reset.')}
               </p>
             </div>
-            <form onSubmit={submit} className="account-auth-form grid gap-5" aria-busy={pending}>
+            <form onSubmit={submit} onInvalid={() => notify('error', 'Please check the information you entered.')} className="account-auth-form grid gap-5" aria-busy={pending}>
               {mode === 'register' && (
                 <label>
                   <span className="field-label"><T>{"FULL NAME"}</T></span>
@@ -233,7 +225,7 @@ export default function AccountPage() {
             </form>
             {mode === 'login' && <div className="account-auth-social">
               <div className="account-auth-social-divider"><T>{"OR"}</T></div>
-              <button type="button" className="account-auth-google" disabled={pending} onClick={() => setFeedback('Google sign-in is not available yet.')}>
+              <button type="button" className="account-auth-google" disabled={pending} onClick={() => notify('info', 'Google sign-in is not available yet.')}>
                 <svg aria-hidden="true" width="19" height="19" viewBox="0 0 48 48">
                   <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.1z" />
                   <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.4l-6.7-5.2c-1.8 1.2-4.1 1.9-6.8 1.9-5.3 0-9.8-3.6-11.4-8.4H5.7v5.4A20 20 0 0 0 24 44z" />
@@ -242,7 +234,6 @@ export default function AccountPage() {
                 </svg><T>{"Continue with Google"}</T>
               </button>
             </div>}
-            {feedback && <p role="status" className="mt-4 text-sm leading-6 text-muted">{t(feedback)}</p>}
             <div className={`account-auth-alternative ${(mode === 'forgot' || mode === 'reset') ? 'account-auth-alternative-back' : ''}`}>
               {(mode === 'forgot' || mode === 'reset') ? (
                 <button type="button" disabled={pending} className="account-auth-back line-link" onClick={() => changeMode('login')}>
@@ -265,14 +256,14 @@ export default function AccountPage() {
               <button onClick={() => {
                 signOutCustomer();
                 setSigned(false);
-                setFeedback('Signed out.');
+                notify('success', 'Signed out.');
               }}
                 className="line-link"
               ><T>{"SIGN OUT ↗"}</T></button>
             </div>
             <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{ " " }<em>{name.split(' ')[0] || t('guest')}.</em></h2>
             <p className="body-copy mt-5"><T>{"A few thoughtful details can make every stay more personal."}</T></p>
-            <form className="mt-8 grid gap-5" onSubmit={saveProfile} aria-busy={pending}>
+            <form className="mt-8 grid gap-5" onSubmit={saveProfile} onInvalid={() => notify('error', 'Please check the information you entered.')} aria-busy={pending}>
               <label>
                 <span className="field-label"><T>{"FULL NAME"}</T></span>
                 <input className="field-control" value={name} maxLength={120} disabled={pending} onChange={e => setName(e.target.value)} required />
@@ -296,9 +287,6 @@ export default function AccountPage() {
               </label>
               <button className="btn-primary disabled:opacity-60" type="submit" disabled={pending}><T>{pending ? "PLEASE WAIT…" : "SAVE PROFILE"}</T>{ " " }<Arrow /></button>
             </form>
-            {feedback && <p role="status" className="mt-5 text-xs text-muted">
-              {t(feedback)}
-            </p>}
           </>}
       </div>
     </section>

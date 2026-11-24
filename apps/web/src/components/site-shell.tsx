@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { notify } from '@/lib/toast';
 import { getCustomerAccount, refreshCustomerSession, signOutCustomer, type Account } from '@/lib/customer-auth';
 const links = [
   ['/', 'THE HOTEL'],
@@ -80,6 +81,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
 
   const signOut = () => {
     signOutCustomer();
+    notify('success', 'Signed out.');
     setProfileOpen(false);
     setMenu(false);
   };
