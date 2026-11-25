@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
 import { createPortal } from 'react-dom';
+import { ImageUpload } from './image-upload';
+import { IMAGE_ACCEPT, readImageFile } from '../lib/image-upload';
 import { useLocale } from '../lib/locale';
 import { L, formatMoney, type Language } from '../lib/domain';
 const paths: Record<string, ReactNode> = {
@@ -547,71 +549,33 @@ export function NativeSelect({ label, choices, placeholder, value, onChange, nam
     </div>
   </label>;
 }
-export function FileUploadField({ label, value, onChange, help, accept = 'image/*', }: {
+export function FileUploadField({
+  label,
+  value,
+  onChange,
+  help,
+  accept = IMAGE_ACCEPT,
+}: {
   label?: ReactNode;
   value?: string;
   onChange: (next: string) => void;
   help?: ReactNode;
   accept?: string;
 }) {
-  const { t } = useLocale();
-  const inputRef = useRef<HTMLInputElement>(null);
-  return <div className="form-field">
-    {label && <span className="form-label">
-      {label}
-    </span>}
-    <input
-      ref={inputRef}
-      type="file"
+  return (
+    <ImageUpload
+      label={label}
+      images={value ? [value] : []}
+      multiple={false}
       accept={accept}
-      hidden
-      onChange={(event) => {
-        const file = event.target.files?.[0];
-        if (!file)
-          return;
-        const reader = new FileReader();
-        reader.onload = () => onChange(String(reader.result ?? ''));
-        reader.readAsDataURL(file);
+      help={help}
+      onFiles={async files => {
+        const file = files[0];
+        if (file) onChange(await readImageFile(file));
       }}
+      onImagesChange={images => onChange(images[0] ?? '')}
     />
-    <div className={`upload-field ${value ? 'has-preview' : ''}`}>
-      <div className="upload-preview" aria-hidden="true">
-        {value ? <img src={value} alt="Preview upload" /> : <div className="upload-empty-state">
-          <Icon name="image" size={20} />
-          <span>
-            {t(L('Image preview', 'Xem trước ảnh'))}
-          </span>
-        </div>}
-      </div>
-      <div className="upload-copy">
-        <strong>
-          {t(L('Upload an image', 'Tải ảnh lên'))}
-        </strong>
-        <span>
-          {t(L('Use local files instead of pasting image URLs. Supported formats: JPG, PNG and WEBP.', 'Dùng file nội bộ thay vì dán URL ảnh. Hỗ trợ JPG, PNG và WEBP.'))}
-        </span>
-        <div className="upload-actions">
-          <Button type="button" variant="secondary" icon="upload" onClick={() => inputRef.current?.click()}>
-            {value ? t(L('Replace image', 'Thay ảnh')) : t(L('Choose image', 'Chọn ảnh'))}
-          </Button>
-          {value && <Button
-            type="button"
-            variant="ghost"
-            icon="trash"
-            onClick={() => {
-              onChange(''); if (inputRef.current)
-                inputRef.current.value = '';
-            }}
-          >
-            {t(L('Remove', 'Xóa ảnh'))}
-          </Button>}
-        </div>
-      </div>
-    </div>
-    {help && <span className="field-help">
-      {help}
-    </span>}
-  </div>;
+  );
 }
 export function Modal({ title, onClose, children, footer, width = 'md' }: {
   title: string;

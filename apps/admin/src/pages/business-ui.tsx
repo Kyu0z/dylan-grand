@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Card, Empty, Modal, NativeSelect, SimpleTable, TextArea, TextInput } from '../components/ui';
+import { ImageUpload } from '../components/image-upload';
 import { useAdminAuth } from '../lib/admin-auth';
 import { L, formatMoney, type Localized } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -226,8 +227,8 @@ function ActionDialog({ action, onClose, onDone }: {
         setValues(previous => ({ ...previous, [key]: [...str(previous[key]).split('\n').filter(Boolean), result.url].join('\n') }));
       }
     }
-    catch { /* API client shows upload errors. */ }
     finally {
+      // Successful uploads remain in the draft even if a later file fails.
       lock.current = false;
       setBusy(false);
     }
@@ -244,12 +245,17 @@ function ActionDialog({ action, onClose, onDone }: {
       {action.fields.map(f => {
         const label = t(f.label);
         const value = values[f.key];
-        return f.kind === 'images' ? <div key={f.key} className="form-field">
-          <span className="form-label">{label}</span>
-          <input aria-label={label} type="file" multiple accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { const files = Array.from<File>(e.currentTarget.files ?? []); e.currentTarget.value = ''; void upload(f.key, files); }} />
-          <span className="field-help">{t(L('JPEG, PNG or WebP; up to 5 MB each, 10 photos maximum.', 'JPEG, PNG hoặc WebP; tối đa 5 MB/ảnh, tối đa 10 ảnh.'))}</span>
-          <div className="live-images">{str(value).split('\n').filter(Boolean).map((url, index) => <div key={`${url}-${index}`}><img src={url} alt={t(L('Room photo', 'Ảnh phòng'))} /><Button type="button" variant="secondary" disabled={busy} onClick={() => change(f.key, str(value).split('\n').filter((_, i) => i !== index).join('\n'))}>{t(L('Remove', 'Bỏ ảnh'))}</Button></div>)}</div>
-        </div> : f.kind === 'check' ? <label className="live-check" key={f.key}>
+        return f.kind === 'images' ? (
+          <ImageUpload
+            key={f.key}
+            label={label}
+            images={str(value).split('\n').filter(Boolean)}
+            busy={busy}
+            onFiles={files => upload(f.key, files)}
+            onImagesChange={images => change(f.key, images.join('\n'))}
+            onInvalid={message => notify(message, true)}
+          />
+        ) : f.kind === 'check' ? <label className="live-check" key={f.key}>
           <input type="checkbox" checked={Boolean(value)} onChange={e => change(f.key, e.target.checked)} />
           {label}
         </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
