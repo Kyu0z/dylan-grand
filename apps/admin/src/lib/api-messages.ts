@@ -1,6 +1,32 @@
 // Stable server messages are translated at render time, so existing toasts react
 // to language changes. Unknown future messages stay readable in their original language.
 const viMessages: Record<string, string> = {
+  'Choose an image no larger than 5 MB.': 'Chọn ảnh có dung lượng không quá 5 MB.',
+  'Only JPEG, PNG and WebP images are allowed.': 'Chỉ hỗ trợ ảnh JPEG, PNG và WebP.',
+  'Image storage is not configured.': 'Chưa cấu hình dịch vụ lưu ảnh.',
+  'Image upload failed. Please try again.': 'Tải ảnh thất bại. Vui lòng thử lại.',
+  'Image uploaded successfully.': 'Tải ảnh thành công.',
+
+  'Reverse the folio credit before cancelling this service.': 'Hãy đảo khoản giảm trừ công nợ trước khi hủy dịch vụ này.',
+  "Price changed. Please refresh your quote.": "Giá đã thay đổi. Vui lòng lấy lại báo giá.",
+  "Duplicate extra service.": "Dịch vụ bổ sung bị trùng.",
+  "Extras require a confirmed reservation.": "Dịch vụ bổ sung yêu cầu đặt phòng đã xác nhận.",
+  "Room is still occupied.": "Phòng vẫn đang có khách.",
+  "Stay dates have ended.": "Thời gian lưu trú đã kết thúc.",
+  "Resolve pending service orders before checkout.": "Hoàn tất hoặc hủy dịch vụ đang chờ trước khi trả phòng.",
+  "Enquiry submitted successfully.": "Đã gửi yêu cầu liên hệ.",
+  "Enquiry marked as resolved.": "Đã đánh dấu yêu cầu đã xử lý.",
+  "Wishlist updated successfully.": "Đã cập nhật danh sách yêu thích.",
+  "Promotion status updated successfully.": "Đã cập nhật trạng thái ưu đãi.",
+  "Service status updated successfully.": "Đã cập nhật trạng thái dịch vụ.",
+  "Loading rooms…": "Đang tải phòng…",
+  "Unable to load rooms. Retry": "Không tải được phòng. Thử lại",
+  "No published rooms.": "Chưa có hạng phòng công khai.",
+  "CHILDREN": "TRẺ EM",
+  "Checking availability…": "Đang kiểm tra phòng trống…",
+  "Unable to load availability. Retry": "Không tải được tồn phòng. Thử lại",
+  "/ night · available rooms:": "/ đêm · phòng còn trống:",
+
   'Full name is required.': 'Vui lòng nhập họ tên.',
   'Too many requests. Please try again later.': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
   'Reset link is invalid or expired.': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  Equals, IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString,
+  ArrayMaxSize, IsArray, IsUrl, ValidateNested, Equals, IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString,
   Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -28,14 +28,34 @@ export class UpdateRoleDto {
   @IsIn(['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING']) role!: string;
 }
 export class SetRoomTypeDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionVi?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(10000) sizeSqm?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) bedsEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) bedsVi?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) viewEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) viewVi?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) @MaxLength(100, { each: true }) amenities?: string[];
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(10) @IsUrl({ protocols: ['https'], require_protocol: true }, { each: true }) @MaxLength(2000, { each: true }) imageUrls?: string[];
+
   @ApiProperty({ example: 'deluxe' }) @Matches(/^[a-z0-9-]{2,40}$/) code!: string;
   @ApiProperty({ example: 'Deluxe Room' }) @IsString() @MinLength(1) @MaxLength(100) nameEn!: string;
   @ApiProperty({ example: 'Phòng Deluxe' }) @IsString() @MinLength(1) @MaxLength(100) nameVi!: string;
   @ApiProperty({ example: 2 }) @Type(() => Number) @IsInt() @Min(1) @Max(20) maxGuests!: number;
-  @ApiProperty({ example: 2250000 }) @Type(() => Number) @IsInt() @Min(0) baseRateVnd!: number;
+  @ApiProperty({ example: 2250000 }) @Type(() => Number) @IsInt() @Min(0) @Max(2000000000) baseRateVnd!: number;
   @ApiPropertyOptional({ example: true }) @IsOptional() @IsBoolean() isPublished?: boolean;
 }
 export class PatchRoomTypeDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionVi?: string;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(1) @Max(10000) sizeSqm?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) bedsEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) bedsVi?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) viewEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) viewVi?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(50) @IsString({ each: true }) @MaxLength(100, { each: true }) amenities?: string[];
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(10) @IsUrl({ protocols: ['https'], require_protocol: true }, { each: true }) @MaxLength(2000, { each: true }) imageUrls?: string[];
+
   @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(1) @MaxLength(100) nameEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(1) @MaxLength(100) nameVi?: string;
   @ApiPropertyOptional({ minimum: 1 }) @IsOptional() @IsInt() @Min(1) @Max(20) maxGuests?: number;
@@ -52,14 +72,29 @@ export class SearchDatesDto {
   @ApiProperty({ example: '2026-12-04' }) @Matches(/^\d{4}-\d{2}-\d{2}$/) checkIn!: string;
   @ApiProperty({ example: '2026-12-07' }) @Matches(/^\d{4}-\d{2}-\d{2}$/) checkOut!: string;
 }
+export class BookingExtraDto {
+  @ApiProperty() @Matches(/^[A-Z0-9_-]{3,40}$/) serviceCode!: string;
+  @ApiProperty() @IsInt() @Min(1) @Max(30) quantity!: number;
+}
+export class BookingQuoteDto extends SearchDatesDto {
+  @ApiProperty() @Matches(/^[a-z0-9-]{2,40}$/) roomTypeCode!: string;
+  @ApiProperty() @IsInt() @Min(1) @Max(20) adults!: number;
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(20) children?: number;
+  @ApiPropertyOptional({ enum: ['FLEXIBLE', 'NON_REFUNDABLE'] }) @IsOptional() @IsIn(['FLEXIBLE', 'NON_REFUNDABLE']) ratePlan?: string;
+  @ApiPropertyOptional() @IsOptional() @Matches(/^[A-Z0-9_-]{3,32}$/) promotionCode?: string;
+  @ApiPropertyOptional({ type: [BookingExtraDto] }) @IsOptional() @IsArray() @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => BookingExtraDto) extras?: BookingExtraDto[];
+}
 export class CustomerBookingDto extends SearchDatesDto {
+  @ApiPropertyOptional({ type: [BookingExtraDto] }) @IsOptional() @IsArray() @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => BookingExtraDto) extras?: BookingExtraDto[];
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) @Max(2000000000) expectedTotalVnd?: number;
+
   @ApiProperty({ example: 'reservation-test-001', description: 'Unique client idempotency key; reuse for retries to avoid duplicate bookings' })
   @IsString() @MinLength(8) @MaxLength(100) clientRequestId!: string;
   @ApiProperty({ example: 'deluxe' }) @Matches(/^[a-z0-9-]{2,40}$/) roomTypeCode!: string;
   @ApiProperty({ example: 2 }) @IsInt() @Min(1) @Max(20) adults!: number;
   @ApiPropertyOptional({ example: 0 }) @IsOptional() @IsInt() @Min(0) @Max(20) children?: number;
-  @ApiProperty({ example: 'Alex Nguyen' }) @IsString() @MinLength(1) @MaxLength(120) guestName!: string;
-  @ApiProperty({ example: 'guest@example.com' }) @IsEmail() guestEmail!: string;
+  @ApiProperty({ example: 'Alex Nguyen' }) @IsString() @Matches(/\S/) @MinLength(1) @MaxLength(120) guestName!: string;
+  @ApiProperty({ example: 'guest@example.com' }) @IsEmail() @MaxLength(180) guestEmail!: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(32) guestPhone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(500) specialRequests?: string;
   @ApiPropertyOptional({ enum: ['FLEXIBLE', 'NON_REFUNDABLE'], default: 'FLEXIBLE' })
@@ -120,11 +155,11 @@ export class PromotionDto {
 }
 export class ReviewDto {
   @ApiProperty({ example: 5 }) @IsInt() @Min(1) @Max(5) stars!: number;
-  @ApiProperty({ example: 'Lovely stay, excellent service.' }) @IsString() @MinLength(10) @MaxLength(2000) comment!: string;
-  @ApiProperty({ description: 'Private booking lookup token' }) @IsString() lookupToken!: string;
+  @ApiProperty({ example: 'Lovely stay, excellent service.' }) @IsString() @Matches(/\S/) @MinLength(10) @MaxLength(2000) comment!: string;
+  @ApiPropertyOptional({ description: 'Private booking lookup token; optional for the owning customer' }) @IsOptional() @IsString() lookupToken?: string;
 }
 export class ReviewResponseDto {
-  @ApiProperty({ example: 'Thank you for staying with us.' }) @IsString() @MinLength(3) @MaxLength(2000) response!: string;
+  @ApiProperty({ example: 'Thank you for staying with us.' }) @IsString() @MaxLength(2000) response!: string;
   @ApiProperty() @IsBoolean() isVisible!: boolean;
 }
 export class ReportQueryDto {
@@ -137,6 +172,7 @@ export class SetActiveDto {
   @ApiProperty({ example: false }) @IsBoolean() isActive!: boolean;
 }
 export class FolioAdjustmentDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(8) @MaxLength(100) idempotencyKey?: string;
   @ApiProperty({ example: -100000, description: 'Signed VND: negative credit, positive additional charge' })
   @IsInt() @Min(-2000000000) @Max(2000000000) amountVnd!: number;
   @ApiProperty({ example: 'Manager approved late-checkout fee waiver' }) @IsString() @MinLength(5) @MaxLength(300) reason!: string;

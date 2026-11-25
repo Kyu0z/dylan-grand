@@ -1,20 +1,24 @@
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BookingService } from '../../../core/booking.service';
-import { CancelBookingDto, CustomerBookingDto, LookupBookingDto, ReviewDto } from '../../../core/contracts';
+import { CancelBookingDto, BookingQuoteDto, CustomerBookingDto, LookupBookingDto, ReviewDto } from '../../../core/contracts';
 import { FinanceService } from '../../../core/finance.service';
 import { SessionUser } from '../../../common/auth/auth.guard';
 
 @ApiTags('Customer · Bookings')
 @Controller('bookings')
 export class CustomerBookingsController {
-  constructor(private readonly bookings: BookingService, private readonly finance: FinanceService) {}
+  constructor(private readonly bookings: BookingService, private readonly finance: FinanceService) { }
   @Post() @ApiOperation({ summary: '[DB] Create confirmed pay-at-hotel booking or temporary hold', description: 'Atomic room assignment; lookup token returned ONLY once. Optional Bearer customer token links reservation to account.' })
-  create(@Body() dto: CustomerBookingDto, @Req() req: { user?: SessionUser }) { return this.bookings.create(dto, req.user?.role === 'CUSTOMER' ? req.user.id : undefined); }
+  create(@Body() dto: CustomerBookingDto, @Req() req: { user?: SessionUser; }) { return this.bookings.create(dto, req.user?.role === 'CUSTOMER' ? req.user.id : undefined); }
+  @Post('quote') @ApiOperation({ summary: 'Calculate current total without reserving inventory' })
+  quote(@Body() dto: BookingQuoteDto) { return this.bookings.quoteBooking(dto); }
+  @Post('lookup') @ApiOperation({ summary: 'Private booking lookup without token in URL' })
+  lookupPrivate(@Body() dto: LookupBookingDto) { return this.bookings.lookup(dto.code, dto.lookupToken); }
   @Get('lookup') @ApiOperation({ summary: '[DB] Look up a reservation using private token' })
   lookup(@Query() dto: LookupBookingDto) { return this.bookings.lookup(dto.code, dto.lookupToken); }
   @Post(':code/cancel') @ApiOperation({ summary: '[DB] Cancel booking with private lookup token; calculate cancellation fee' })
-  cancel(@Param('code') code: string, @Body() dto: CancelBookingDto, @Req() req: { user?: SessionUser }) { return this.bookings.cancel(code, dto, undefined, req.user?.role === 'CUSTOMER' ? req.user.id : undefined); }
+  cancel(@Param('code') code: string, @Body() dto: CancelBookingDto, @Req() req: { user?: SessionUser; }) { return this.bookings.cancel(code, dto, undefined, req.user?.role === 'CUSTOMER' ? req.user.id : undefined); }
   @Post(':code/review') @ApiOperation({ summary: '[DB] Review a completed stay (private lookup token required)' })
-  review(@Param('code') code: string, @Body() dto: ReviewDto) { return this.finance.review(code, dto); }
+  review(@Param('code') code: string, @Body() dto: ReviewDto, @Req() req: { user?: SessionUser; }) { return this.finance.review(code, dto, req.user?.role === 'CUSTOMER' ? req.user.id : undefined); }
 }

@@ -1,6 +1,6 @@
 import { notify } from './toast';
 
-const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1').replace(/\/+$/, '');
+const apiUrl = (process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:4000/api/v1' : '')).replace(/\/+$/, '');
 const genericError = 'Something went wrong. Please try again.';
 export class ApiError extends Error {
   readonly messages: string[];
@@ -24,18 +24,19 @@ function getHeaderMessage(response: Response) {
   if (!raw) return '';
   try { return decodeURIComponent(raw); } catch { return raw; }
 }
-export type ApiResult<T> = { data: T; messages: string[] };
-type Options = { method?: string; body?: object; token?: string; notifications?: 'all' | 'errors' | 'none' };
+export type ApiResult<T> = { data: T; messages: string[]; };
+type Options = { method?: string; body?: object; token?: string; notifications?: 'all' | 'errors' | 'none'; };
 
 /** Shared customer REST client. Mutations notify on success and failure by default;
  * GET only notifies on failure. Background requests can explicitly opt out. */
 export async function apiRequest<T>(path: string, options: Options = {}): Promise<ApiResult<T>> {
   const { method = 'GET', body, token, notifications = ['GET', 'HEAD'].includes(method.toUpperCase()) ? 'errors' : 'all' } = options;
   try {
+    if (!apiUrl) throw new ApiError(0, 'API URL is not configured.');
     let response: Response;
     try {
       response = await fetch(`${apiUrl}${path}`, {
-        method, cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(20_000),
+        method, cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(100_000),
         headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });

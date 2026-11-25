@@ -3648,3 +3648,87 @@ body,
     transform: translateY(0);
   }
 }
+
+/* Live business screens use the existing admin theme tokens. */
+.live-form {
+  display: grid;
+  gap: 16px;
+}
+.live-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.live-form > .live-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.live-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.live-check input {
+  accent-color: var(--gold);
+}
+.live-details {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit,minmax(200px,1fr));
+}
+.live-details > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.live-details span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.live-details strong {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.live-slot {
+  display: block;
+  min-width: 86px;
+  padding: 7px;
+  border-radius: 5px;
+  background: var(--surface);
+  text-align: center;
+  font-size: 11px;
+}
+.live-slot-available {
+  background: #306b4933;
+}
+.live-slot-pending, .live-slot-confirmed {
+  background: #b79d6038;
+}
+.live-slot-checked_in {
+  background: #517ea34a;
+}
+.live-slot-maintenance, .live-slot-blocked {
+  background: #bd65594a;
+}
+.live-slot-dirty {
+  background: #927b4b40;
+}
+
+.live-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 12px;
+}
+.live-images > div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.live-images img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+}

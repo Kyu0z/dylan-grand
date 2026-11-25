@@ -13,24 +13,6 @@ export type Stay = {
   promo: string;
 };
 export type Guest = { firstName: string; lastName: string; email: string; phone: string; notes: string; };
-export type Booking = {
-  code: string;
-  room: RoomId;
-  checkin: string;
-  checkout: string;
-  adults: number;
-  count: number;
-  rate: Stay['rate'];
-  guest: string;
-  email: string;
-  total: number;
-  status: 'confirmed' | 'cancelled' | 'completed';
-  createdAt: string;
-  breakfast: boolean;
-  transfer: boolean;
-  lateCheckout: boolean;
-  isDemo: true;
-};
 const prefix = 'dylan-grand-v3-';
 export const defaultStay = (): Stay => ({
   checkin: addDays(dayISO(), 14),
@@ -66,8 +48,6 @@ export const saveStay = (patch: Partial<Stay>) => {
   write('stay', next);
   return next;
 };
-export const getBookings = () => read<Booking[]>('bookings', []);
-export const saveBookings = (items: Booking[]) => write('bookings', items);
 export const getWishlist = () => read<string[]>('wishlist', []);
 export const toggleWishlist = (id: string) => {
   const current = getWishlist();
@@ -75,4 +55,3 @@ export const toggleWishlist = (id: string) => {
   write('wishlist', next);
   return next;
 };
-export const getReviews = () => read<{ name: string; rating: number; message: string; createdAt: string; }[]>('reviews', []);

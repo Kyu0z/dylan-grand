@@ -4,12 +4,15 @@ import { DateField, SelectField } from '@/components/form-controls';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { photos, rooms, addDays, dayISO } from '@/lib/data';
+import { photos, roomArtwork as artwork, addDays, dayISO } from '@/lib/data';
+import { useRooms, useLiveData, type Hotel } from '@/lib/live-data';
 import { saveStay } from '@/lib/storage';
 import { Arrow, Eyebrow, Photo, RoomCard, SectionTitle } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 export default function HomePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { rooms, loading, failed, reload } = useRooms();
+  const hotel = useLiveData<Hotel>('/hotel');
   const router = useRouter();
   const [checkin, setCheckin] = useState(addDays(dayISO(), 14)),
     [checkout, setCheckout] = useState(addDays(dayISO(), 17)),
@@ -22,7 +25,7 @@ export default function HomePage() {
       setError('Check-out must be after check-in.');
       return;
     }
-    saveStay({ checkin, checkout, adults });
+    saveStay({ checkin, checkout, adults, count: 1, children: 0 });
     router.push('/availability');
   };
   return <>
@@ -31,7 +34,7 @@ export default function HomePage() {
         <Eyebrow light><T>{"AN INTIMATE ESCAPE IN THE HEART OF SAIGON"}</T></Eyebrow>
         <h1 className="display mt-12 text-[clamp(5rem,7.5vw,9rem)] animate-in"><T>{"The art of"}</T><br /><em><T>{"feeling at"}</T></em><br /><T>{"home."}</T></h1>
         <p className="mt-9 max-w-[410px] text-sm leading-8 text-surface/75 animate-in animate-delay"><T>{"Quiet elegance, thoughtful details and the warmth of a truly personal welcome. A new rhythm for your time in the city."}</T></p>
-        <Link href="/rooms" className="line-link mt-12 w-fit text-surface"><T>{"DISCOVER OUR ROOMS"}</T>{ " " }<Arrow /></Link>
+        <Link href="/rooms" className="line-link mt-12 w-fit text-surface"><T>{"DISCOVER OUR ROOMS"}</T>{" "}<Arrow /></Link>
         <span className="mt-16 text-[10px] tracking-[.2em] text-gold uppercase"><T>{"01 / 04 — THE DYLAN EXPERIENCE"}</T></span>
       </div>
       <Photo src={photos.hero}
@@ -60,7 +63,7 @@ export default function HomePage() {
             options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `${n} ${n === 1 ? 'adult' : 'adults'}` }))}
             onValueChange={(value) => setAdults(Number(value))}
           />
-          <button type="submit" className="btn-primary h-12"><T>{"CHECK AVAILABILITY"}</T>{ " " }<Arrow /></button>
+          <button type="submit" className="btn-primary h-12"><T>{"CHECK AVAILABILITY"}</T>{" "}<Arrow /></button>
         </form>
         {error && <p role="alert" className="mt-2 text-xs text-red-700">
           {t(error)}
@@ -73,9 +76,9 @@ export default function HomePage() {
         <h2 className="section-heading mt-7"><T>{"A different pace."}</T><br /><em><T>{"A more meaningful"}</T></em> <T>{"stay."}</T></h2>
       </div>
       <div className="max-w-[510px]">
-        <p className="body-copy text-[16px]"><T>{"Dylan Grand Hotel is imagined as a refined retreat from the rhythm of the city. Contemporary comforts and timeless hospitality find their balance here."}</T></p>
+        <p className="body-copy text-[16px]">{(locale === 'vi' ? hotel.data?.descriptionVi : hotel.data?.descriptionEn) || t("Contemporary comforts and timeless hospitality find their balance here.")}</p>
         <p className="body-copy mt-5"><T>{"Whether the morning begins slowly or the evening takes you somewhere new, every detail is designed to make it feel like yours."}</T></p>
-        <Link href="#gallery" className="line-link mt-9"><T>{"EXPLORE OUR STORY"}</T>{ " " }<Arrow /></Link>
+        <Link href="#gallery" className="line-link mt-9"><T>{"EXPLORE OUR STORY"}</T>{" "}<Arrow /></Link>
       </div>
     </section>
     <section className="section-pad bg-paper">
@@ -83,10 +86,10 @@ export default function HomePage() {
         <SectionTitle index={t("02 / ROOMS & SUITES")}
           title={t("Stay")}
           italic={t("beautifully.")}
-          action={<Link href="/rooms" className="line-link"><T>{"EXPLORE ALL ROOMS"}</T>{ " " }<Arrow diagonal /></Link>}
+          action={<Link href="/rooms" className="line-link"><T>{"EXPLORE ALL ROOMS"}</T>{" "}<Arrow diagonal /></Link>}
         />
         <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-          {rooms.map(r => <RoomCard key={r.id} room={r} />)}
+          {loading ? <p>{t("Loading rooms…")}</p> : failed ? <button className="btn-outline" onClick={reload}>{t("Unable to load rooms. Retry")}</button> : rooms.length ? rooms.map(r => <RoomCard key={r.id} room={r} />) : <p>{t("No published rooms.")}</p>}
         </div>
       </div>
     </section>
@@ -96,7 +99,7 @@ export default function HomePage() {
         <Eyebrow light><T>{"03 / EXPERIENCES"}</T></Eyebrow>
         <h2 className="display mt-9 text-[clamp(3.8rem,5vw,6.5rem)]"><T>{"More than a stay."}</T><br /><em><T>{"A story to remember."}</T></em></h2>
         <p className="mt-7 max-w-lg text-sm leading-8 text-surface/75"><T>{"From a slow morning to an unforgettable evening, every moment is designed to be savoured. Discover quiet spaces, local flavours and the freedom to simply be."}</T></p>
-        <Link href="/experiences" className="line-link mt-10 w-fit text-surface"><T>{"EXPLORE EXPERIENCES"}</T>{ " " }<Arrow /></Link>
+        <Link href="/experiences" className="line-link mt-10 w-fit text-surface"><T>{"EXPLORE EXPERIENCES"}</T>{" "}<Arrow /></Link>
       </div>
     </section>
     <section id="gallery" className="container-site section-pad">
@@ -106,9 +109,9 @@ export default function HomePage() {
           alt={t("Hotel lobby and reception")}
           className="aspect-[4/3] md:col-span-2 md:row-span-2 md:aspect-auto md:min-h-[500px]"
         />
-        <Photo src={rooms[0].images[1]} alt={t("Warm hotel guest bedroom")} className="aspect-[4/3]" />
+        <Photo src={artwork[0].images[1]} alt={t("Warm hotel guest bedroom")} className="aspect-[4/3]" />
         <Photo src={photos.interior} alt={t("Hotel interior lobby")} className="aspect-[4/3]" />
-        <Photo src={rooms[1].images[1]} alt={t("Premium hotel room")} className="aspect-[4/3]" />
+        <Photo src={artwork[1].images[1]} alt={t("Premium hotel room")} className="aspect-[4/3]" />
         <Photo src={photos.facade} alt={t("Hotel architecture")} className="aspect-[4/3]" />
       </div>
     </section>
@@ -139,10 +142,10 @@ export default function HomePage() {
       <div className="container-site flex flex-wrap items-center justify-between gap-10">
         <div>
           <Eyebrow light><T>{"06 / EXCLUSIVE OFFER"}</T></Eyebrow>
-          <h2 className="display mt-6 text-6xl"><T>{"Make room for"}</T>{ " " }<em><T>{"more."}</T></em></h2>
+          <h2 className="display mt-6 text-6xl"><T>{"Make room for"}</T>{" "}<em><T>{"more."}</T></em></h2>
           <p className="mt-4 max-w-xl text-sm leading-8 text-surface/70"><T>{"Thoughtfully curated stays. Experience a little more of Dylan Grand."}</T></p>
         </div>
-        <Link href="/availability" className="btn-outline border-surface/40 text-surface"><T>{"DISCOVER YOUR STAY"}</T>{ " " }<Arrow diagonal /></Link>
+        <Link href="/availability" className="btn-outline border-surface/40 text-surface"><T>{"DISCOVER YOUR STAY"}</T>{" "}<Arrow diagonal /></Link>
       </div>
     </section>
     <section className="section-pad container-site">
@@ -178,7 +181,7 @@ export default function HomePage() {
       <div className="container-site grid gap-12 lg:grid-cols-2">
         <div>
           <Eyebrow><T>{"08 / BEFORE YOU ARRIVE"}</T></Eyebrow>
-          <h2 className="section-heading mt-6"><T>{"Good to"}</T>{ " " }<em><T>{"know."}</T></em></h2>
+          <h2 className="section-heading mt-6"><T>{"Good to"}</T>{" "}<em><T>{"know."}</T></em></h2>
           <p className="body-copy mt-6 max-w-md"><T>{"A considered stay begins with clear expectations."}</T></p>
         </div>
         <div>

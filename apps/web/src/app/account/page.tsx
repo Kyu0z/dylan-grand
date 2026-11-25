@@ -3,8 +3,8 @@ import { T, useI18n } from '@/components/language-provider';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/icons';
-import { photos, rooms, money } from '@/lib/data';
-import { getWishlist } from '@/lib/storage';
+import { photos, money } from '@/lib/data';
+import { useRooms, useWishlist } from '@/lib/live-data';
 import { getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signOutCustomer } from '@/lib/customer-auth';
 import { errorMessages } from '@/lib/api-client';
 import { notify } from '@/lib/toast';
@@ -12,6 +12,8 @@ import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 type Mode = 'login' | 'register' | 'forgot' | 'reset';
 export default function AccountPage() {
   const { t, locale } = useI18n();
+  const { rooms } = useRooms();
+  const { codes: wishlist } = useWishlist();
   const [mode, setMode] = useState<Mode>('login'),
     [name, setName] = useState(''),
     [email, setEmail] = useState(''),
@@ -22,8 +24,7 @@ export default function AccountPage() {
     [signed, setSigned] = useState(false),
     [pending, setPending] = useState(false),
     [resetToken, setResetToken] = useState(''),
-    [confirmPassword, setConfirmPassword] = useState(''),
-    [wishlist, setWishlist] = useState<string[]>([]);
+    [confirmPassword, setConfirmPassword] = useState('');
   const formHeading = useRef<HTMLHeadingElement>(null);
   const focusOnChange = useRef(false);
   const activeSession = useRef<string | null | undefined>(undefined);
@@ -49,7 +50,6 @@ export default function AccountPage() {
           setPreferences('');
         }
       }
-      setWishlist(getWishlist());
     };
     const openResetLink = () => {
       const token = new URLSearchParams(window.location.hash.slice(1)).get('resetToken');
@@ -261,7 +261,7 @@ export default function AccountPage() {
                 className="line-link"
               ><T>{"SIGN OUT ↗"}</T></button>
             </div>
-            <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{ " " }<em>{name.split(' ')[0] || t('guest')}.</em></h2>
+            <h2 className="display mt-6 text-6xl"><T>{"Hello,"}</T>{" "}<em>{name.split(' ')[0] || t('guest')}.</em></h2>
             <p className="body-copy mt-5"><T>{"A few thoughtful details can make every stay more personal."}</T></p>
             <form className="mt-8 grid gap-5" onSubmit={saveProfile} onInvalid={() => notify('error', 'Please check the information you entered.')} aria-busy={pending}>
               <label>
@@ -281,11 +281,12 @@ export default function AccountPage() {
                 <textarea className="field-control min-h-24"
                   placeholder={t("A quiet room, twin beds…")}
                   value={preferences}
+                  maxLength={1000}
                   disabled={pending}
                   onChange={e => setPreferences(e.target.value)}
                 />
               </label>
-              <button className="btn-primary disabled:opacity-60" type="submit" disabled={pending}><T>{pending ? "PLEASE WAIT…" : "SAVE PROFILE"}</T>{ " " }<Arrow /></button>
+              <button className="btn-primary disabled:opacity-60" type="submit" disabled={pending}><T>{pending ? "PLEASE WAIT…" : "SAVE PROFILE"}</T>{" "}<Arrow /></button>
             </form>
           </>}
       </div>
@@ -293,7 +294,7 @@ export default function AccountPage() {
     <section className="section-pad bg-paper">
       <div className="container-site">
         <Eyebrow><T>{"YOUR FAVOURITES"}</T></Eyebrow>
-        <h2 className="section-heading mt-5"><T>{"Consider every moment,"}</T>{ " " }<em><T>{"yours."}</T></em></h2>
+        <h2 className="section-heading mt-5"><T>{"Consider every moment,"}</T>{" "}<em><T>{"yours."}</T></em></h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {rooms.filter(r => wishlist.includes(r.id)).map(r => <Link href={`/rooms?room=${r.id}`} className="group" key={r.id}>
             <Photo src={r.images[0]} alt={t(r.name)} className="aspect-[4/3]" />
@@ -304,7 +305,7 @@ export default function AccountPage() {
           </Link>)}
           {wishlist.length === 0 && <div className="border border-line p-9 md:col-span-3">
             <p className="body-copy"><T>{"No favourite rooms yet. Select the heart icon on any room to save it here."}</T></p>
-            <Link href="/rooms" className="line-link mt-7"><T>{"DISCOVER ROOMS"}</T>{ " " }<Arrow /></Link>
+            <Link href="/rooms" className="line-link mt-7"><T>{"DISCOVER ROOMS"}</T>{" "}<Arrow /></Link>
           </div>}
         </div>
       </div>

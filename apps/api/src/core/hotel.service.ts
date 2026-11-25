@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { SearchDatesDto, SetDailyRateDto, SetRoomTypeDto, PatchRoomTypeDto, PatchPhysicalRoomDto } from './contracts';
-import { day, isUnique, nights } from './util';
+import { day, hotelToday, isUnique, nights } from './util';
 import { CreateMaintenanceBlockDto, CreatePhysicalRoomDto, UpdateHotelDto, UpdateHousekeepingDto } from '../modules/admin/dto/admin-contract.dto';
 
 type Db = Prisma.TransactionClient;
@@ -10,7 +10,7 @@ const ACTIVE = ['CONFIRMED', 'CHECKED_IN'] as const;
 
 @Injectable()
 export class HotelService {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService) { }
 
   async hotel() {
     return this.db.hotelSettings.upsert({ where: { id: 'dylan-grand-hotel' }, create: { id: 'dylan-grand-hotel' }, update: {} });
@@ -41,10 +41,10 @@ export class HotelService {
     return updated;
   }
   async physicalRooms() {
-    return this.db.physicalRoom.findMany({ orderBy: { number: 'asc' }, include: { roomType: { select: { code: true, nameEn: true } } } });
+    return this.db.physicalRoom.findMany({ orderBy: { number: 'asc' }, include: { roomType: { select: { code: true, nameEn: true, nameVi: true } } } });
   }
   async physicalRoom(number: string) {
-    const value = await this.db.physicalRoom.findUnique({ where: { number }, include: { roomType: { select: { code: true, nameEn: true } } } });
+    const value = await this.db.physicalRoom.findUnique({ where: { number }, include: { roomType: { select: { code: true, nameEn: true, nameVi: true } } } });
     if (!value) throw new NotFoundException('Physical room not found.');
     return value;
   }
@@ -59,10 +59,11 @@ export class HotelService {
     return this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${room.roomTypeId}))`;
       if (dto.sellable === false) {
-        const existing = await tx.booking.count({ where: {
-          roomId: room.id, checkOut: { gt: day(new Date().toISOString().slice(0, 10)) },
-          OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } }],
-        } });
+        const existing = await tx.booking.count({
+          where: {
+            roomId: room.id, OR: [{ status: 'CHECKED_IN' }, { checkOut: { gt: day(hotelToday()) }, OR: [{ status: 'CONFIRMED' }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } }] }],
+          }
+        });
         if (existing > 0) throw new ConflictException('Room has upcoming/active reservations; relocate them first.');
       }
       return tx.physicalRoom.update({ where: { number }, data: dto });
@@ -76,9 +77,12 @@ export class HotelService {
       (old === 'CLEAN' && dto.status === 'INSPECTED') ||
       (dto.status === 'DIRTY');
     if (!valid) throw new ConflictException(`Invalid housekeeping transition ${old} → ${dto.status}.`);
-    const updated = await this.db.physicalRoom.update({ where: { number }, data: { cleaningStatus: dto.status } });
-    await this.db.auditLog.create({ data: { actorId, operation: 'HOUSEKEEPING_STATUS', entity: 'PhysicalRoom', entityId: room.id, detail: { from: old, to: dto.status } } });
-    return updated;
+    return this.db.$transaction(async tx => {
+      const changed = await tx.physicalRoom.updateMany({ where: { number, cleaningStatus: old }, data: { cleaningStatus: dto.status } });
+      if (!changed.count) throw new ConflictException('Data changed concurrently. Please try again.');
+      await tx.auditLog.create({ data: { actorId, operation: 'HOUSEKEEPING_STATUS', entity: 'PhysicalRoom', entityId: room.id, detail: { from: old, to: dto.status } } });
+      return tx.physicalRoom.findUniqueOrThrow({ where: { number } });
+    });
   }
   housekeeping() { return this.db.physicalRoom.findMany({ select: { number: true, floor: true, cleaningStatus: true, sellable: true }, orderBy: { number: 'asc' } }); }
 
@@ -114,16 +118,17 @@ export class HotelService {
       where: {
         roomTypeId, sellable: true,
         blocks: { none: { startDate: { lt: end }, endDate: { gt: start } } },
-        bookings: { none: {
-          ...(exceptBookingId ? { id: { not: exceptBookingId } } : {}),
-          checkIn: { lt: end }, checkOut: { gt: start },
-          OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: now } }],
-        } },
+        bookings: {
+          none: {
+            ...(exceptBookingId ? { id: { not: exceptBookingId } } : {}),
+            OR: [{ checkIn: { lt: end }, checkOut: { gt: start }, OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: now } }] }, { status: 'CHECKED_IN', checkOut: { lte: day(hotelToday()) } }],
+          }
+        },
       }, orderBy: { number: 'asc' },
     });
   }
 
-  async availability(dto: SearchDatesDto & { adults: number; children?: number }) {
+  async availability(dto: SearchDatesDto & { adults: number; children?: number; }) {
     const dates = nights(dto.checkIn, dto.checkOut);
     const start = dates[0]; const end = day(dto.checkOut);
     const types = await this.db.roomType.findMany({ where: { isPublished: true, maxGuests: { gte: dto.adults + (dto.children ?? 0) }, baseRateVnd: { gt: 0 } }, orderBy: { code: 'asc' } });
@@ -155,10 +160,11 @@ export class HotelService {
       const room = await tx.physicalRoom.findUnique({ where: { number: dto.roomNumber } });
       if (!room) throw new NotFoundException('Physical room not found.');
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${room.roomTypeId}))`;
-      const count = await tx.booking.count({ where: {
-        roomId: room.id, checkIn: { lt: end }, checkOut: { gt: start },
-        OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } }],
-      } });
+      const count = await tx.booking.count({
+        where: {
+          roomId: room.id, OR: [{ checkIn: { lt: end }, checkOut: { gt: start }, OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } }] }, { status: 'CHECKED_IN', checkOut: { lte: day(hotelToday()) } }],
+        }
+      });
       if (count > 0) throw new ConflictException('Maintenance overlaps an active booking/hold.');
       const overlaps = await tx.maintenanceBlock.count({ where: { roomId: room.id, startDate: { lt: end }, endDate: { gt: start } } });
       if (overlaps > 0) throw new ConflictException('Maintenance block overlaps existing block.');
@@ -180,9 +186,7 @@ export class HotelService {
     nights(dto.checkIn, dto.checkOut, true);
     const [rooms, bookings, blocks] = await Promise.all([
       this.db.physicalRoom.findMany({ include: { roomType: { select: { code: true } } }, orderBy: { number: 'asc' } }),
-      this.db.booking.findMany({ where: { checkIn: { lt: day(dto.checkOut) }, checkOut: { gt: day(dto.checkIn) }, OR: [
-        { status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } },
-      ] }, select: { roomId: true, code: true, status: true, checkIn: true, checkOut: true } }),
+      this.db.booking.findMany({ where: { OR: [{ checkIn: { lt: day(dto.checkOut) }, checkOut: { gt: day(dto.checkIn) }, OR: [{ status: { in: [...ACTIVE] } }, { status: 'PENDING', holdExpiresAt: { gt: new Date() } }] }, { status: 'CHECKED_IN', checkOut: { lte: day(hotelToday()) } }] }, select: { roomId: true, code: true, status: true, checkIn: true, checkOut: true } }),
       this.db.maintenanceBlock.findMany({ where: { startDate: { lt: day(dto.checkOut) }, endDate: { gt: day(dto.checkIn) } } }),
     ]);
     return { rooms, bookings, blocks };

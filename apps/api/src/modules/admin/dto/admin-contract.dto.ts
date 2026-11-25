@@ -1,20 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsEmail, IsEnum, IsInt, IsOptional, IsString,
+  IsEmail, IsEnum, IsIn, IsInt, IsOptional, IsString,
   Matches, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
 
 export class UpdateHotelDto {
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(32) phone?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(300) address?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionEn?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(2000) descriptionVi?: string;
+
   @ApiPropertyOptional({ example: 'Dylan Grand Hotel' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
+  @Matches(/\S/)
   nameEn?: string;
 
   @ApiPropertyOptional({ example: 'Khách sạn Dylan Grand' })
   @IsOptional()
   @IsString()
   @MaxLength(120)
+  @Matches(/\S/)
   nameVi?: string;
 
   @ApiPropertyOptional({ example: 'contact@example.com' })
@@ -105,7 +112,7 @@ export class RecordPaymentDto {
 
 export class UpdateHousekeepingDto {
   @ApiProperty({ enum: ['DIRTY', 'CLEAN', 'INSPECTED'], example: 'CLEAN' })
-  @IsEnum(['DIRTY', 'CLEAN', 'INSPECTED'])
+  @IsIn(['DIRTY', 'CLEAN', 'INSPECTED'])
   status!: 'DIRTY' | 'CLEAN' | 'INSPECTED';
 }
 

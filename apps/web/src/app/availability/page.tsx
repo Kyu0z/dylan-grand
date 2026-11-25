@@ -4,18 +4,21 @@ import { DateField, SelectField } from '@/components/form-controls';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { rooms, money, nights, dayISO, addDays, type RoomId } from '@/lib/data';
+import { money, nights, dayISO, addDays, type RoomId } from '@/lib/data';
+import { useRooms, useLiveData, type Availability } from '@/lib/live-data';
 import { getStay, saveStay } from '@/lib/storage';
 import { PageIntro, Photo, Eyebrow, Arrow } from '@/components/ui';
 function AvailabilityContent() {
   const { t } = useI18n();
+  const catalog = useRooms();
+  const rooms = catalog.rooms;
   const router = useRouter(), params = useSearchParams();
   const [ready, setReady] = useState(false),
     [checkin, setCheckin] = useState(addDays(dayISO(), 14)),
     [checkout, setCheckout] = useState(addDays(dayISO(), 17)),
     [adults, setAdults] = useState(2),
-    [count, setCount] = useState(1),
-    [maxPrice, setMaxPrice] = useState(5500000),
+    [children, setChildren] = useState(0),
+    [maxPrice, setMaxPrice] = useState(2000000000),
     [sort, setSort] = useState('recommended'),
     [amenities, setAmenities] = useState<string[]>([]),
     [selected, setSelected] = useState<RoomId | ''>(''),
@@ -25,19 +28,21 @@ function AvailabilityContent() {
     setCheckin(s.checkin);
     setCheckout(s.checkout);
     setAdults(s.adults);
-    setCount(s.count);
+    setChildren(s.children);
     const id = params.get('room');
-    if (id && rooms.some(r => r.id === id)) setSelected(id as RoomId);
+    if (id) setSelected(id);
     setReady(true);
   }, [params]);
-  const valid = checkout > checkin && checkin >= dayISO();
-  const available = rooms.filter(r => r.guests >= Math.ceil(adults / count) && r.available >= count && r.price <= maxPrice && (!selected || r.id === selected) && amenities.every(a => r.amenities.some(x => x.toLowerCase().includes(a)))).sort((a, b) => sort === 'price-asc' ? a.price - b.price : sort === 'price-desc' ? b.price - a.price : a.size - b.size);
+  const valid = checkout > checkin && checkin >= dayISO() && nights(checkin, checkout) <= 30;
+  const d = useLiveData<Availability>(ready && valid ? `/availability?${new URLSearchParams({ checkIn: checkin, checkOut: checkout, adults: String(adults), children: String(children) })}` : null);
+  const count = 1;
+  const available = rooms.flatMap(r => { const a = d.data?.roomTypes.find(x => x.roomTypeCode === r.id); return a ? [{ ...r, available: a.availableRooms, price: a.totalRoomPriceVnd / a.nights, total: a.totalRoomPriceVnd }] : []; }).filter(r => r.guests >= adults + children && r.available >= count && r.price <= maxPrice && (!selected || r.id === selected) && amenities.every(a => r.amenities.some(x => x.toLowerCase().includes(a)))).sort((a, b) => sort === 'price-asc' ? a.price - b.price : sort === 'price-desc' ? b.price - a.price : a.size - b.size);
   const go = (id: RoomId) => {
     if (!valid) {
       setError('Please select valid stay dates.');
       return;
     }
-    saveStay({ checkin, checkout, adults, count, room: id });
+    saveStay({ checkin, checkout, adults, children, count: 1, room: id, rate: 'flexible', promo: '' });
     router.push('/booking');
   };
   return <>
@@ -67,10 +72,10 @@ function AvailabilityContent() {
               options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `${n} ${n === 1 ? 'adult' : 'adults'}` }))}
               onValueChange={(value) => setAdults(Number(value))}
             />
-            <SelectField label={t("NUMBER OF ROOMS")}
-              value={String(count)}
-              options={[1, 2, 3].map((n) => ({ value: String(n), label: `${n} ${n === 1 ? 'room' : 'rooms'}` }))}
-              onValueChange={(value) => setCount(Number(value))}
+            <SelectField label={t("CHILDREN")}
+              value={String(children)}
+              options={[0, 1, 2, 3, 4, 5, 6].map(n => ({ value: String(n), label: String(n) }))}
+              onValueChange={value => setChildren(Number(value))}
             />
             <SelectField label={t("ROOM TYPE")}
               value={String(selected)}
@@ -81,15 +86,15 @@ function AvailabilityContent() {
               <label className="field-label" htmlFor="max-price"><T>{"MAXIMUM RATE / NIGHT"}</T></label>
               <input id="max-price"
                 type="range"
-                min={2000000}
-                max={5500000}
+                min={0}
+                max={Math.max(5500000, ...rooms.map(r => r.price))}
                 step={250000}
-                value={maxPrice}
+                value={Math.min(maxPrice, Math.max(5500000, ...rooms.map(r => r.price)))}
                 onChange={e => setMaxPrice(Number(e.target.value))}
                 className="w-full accent-gold"
               />
               <strong className="text-sm">
-                {money(maxPrice)}
+                {money(Math.min(maxPrice, Math.max(5500000, ...rooms.map(r => r.price))))}
               </strong>
             </div>
             <fieldset className="border-t border-line pt-5">
@@ -105,11 +110,11 @@ function AvailabilityContent() {
             </fieldset>
             <button className="btn-outline"
               onClick={() => {
-                setMaxPrice(5500000);
+                setMaxPrice(2000000000);
                 setSelected('');
                 setAmenities([]);
                 setAdults(2);
-                setCount(1);
+                setChildren(0);
               }}
             ><T>{"RESET FILTERS"}</T></button>
           </div>
@@ -118,7 +123,7 @@ function AvailabilityContent() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-5">
             <div>
               <Eyebrow><T>{"OUR AVAILABILITY"}</T></Eyebrow>
-              <p className="mt-2 text-sm">{ready ? available.length : '—'} <T>{"options ·"}</T>{ " " }{valid ? nights(checkin, checkout) : 0} <T>{"nights"}</T></p>
+              <p className="mt-2 text-sm">{ready && !d.loading && !catalog.loading ? available.length : '—'} <T>{"options ·"}</T>{" "}{valid ? nights(checkin, checkout) : 0} <T>{"nights"}</T></p>
             </div>
             <SelectField label={t("SORT BY")}
               value={String(sort)}
@@ -130,32 +135,34 @@ function AvailabilityContent() {
             {t(error)}
           </p>}
           {!valid && <p className="mt-6 bg-surface-alt p-4 text-sm"><T>{"Check-out must be later than check-in, and check-in cannot be in the past."}</T></p>}
-          {valid && available.map(room => <article key={room.id}
+          {valid && !catalog.failed && !d.failed && available.map(room => <article key={room.id}
             className="my-7 grid overflow-hidden border border-line bg-paper md:grid-cols-[43%_57%]"
           >
             <Photo src={room.images[0]} alt={`${t(room.name)} guest bedroom`} className="min-h-[280px]" />
             <div className="flex flex-col p-7">
-              <Eyebrow>{t(room.subtitle)} / {room.size} <T>{"M²"}</T></Eyebrow>
+              <Eyebrow>{t(room.subtitle)} {room.size > 0 && <>/ {room.size} <T>{"M²"}</T></>}</Eyebrow>
               <h2 className="font-display mt-4 text-5xl">
                 {t(room.name)}
               </h2>
               <p className="body-copy mt-4">
                 {t(room.description)}
               </p>
-              <p className="mt-4 text-xs text-muted">{t(room.beds)} <T>{"· Up to"}</T>{ " " }{room.guests} <T>{"guests ·"}</T>{ " " }{t(room.view)}</p>
+              <p className="mt-4 text-xs text-muted">{t(room.beds)} <T>{"· Up to"}</T>{" "}{room.guests} <T>{"guests ·"}</T>{" "}{t(room.view)}</p>
               <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-line pt-6">
                 <div>
                   <span className="field-label"><T>{"ESTIMATED TOTAL"}</T></span>
                   <strong className="text-lg">
-                    {money(room.price * nights(checkin, checkout) * count)}
+                    {money(room.total)}
                   </strong>
-                  <p className="mt-1 text-[11px] text-muted">{money(room.price)} <T>{"/ night · estimated availability:"}</T>{ " " }{room.available}</p>
+                  <p className="mt-1 text-[11px] text-muted">{money(room.price)} <T>{"/ night · available rooms:"}</T>{" "}{room.available}</p>
                 </div>
-                <button className="btn-primary" onClick={() => go(room.id)}><T>{"CHOOSE ROOM"}</T>{ " " }<Arrow /></button>
+                <button className="btn-primary" onClick={() => go(room.id)}><T>{"CHOOSE ROOM"}</T>{" "}<Arrow /></button>
               </div>
             </div>
           </article>)}
-          {valid && !available.length && <div className="py-24 text-center">
+          {(d.loading || catalog.loading) && valid && <p className="py-6">{t("Checking availability…")}</p>}
+          {(d.failed || catalog.failed) && <button className="btn-outline mt-6" onClick={() => { d.reload(); catalog.reload(); }}>{t("Unable to load availability. Retry")}</button>}
+          {valid && !d.loading && !catalog.loading && !d.failed && !catalog.failed && !available.length && <div className="py-24 text-center">
             <h2 className="font-display text-5xl"><T>{"No rooms in this selection."}</T></h2>
             <p className="body-copy mt-5"><T>{"Try a different room type, price range or guest count."}</T></p>
           </div>}

@@ -1,12 +1,11 @@
-import { read, write } from './storage';
 import { apiRequest, ApiError } from './api-client';
 import { notify } from './toast';
 export { ApiError as AuthError } from './api-client';
 
-export type CustomerProfile = { id: string; email: string; fullName: string; phone: string };
-export type Account = { name: string; email: string; phone: string; preferences: string };
-type Session = { accessToken: string; expiresAt: number; profile: CustomerProfile };
-type LoginResponse = { accessToken: string; expiresIn: number; role: string };
+export type CustomerProfile = { id: string; email: string; fullName: string; phone: string; preferences?: string; };
+export type Account = { name: string; email: string; phone: string; preferences: string; };
+type Session = { accessToken: string; expiresAt: number; profile: CustomerProfile; };
+type LoginResponse = { accessToken: string; expiresIn: number; role: string; };
 const sessionKey = 'dylan-grand-customer-session-v1';
 // Auth is a multi-step flow; the UI emits one result per completed action.
 function request<T>(path: string, method = 'GET', body?: object, token?: string) {
@@ -21,6 +20,7 @@ function getSession(): Session | null {
     return value;
   } catch { return null; }
 }
+export function getCustomerToken() { return getSession()?.accessToken; }
 function setSession(session: Session) {
   sessionStorage.setItem(sessionKey, JSON.stringify(session));
   window.dispatchEvent(new Event('dylan-storage'));
@@ -33,8 +33,10 @@ export function getCustomerAccount(): Account | null {
   const session = getSession();
   if (!session) return null;
   const { profile } = session;
-  return { name: profile.fullName, email: profile.email, phone: profile.phone,
-    preferences: read<string>(`preferences-${profile.id}`, '') };
+  return {
+    name: profile.fullName, email: profile.email, phone: profile.phone,
+    preferences: profile.preferences ?? ''
+  };
 }
 export async function signInCustomer(email: string, password: string) {
   const { data: login, messages } = await request<LoginResponse>('/auth/login', 'POST', { email, password });
@@ -71,10 +73,9 @@ export async function saveCustomerProfile(fullName: string, phone: string, prefe
   const session = getSession();
   if (!session) throw new ApiError(401, 'Your session has expired. Please sign in.');
   try {
-    const { data: profile, messages } = await request<CustomerProfile>('/me', 'PATCH', { fullName, phone }, session.accessToken);
+    const { data: profile, messages } = await request<CustomerProfile>('/me', 'PATCH', { fullName, phone, preferences }, session.accessToken);
     if (getSession()?.accessToken !== session.accessToken) throw new ApiError(401, 'Your session has expired. Please sign in.');
     setSession({ ...session, profile });
-    write(`preferences-${profile.id}`, preferences);
     return messages;
   } catch (error) {
     if (error instanceof ApiError && [401, 403].includes(error.status) && getSession()?.accessToken === session.accessToken) {

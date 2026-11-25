@@ -1,11 +1,12 @@
 export class ApiError extends Error { constructor(public status: number, public messages: string[]) { super(messages.join('\n')); } }
-export async function request<T>(base: string, path: string, options: { method?: string; body?: unknown; token?: string } = {}) {
+export async function request<T>(base: string, path: string, options: { method?: string; body?: unknown; token?: string; } = {}) {
   if (!base) throw new ApiError(0, ['API URL is not configured.']);
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+  const multipart = options.body instanceof FormData;
+  if (options.body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
   if (options.token) headers.Authorization = `Bearer ${options.token}`;
   let response: Response;
-  try { response = await fetch(`${base}${path}`, { method: options.method ?? 'GET', headers, body: options.body === undefined ? undefined : JSON.stringify(options.body), cache: 'no-store', signal: AbortSignal.timeout(100_000) }); }
+  try { response = await fetch(`${base}${path}`, { method: options.method ?? 'GET', headers, body: options.body === undefined ? undefined : multipart ? options.body as FormData : JSON.stringify(options.body), cache: 'no-store', signal: AbortSignal.timeout(100_000) }); }
   catch { throw new ApiError(0, ['Unable to connect. Please try again.']); }
   const data = await response.json().catch(() => null);
   const raw = data?.message;

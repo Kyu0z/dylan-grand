@@ -26,7 +26,7 @@ function base64(value: object): string { return Buffer.from(JSON.stringify(value
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService) { }
 
   async setup(dto: SetupAdminDto) {
     if (process.env.NODE_ENV === 'production') throw new ForbiddenException('Admin bootstrap is disabled in production.');
@@ -80,7 +80,7 @@ export class AuthService {
     const expected = createHmac('sha256', secret()).update(`${header}.${payload}`).digest();
     const received = Buffer.from(sig, 'base64url');
     if (received.length !== expected.length || !timingSafeEqual(received, expected)) throw new UnauthorizedException('Invalid signature.');
-    let claims: { sub?: string; exp?: number; iss?: string; aud?: string; pv?: string; sv?: number };
+    let claims: { sub?: string; exp?: number; iss?: string; aud?: string; pv?: string; sv?: number; };
     try { claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); }
     catch { throw new UnauthorizedException('Invalid token payload.'); }
     if (!claims.sub || claims.iss !== 'dylan-grand-api' || claims.aud !== 'dylan-grand' || !claims.exp || claims.exp <= Date.now() / 1000) {
@@ -126,21 +126,24 @@ export class AuthService {
   }
 
   async customerProfile(userId: string) {
-    const user = await this.db.user.findUnique({ where: { id: userId }, select: {
-      id: true, email: true, guestProfile: { select: { name: true, phone: true } },
-    } });
+    const user = await this.db.user.findUnique({
+      where: { id: userId }, select: {
+        id: true, email: true, guestProfile: { select: { name: true, phone: true, preferences: true } },
+      }
+    });
     if (!user) throw new UnauthorizedException('Account not found.');
-    return { id: user.id, email: user.email, fullName: user.guestProfile?.name ?? '', phone: user.guestProfile?.phone ?? '' };
+    return { id: user.id, email: user.email, fullName: user.guestProfile?.name ?? '', phone: user.guestProfile?.phone ?? '', preferences: user.guestProfile?.preferences ?? '' };
   }
 
-  async updateCustomerProfile(userId: string, email: string, fullName: string, phone: string) {
+  async updateCustomerProfile(userId: string, email: string, fullName: string, phone: string, preferences?: string) {
     const name = fullName.trim();
     if (!name) throw new BadRequestException('Full name is required.');
-    const guest = await this.db.guest.upsert({ where: { accountId: userId },
-      create: { accountId: userId, email, name, phone: phone.trim() || null },
-      update: { name, phone: phone.trim() || null },
+    const guest = await this.db.guest.upsert({
+      where: { accountId: userId },
+      create: { accountId: userId, email, name, phone: phone.trim() || null, ...(preferences !== undefined ? { preferences: preferences.trim() } : {}) },
+      update: { name, phone: phone.trim() || null, ...(preferences !== undefined ? { preferences: preferences.trim() } : {}) },
     });
-    return { id: userId, email, fullName: guest.name, phone: guest.phone ?? '' };
+    return { id: userId, email, fullName: guest.name, phone: guest.phone ?? '', preferences: guest.preferences ?? '' };
   }
 
   private readonly staffSelect = { id: true, email: true, fullName: true, role: true, isActive: true, pendingActivation: true, createdAt: true } as const;
@@ -219,7 +222,7 @@ export class AuthService {
     return this.db.user.findMany({ where: { role: { in: [...roles] } }, select: this.staffSelect, orderBy: { createdAt: 'desc' } });
   }
 
-  async createStaff(dto: CreateEmployeeDto, actor: { id: string; role: string }) {
+  async createStaff(dto: CreateEmployeeDto, actor: { id: string; role: string; }) {
     this.assertStaffPermission(actor.role, dto.role);
     const config = resetEmailConfig('staff-activation');
     limitResetRequest('staff-invite', actor.id, 20, 60 * 60_000);
@@ -235,7 +238,7 @@ export class AuthService {
     return { ...user, invitationSent, message: invitationSent ? 'Staff invitation sent successfully.' : 'Staff account created. Invitation delivery failed. Please resend.' };
   }
 
-  async resendStaffInvitation(id: string, actor: { id: string; role: string }, locale: 'en' | 'vi') {
+  async resendStaffInvitation(id: string, actor: { id: string; role: string; }, locale: 'en' | 'vi') {
     const config = resetEmailConfig('staff-activation');
     limitResetRequest('staff-resend', actor.id, 20, 60 * 60_000);
     const user = await this.db.user.findUnique({ where: { id } });
@@ -249,7 +252,7 @@ export class AuthService {
     return { message: 'Staff invitation sent successfully.' };
   }
 
-  async setActive(userId: string, isActive: boolean, actor: { id: string; role: string }) {
+  async setActive(userId: string, isActive: boolean, actor: { id: string; role: string; }) {
     if (userId === actor.id) throw new BadRequestException('Cannot disable your own account.');
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user || user.role === 'CUSTOMER') throw new BadRequestException('Staff account not found.');
@@ -263,7 +266,7 @@ export class AuthService {
     });
   }
 
-  async changeRole(userId: string, dto: UpdateRoleDto, actor: { id: string; role: string }) {
+  async changeRole(userId: string, dto: UpdateRoleDto, actor: { id: string; role: string; }) {
     if (userId === actor.id) throw new BadRequestException('You cannot change your own role.');
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user || user.role === 'CUSTOMER') throw new BadRequestException('Staff account not found.');

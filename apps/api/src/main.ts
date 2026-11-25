@@ -38,16 +38,16 @@ async function bootstrap(): Promise<void> {
       .setDescription([
         'Single-hotel booking and management API.',
         '',
-        '**Current phase: database-backed API workflows (development / Swagger testing).**',
+        '**Database-backed hotel workflows.**',
         '- **DB**: Room Types, Physical Rooms, rates, continuous availability, booking, check-in/out, housekeeping, manual payments/refunds, extras, accounts and reports.',
         '- **MANUAL PAYMENTS ONLY**: no online payment gateway, no card capture and no automatic bank verification.',
-        '- **SECURITY**: staff endpoints require Bearer JWT + RBAC; use auth/setup-admin once in development, then auth/login.',
+        '- **SECURITY**: staff endpoints require Bearer JWT + RBAC; use auth/setup-admin once in development, then auth/staff/login.',
         '- **OPERATIONS**: check-out is exclusive, all dates use Asia/Ho_Chi_Minh hotel business date, expired holds release inventory.',
         '',
-        'One API for **User Site** (Next.js) and **Admin Site** (React/Vite). Customer authentication integration is available; other frontend workflows remain independent.',
+        'One API for **User Site** (Next.js) and **Admin Site** (React/Vite). Customer and staff applications consume the same hotel workflows.',
       ].join('\n'))
       .setVersion('1.0.0')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'JWT access token from POST /api/v1/auth/login.' }, 'access-token');
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'JWT from /api/v1/auth/login or /api/v1/auth/staff/login.' }, 'access-token');
 
     for (const tag of SWAGGER_TAGS) {
       documentBuilder.addTag(tag.name, tag.description);

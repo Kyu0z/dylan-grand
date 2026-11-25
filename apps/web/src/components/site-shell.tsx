@@ -1,4 +1,5 @@
 'use client';
+import { useLiveData, type Hotel } from '@/lib/live-data';
 import { T, useI18n } from '@/components/language-provider';
 import Link from 'next/link';
 import { Icon } from '@/components/icons';
@@ -14,6 +15,7 @@ const links = [
 ];
 export default function SiteShell({ children }: { children: ReactNode; }) {
   const { t, locale, setLocale } = useI18n();
+  const hotel = useLiveData<Hotel>('/hotel');
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   const [account, setAccount] = useState<Account | null>(null);
@@ -299,12 +301,12 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
           </div>
           <div>
             <h3 className="eyebrow text-gold"><T>{"THE LOCATION"}</T></h3>
-            <p className="mt-5 text-sm leading-8"><T>{"Ho Chi Minh City, Vietnam"}</T></p>
+            <div className="mt-5 grid gap-3 text-sm leading-8">{hotel.data?.address && <p>{hotel.data.address}</p>}{hotel.data?.email && <a href={`mailto:${hotel.data.email}`}>{hotel.data.email}</a>}{hotel.data?.phone && <a href={`tel:${hotel.data.phone}`}>{hotel.data.phone}</a>}<Link href="/experiences#contact">{locale === 'vi' ? 'Liên hệ' : 'Contact us'}</Link></div>
           </div>
         </div>
         <div className="flex flex-wrap justify-between gap-5 pt-8 text-[10px] tracking-widest text-surface/60">
           <span>© {new Date().getFullYear()} <T>{"DYLAN GRAND HOTEL"}</T></span>
-          <span><T>{"Preview · Sample rates and availability · No live bookings or payments"}</T></span>
+
         </div>
       </div>
     </footer>

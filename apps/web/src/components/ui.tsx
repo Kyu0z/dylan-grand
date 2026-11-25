@@ -3,8 +3,8 @@ import { T, useI18n } from '@/components/language-provider';
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/icons';
-import { money, rooms, type Room } from '@/lib/data';
-import { getWishlist, toggleWishlist } from '@/lib/storage';
+import { useRooms, useWishlist } from '@/lib/live-data';
+import { money, type Room } from '@/lib/data';
 export function Arrow({ diagonal = false }: { diagonal?: boolean; }) {
   return <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-1">
     <Icon name={diagonal ? 'arrow-up-right' : 'arrow-right'} size={15} />
@@ -24,8 +24,8 @@ export function Photo({ src, alt, className = '', priority = false }: { src: str
 }
 export function RoomCard({ room, compact = false }: { room: Room; compact?: boolean; }) {
   const { t } = useI18n();
-  const [liked, setLiked] = useState(false);
-  useEffect(() => setLiked(getWishlist().includes(room.id)), [room.id]);
+  const wishlist = useWishlist();
+  const liked = wishlist.codes.includes(room.id);
   return <article className="group flex flex-col overflow-hidden bg-paper">
     <div className="relative">
       <Link href={`/rooms?room=${room.id}`}>
@@ -37,8 +37,9 @@ export function RoomCard({ room, compact = false }: { room: Room; compact?: bool
       <button type="button"
         aria-label={liked ? t('Remove from wishlist') : t('Add to wishlist')}
         aria-pressed={liked}
+        disabled={wishlist.loading || wishlist.failed}
         onClick={() => {
-          setLiked(toggleWishlist(room.id).includes(room.id));
+          void wishlist.toggle(room.id).catch(() => { });
         }}
         className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-paper text-xl text-ink shadow-md"
       >
@@ -46,7 +47,7 @@ export function RoomCard({ room, compact = false }: { room: Room; compact?: bool
       </button>
     </div>
     <div className="flex flex-1 flex-col gap-3 px-1 py-6">
-      <Eyebrow>{t(room.subtitle)} · {room.size} <T>{"m²"}</T></Eyebrow>
+      <Eyebrow>{t(room.subtitle)} {room.size > 0 && <>· {room.size} <T>{"m²"}</T></>}</Eyebrow>
       <Link href={`/rooms?room=${room.id}`}
         className="font-display text-[40px] leading-[1.15] hover:text-forest"
       >
@@ -62,7 +63,7 @@ export function RoomCard({ room, compact = false }: { room: Room; compact?: bool
             {money(room.price)}
           </strong>
         </div>
-        <Link className="line-link" href={`/availability?room=${room.id}`}><T>{"RESERVE"}</T>{ " " }<Arrow /></Link>
+        <Link className="line-link" href={`/availability?room=${room.id}`}><T>{"RESERVE"}</T>{" "}<Arrow /></Link>
       </div>
     </div>
   </article>;
@@ -89,7 +90,7 @@ export function RoomDetail({ room, onClose }: { room: Room; onClose: () => void;
       className="animate-in h-full w-full max-w-[740px] overflow-y-auto bg-paper shadow-2xl"
     >
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-paper px-6 py-5">
-        <Eyebrow><T>{"ROOMS & SUITES /"}</T>{ " " }{t(room.subtitle)}</Eyebrow>
+        <Eyebrow><T>{"ROOMS & SUITES /"}</T>{" "}{t(room.subtitle)}</Eyebrow>
         <button className="text-2xl" onClick={onClose} aria-label={t("Close room detail")}><Icon name="close" size={19} /></button>
       </div>
       <div className="p-6 md:p-10">
@@ -112,8 +113,8 @@ export function RoomDetail({ room, onClose }: { room: Room; onClose: () => void;
           {t(room.description)}
         </p>
         <div className="my-7 grid grid-cols-2 gap-4 border-y border-line py-6 text-sm">
-          <span>{room.size} <T>{"m²"}</T></span>
-          <span><T>{"Up to"}</T>{ " " }{room.guests} <T>{"guests"}</T></span>
+          {room.size > 0 && <span>{room.size} <T>{"m²"}</T></span>}
+          <span><T>{"Up to"}</T>{" "}{room.guests} <T>{"guests"}</T></span>
           <span>
             {t(room.beds)}
           </span>
@@ -127,13 +128,14 @@ export function RoomDetail({ room, onClose }: { room: Room; onClose: () => void;
         </div>
         <div className="mt-9 flex flex-wrap items-center justify-between gap-4">
           <strong>{money(room.price)} <T>{"/ night"}</T></strong>
-          <Link href={`/availability?room=${room.id}`} className="btn-primary"><T>{"CHECK AVAILABILITY"}</T>{ " " }<Arrow /></Link>
+          <Link href={`/availability?room=${room.id}`} className="btn-primary"><T>{"CHECK AVAILABILITY"}</T>{" "}<Arrow /></Link>
         </div>
       </div>
     </section>
   </div>;
 }
 export function RoomsGrid({ count = 3 }: { count?: number; }) {
+  const { rooms } = useRooms();
   return <div className="grid gap-7 md:grid-cols-2 xl:grid-cols-3">
     {rooms.slice(0, count).map(r => <RoomCard key={r.id} room={r} />)}
   </div>;
@@ -155,7 +157,7 @@ export function SectionTitle({ index, title, italic, action }: { index: string; 
 export function PageIntro({ crumb, title, italic, description }: { crumb: string; title: string; italic: string; description: string; }) {
   const { t } = useI18n();
   return <section className="container-site pb-14 pt-17 md:pb-20 md:pt-24">
-    <Eyebrow><T>{"THE HOTEL /"}</T>{ " " }{t(crumb)}</Eyebrow>
+    <Eyebrow><T>{"THE HOTEL /"}</T>{" "}{t(crumb)}</Eyebrow>
     <h1 className="section-heading mt-8 max-w-[900px] animate-in">{t(title)} <em>
       {t(italic)}
     </em></h1>

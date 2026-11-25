@@ -32,6 +32,10 @@ const mutationMessages: [RegExp, string][] = [
   [/^PATCH \/api\/v1\/admin\/staff\/[^/]+\/role$/, 'Staff role updated successfully.'],
   [/^DELETE \/api\/v1\/admin\/inventory\/blocks\/[^/]+$/, 'Maintenance block removed successfully.'],
   [/^POST \/api\/v1\/admin\/inventory\/blocks$/, 'Maintenance block created successfully.'],
+  [/^PATCH \/api\/v1\/admin\/promotions\/[^/]+\/active$/, 'Promotion status updated successfully.'],
+  [/^PATCH \/api\/v1\/admin\/promotions\/services\/[^/]+\/active$/, 'Service status updated successfully.'],
+  [/^PATCH \/api\/v1\/admin\/hotel\/inquiries\/[^/]+\/resolve$/, 'Enquiry marked as resolved.'],
+  [/^PUT \/api\/v1\/me\/wishlist\/[^/]+$/, 'Wishlist updated successfully.'],
   [/^POST \/api\/v1\/admin\/promotions$/, 'Promotion created successfully.'],
   [/^POST \/api\/v1\/admin\/promotions\/services$/, 'Extra service created successfully.'],
   [/^POST \/api\/v1\/admin\/promotions\/reservations\/[^/]+\/services$/, 'Service order recorded successfully.'],
@@ -75,7 +79,7 @@ export class ApiMessageInterceptor implements NestInterceptor {
   }
 }
 
-type ErrorPayload = { statusCode: number; message: string | string[]; error?: string; code?: string; [key: string]: unknown };
+type ErrorPayload = { statusCode: number; message: string | string[]; error?: string; code?: string;[key: string]: unknown; };
 export function errorPayload(exception: unknown): ErrorPayload {
   if (exception instanceof HttpException) {
     const statusCode = exception.getStatus();
@@ -84,7 +88,7 @@ export function errorPayload(exception: unknown): ErrorPayload {
     const body = value as Record<string, unknown>;
     const message = typeof body.message === 'string' && body.message.trim() ? body.message
       : Array.isArray(body.message) && body.message.length && body.message.every(item => typeof item === 'string') ? body.message as string[]
-      : statusCode >= 500 ? 'Something went wrong. Please try again.' : 'Request could not be completed.';
+        : statusCode >= 500 ? 'Something went wrong. Please try again.' : 'Request could not be completed.';
     return { ...body, statusCode, message };
   }
   // Express body-parser can fail before a controller runs. Keep client errors

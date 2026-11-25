@@ -6,7 +6,7 @@ import { ToastProvider } from '@/components/toast-provider';
 import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'Dylan Grand Hotel | The art of feeling at home', template: '%s | Dylan Grand Hotel' },
-  description: 'A boutique hotel booking experience in Saigon. A frontend-only portfolio concept.'
+  description: 'Dylan Grand Hotel — rooms, experiences and reservations in Saigon.'
 };
 export default function RootLayout({ children }: { children: ReactNode; }) {
   return <html lang="en" suppressHydrationWarning>

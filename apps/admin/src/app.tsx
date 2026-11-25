@@ -6,6 +6,7 @@ import { L, nav } from './lib/domain';
 import { LocaleProvider, useLocale } from './lib/locale';
 import { AuthPage, publicPaths } from './pages/auth';
 import { StaffPage } from './pages/staff';
+import { BusinessPage } from './pages/business';
 type DashboardData = {
   date: string;
   sellableRooms: number;
@@ -118,17 +119,7 @@ function Router() {
   else if (actual === '/staff')
     content = <StaffPage />;
   else if (entry)
-    content = <div className="page-stack">
-      <PageHeader title={t(entry.label)} />
-      <Card>
-        <div className="module-unavailable">
-          <Icon name="info" size={24} />
-          <p>
-            {t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))}
-          </p>
-        </div>
-      </Card>
-    </div>;
+    content = <BusinessPage key={actual} path={actual} />;
   else
     content = <Card title={t(L('Page not found', 'Không tìm thấy trang'))}>
       <Button onClick={() => go('/dashboard')}>

@@ -1,4 +1,12 @@
 export const vietnamese: Record<string, string> = {
+  "Unable to load rooms. Retry": "Không tải được phòng. Thử lại",
+  "No published rooms.": "Chưa có hạng phòng công khai.",
+  "CHILDREN": "TRẺ EM",
+  "Checking availability…": "Đang kiểm tra phòng trống…",
+  "Unable to load availability. Retry": "Không tải được tồn phòng. Thử lại",
+  "/ night · available rooms:": "/ đêm · phòng còn trống:",
+  "API URL is not configured.": "Chưa cấu hình địa chỉ API.",
+
   "THE HOTEL": "KHÁCH SẠN",
   "ROOMS & SUITES": "PHÒNG & SUITE",
   "AVAILABILITY": "TÌM PHÒNG",

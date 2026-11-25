@@ -5,11 +5,13 @@ import { SelectField } from '@/components/form-controls';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { rooms, money, type Room, type RoomId } from '@/lib/data';
+import { roomArtwork as artwork, money, type Room, type RoomId } from '@/lib/data';
 import { Photo, PageIntro, Eyebrow, RoomCard, RoomDetail, Arrow } from '@/components/ui';
+import { useRooms } from '@/lib/live-data';
 import { Suspense } from 'react';
 function RoomsContent() {
   const { t } = useI18n();
+  const { rooms, loading, failed, reload } = useRooms();
   const params = useSearchParams();
   const [selected, setSelected] = useState<Room | null>(null),
     [compare, setCompare] = useState<RoomId[]>([]),
@@ -19,16 +21,16 @@ function RoomsContent() {
   useEffect(() => {
     const r = rooms.find(r => r.id === params.get('room'));
     if (r) setSelected(r);
-  }, [params]);
+  }, [params, rooms]);
   const toggle = (id: RoomId) => setCompare(s => s.includes(id) ? s.filter(x => x !== id) : s.length >= 3 ? s : [...s, id]);
   const close = useCallback(() => setSelected(null), []);
-  const filtered = rooms.filter(r => r.guests >= minGuests && (view === 'all' || r.view.toLowerCase().includes(view)));
+  const filtered = rooms.filter(r => r.guests >= minGuests && (view === 'all' || r.view === view));
   return <><PageIntro crumb={t("ROOMS & SUITES")}
     title={t("Rooms for")}
     italic={t("every rhythm.")}
     description={t("Intimate, thoughtfully detailed and wonderfully unhurried. Find a space that feels just right for your stay.")}
   /><div className="grid lg:grid-cols-[58%_42%]">
-      <Photo src={rooms[2].images[0]}
+      <Photo src={artwork[2].images[0]}
         alt={t("Grand Suite hotel bedroom")}
         className="min-h-[360px] lg:min-h-[490px]"
       />
@@ -36,13 +38,13 @@ function RoomsContent() {
         <Eyebrow light><T>{"A ROOM OF YOUR OWN"}</T></Eyebrow>
         <h2 className="display mt-7 text-6xl"><T>{"Made for"}</T><br /><em><T>{"staying in."}</T></em></h2>
         <p className="mt-7 max-w-sm text-sm leading-8 text-surface/75"><T>{"Warm textures, quiet corners and considered amenities bring the Dylan Grand experience into every room."}</T></p>
-        <a className="line-link mt-9 w-fit" href="#room-collection"><T>{"EXPLORE THE COLLECTION"}</T>{ " " }<Arrow /></a>
+        <a className="line-link mt-9 w-fit" href="#room-collection"><T>{"EXPLORE THE COLLECTION"}</T>{" "}<Arrow /></a>
       </div>
     </div><section className="section-pad container-site" id="room-collection">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
         <div>
           <Eyebrow><T>{"02 / OUR ACCOMMODATIONS"}</T></Eyebrow>
-          <h2 className="section-heading mt-5"><T>{"Discover your"}</T>{ " " }<em><T>{"space."}</T></em></h2>
+          <h2 className="section-heading mt-5"><T>{"Discover your"}</T>{" "}<em><T>{"space."}</T></em></h2>
         </div>
         <span className="text-xs text-muted">{filtered.length} <T>{"ROOM TYPES"}</T></span>
       </div>
@@ -54,7 +56,7 @@ function RoomsContent() {
         />
         <SelectField label={t("VIEW")}
           value={String(view)}
-          options={[{ value: 'all', label: 'All views' }, { value: 'city', label: 'City' }, { value: 'garden', label: 'Garden' }, { value: 'panoramic', label: 'Panoramic' }]}
+          options={[{ value: 'all', label: 'All views' }, ...Array.from(new Set(rooms.map(r => r.view).filter(Boolean))).map(value => ({ value, label: value }))]}
           onValueChange={(value) => setView(value)}
         />
         <button className="btn-outline mt-5" onClick={() => {
@@ -62,6 +64,7 @@ function RoomsContent() {
           setView('all');
         }}><T>{"RESET FILTERS"}</T></button>
       </div>
+      {loading ? <p>{t("Loading rooms…")}</p> : failed ? <button className="btn-outline" onClick={reload}>{t("Unable to load rooms. Retry")}</button> : !filtered.length ? <p>{t("No rooms in this selection.")}</p> : null}
       <div className="grid gap-9 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map(room => <div key={room.id}>
           <RoomCard room={room} />
@@ -86,7 +89,7 @@ function RoomsContent() {
       <div className="mt-20 border-t border-line pt-14 text-center">
         <h3 className="font-display text-5xl"><T>{"Unwind, then stay awhile."}</T></h3>
         <p className="body-copy mx-auto mt-5 max-w-lg"><T>{"Every stay is personal. Explore availability and discover the room that feels right."}</T></p>
-        <Link href="/availability" className="btn-primary mt-8"><T>{"CHECK AVAILABILITY"}</T>{ " " }<Arrow /></Link>
+        <Link href="/availability" className="btn-primary mt-8"><T>{"CHECK AVAILABILITY"}</T>{" "}<Arrow /></Link>
       </div>
     </section>{selected && <RoomDetail room={selected} onClose={close} />} {compareOpen && <div className="fixed inset-0 z-[100] grid place-items-center bg-overlay p-4">
       <section role="dialog"
@@ -104,7 +107,7 @@ function RoomsContent() {
             <h3 className="font-display mt-4 text-3xl">
               {t(r.name)}
             </h3>
-            <p className="body-copy">{r.size} <T>{"m² ·"}</T>{ " " }{r.guests} <T>{"guests ·"}</T>{ " " }{t(r.beds)}</p>
+            <p className="body-copy">{r.size} <T>{"m² ·"}</T>{" "}{r.guests} <T>{"guests ·"}</T>{" "}{t(r.beds)}</p>
             <p className="mt-3 text-sm">{money(r.price)}<T>{"/night"}</T></p>
           </div>)}
         </div>

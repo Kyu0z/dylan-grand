@@ -5,7 +5,7 @@ import { day, hotelToday } from './util';
 
 @Injectable()
 export class ReportService {
-  constructor(private readonly db: PrismaService) {}
+  constructor(private readonly db: PrismaService) { }
 
   async dashboard() {
     const today = hotelToday();
@@ -31,7 +31,7 @@ export class ReportService {
       this.db.physicalRoom.findMany({ where: { sellable: true } }),
       this.db.booking.findMany({ where: { checkIn: { lt: day(to) }, checkOut: { gt: day(from) } }, include: { roomType: { select: { code: true } } } }),
       this.db.maintenanceBlock.findMany({ where: { startDate: { lt: day(to) }, endDate: { gt: day(from) } } }),
-      this.db.paymentTransaction.findMany({ where: { createdAt: { gte: day(from), lt: day(to) } } }),
+      this.db.paymentTransaction.findMany({ where: { createdAt: { gte: new Date(day(from).valueOf() - 7 * 3600_000), lt: new Date(day(to).valueOf() - 7 * 3600_000) } } }),
     ]);
     let availableRoomNights = 0;
     for (const date of dates) {
@@ -41,7 +41,7 @@ export class ReportService {
     let roomRevenueVnd = 0;
     for (const booking of bookings) {
       if (!['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].includes(booking.status)) continue;
-      for (const line of (booking.rateSnapshot as { date: string; amountVnd: number }[])) {
+      for (const line of (booking.rateSnapshot as { date: string; amountVnd: number; }[])) {
         if (line.date >= from && line.date < to) {
           soldNights++;
           roomRevenueVnd += line.amountVnd;
@@ -54,7 +54,7 @@ export class ReportService {
       occupancyPercent: availableRoomNights ? Math.round(soldNights / availableRoomNights * 10000) / 100 : 0,
       adrVnd: soldNights ? Math.round(roomRevenueVnd / soldNights) : 0,
       revparVnd: availableRoomNights ? Math.round(roomRevenueVnd / availableRoomNights) : 0,
-      definition: 'Booked room-nights and booked room revenue for the selected stay dates, not recognized accounting revenue. Cash is net successful manually recorded payments less refunds by transaction date.',
+      definition: 'Booked room-nights and gross booked room revenue before promotion discounts for selected stay dates, not recognized accounting revenue. Cash is net successful manually recorded payments less refunds by transaction date.',
     };
   }
 }
