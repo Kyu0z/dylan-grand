@@ -9,83 +9,308 @@ const text = {
   '/forgot-password': { title: L('Forgot password?', 'Quên mật khẩu?'), desc: L('Enter your work email to receive a password reset link.', 'Nhập email tài khoản nhân viên để nhận liên kết đặt lại mật khẩu.'), button: L('Send reset link', 'Gửi liên kết đặt lại'), icon: 'mail' },
   '/reset-password': { title: L('Reset password', 'Đặt lại mật khẩu'), desc: L('Create a new password for your staff account.', 'Tạo mật khẩu mới cho tài khoản nhân viên.'), button: L('Reset password', 'Đặt lại mật khẩu'), icon: 'key' },
   '/activate-account': { title: L('Activate your account', 'Kích hoạt tài khoản'), desc: L('Set your password to start using the hotel management system.', 'Thiết lập mật khẩu để bắt đầu sử dụng hệ thống quản lý khách sạn.'), button: L('Activate account', 'Kích hoạt tài khoản'), icon: 'users' },
-  '/profile/security': { title: L('Change password', 'Đổi mật khẩu'), desc: L('Update your password to keep your account secure.', 'Cập nhật mật khẩu để bảo vệ tài khoản của bạn.'), button: L('Save changes', 'Lưu thay đổi'), icon: 'shield' },
 } as const;
 type Screen = keyof typeof text;
-function PasswordField({ label, value, onChange, current = false, login = false }: { label: string; value: string; onChange: (v: string) => void; current?: boolean; login?: boolean }) {
-  const { t } = useLocale(); const [show, setShow] = useState(false);
-  return <label className="form-field"><span className="form-label">{label}</span><div className="auth-input"><Icon name="lock" size={17}/><input type={show ? 'text' : 'password'} required minLength={login || current ? undefined : 12} maxLength={128} value={value} onChange={e => onChange(e.target.value)} autoComplete={current || login ? 'current-password' : 'new-password'}/><button type="button" onClick={() => setShow(x => !x)} aria-label={t(show ? L('Hide password', 'Ẩn mật khẩu') : L('Show password', 'Hiện mật khẩu'))} aria-pressed={show}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>{!show && <path d="M3 3l18 18"/>}</svg></button></div></label>;
+export function PasswordField({ label, value, onChange, current = false, login = false }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  current?: boolean;
+  login?: boolean;
+}) {
+  const { t } = useLocale();
+  const [show, setShow] = useState(false);
+  return <label className="form-field">
+    <span className="form-label">
+      {label}
+    </span>
+    <div className="auth-input">
+      <Icon name="lock" size={17} />
+      <input
+        type={show ? 'text' : 'password'}
+        required
+        minLength={login || current ? undefined : 12}
+        maxLength={128}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        autoComplete={current || login ? 'current-password' : 'new-password'}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(x => !x)}
+        aria-label={t(show ? L('Hide password', 'Ẩn mật khẩu') : L('Show password', 'Hiện mật khẩu'))}
+        aria-pressed={show}
+      >
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6">
+          <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+          {!show && <path d="M3 3l18 18" />}
+        </svg>
+      </button>
+    </div>
+  </label>;
 }
-function AuthLayout({ children }: { children: ReactNode }) {
-  const { t, theme, setTheme, language, setLanguage } = useLocale();
+export function PasswordStrength({ password }: { password: string }) {
+  const score = [
+    password.length >= 12,
+    password.length >= 16,
+    /[0-9]/.test(password),
+    /[^A-Za-z0-9]/.test(password),
+  ].filter(Boolean).length;
   return (
-    <div className="staff-auth-layout">
-      <div className="staff-auth-split">
-        <aside className="staff-auth-brand" aria-label="Dylan Grand Hotel">
-          <svg className="staff-auth-pattern" viewBox="0 0 440 540" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
-            {[0, 1, 2, 3, 4, 5].map(i => (
-              <path key={i} d={`M${40 + i * 34} 540 V${360 + i * 16} L440 ${26 + i * 56}`} />
-            ))}
-          </svg>
-          <div className="admin-brand-horizontal staff-auth-logo" role="img" aria-label="Dylan Grand Hotel" />
-          <div className="staff-auth-brand-copy">
-            <span className="staff-auth-rule" aria-hidden="true" />
-            <p className="staff-auth-brand-kicker">{t(L('Administration', 'Quản trị'))}</p>
-            <h2>{t(L('Hotel', 'Quản lý'))}<br />{t(L('Management.', 'khách sạn.'))}</h2>
-            <p className="staff-auth-brand-caption">Dylan Grand Hotel <span aria-hidden="true">·</span> {t(L('Staff portal', 'Cổng thông tin nhân viên'))}</p>
-          </div>
-          <small className="staff-auth-copyright">© Dylan Grand Hotel</small>
-        </aside>
-        <main className="staff-auth-main">
-          <header className="staff-auth-top">
-            <div className="topbar-right">
-              <div className="language-toggle" role="group" aria-label={t(L('Language', 'Ngôn ngữ'))}>
-                <button type="button" className={language === 'en' ? 'chosen' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}>EN</button>
-                <button type="button" className={language === 'vi' ? 'chosen' : ''} aria-pressed={language === 'vi'} onClick={() => setLanguage('vi')}>VI</button>
-              </div>
-              <IconAction name={theme === 'light' ? 'moon' : 'sun'} label={t(L('Switch color theme', 'Đổi giao diện sáng tối'))} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} />
-            </div>
-          </header>
-          <div className="staff-auth-body">
-            <div className="staff-auth-content">
-              <div className="staff-auth-kicker"><Icon name="shield" size={16} />{t(L('Staff access', 'Truy cập nhân viên'))}</div>
-              {children}
-            </div>
-          </div>
-        </main>
-      </div>
+    <div className="auth-password-meter" aria-hidden="true">
+      {[0, 1, 2, 3].map(index => (
+        <span key={index} className={password.length >= 12 && index < score ? 'filled' : ''} />
+      ))}
     </div>
   );
 }
-export function AuthPage({ path, go }: { path: string; go: (p: string) => void }) {
-  const screen = path as Screen; const copy = text[screen];
-  const { t, language } = useLocale(); const { api, login, notify, clear } = useAdminAuth();
-  const changing = screen === '/profile/security', signing = screen === '/login', forgot = screen === '/forgot-password', activation = screen === '/activate-account';
+
+function AuthLayout({ children }: {
+  children: ReactNode;
+}) {
+  const { t, theme, setTheme, language, setLanguage } = useLocale();
+  return (<div className="staff-auth-layout">
+    <div className="staff-auth-split">
+      <aside className="staff-auth-brand" aria-label="Dylan Grand Hotel">
+        <svg
+          className="staff-auth-pattern"
+          viewBox="0 0 440 540"
+          preserveAspectRatio="xMaxYMax meet"
+          aria-hidden="true"
+          focusable="false"
+        >
+          {[0, 1, 2, 3, 4, 5].map(i => (<path key={i} d={`M${40 + i * 34} 540 V${360 + i * 16} L440 ${26 + i * 56}`} />))}
+        </svg>
+        <div className="admin-brand-horizontal staff-auth-logo" role="img" aria-label="Dylan Grand Hotel" />
+        <div className="staff-auth-brand-copy">
+          <span className="staff-auth-rule" aria-hidden="true" />
+          <p className="staff-auth-brand-kicker">
+            {t(L('Administration', 'Quản trị'))}
+          </p>
+          <h2>
+            {t(L('Hotel', 'Quản lý'))}
+            <br />
+            {t(L('Management.', 'khách sạn.'))}
+          </h2>
+          <p className="staff-auth-brand-caption">Dylan Grand Hotel <span aria-hidden="true">·</span> {t(L('Staff portal', 'Cổng thông tin nhân viên'))}</p>
+        </div>
+        <small className="staff-auth-copyright">© Dylan Grand Hotel</small>
+      </aside>
+      <main className="staff-auth-main">
+        <header className="staff-auth-top">
+          <div className="topbar-right">
+            <div className="language-toggle" role="group" aria-label={t(L('Language', 'Ngôn ngữ'))}>
+              <button
+                type="button"
+                className={language === 'en' ? 'chosen' : ''}
+                aria-pressed={language === 'en'}
+                onClick={() => setLanguage('en')}
+              >EN</button>
+              <button
+                type="button"
+                className={language === 'vi' ? 'chosen' : ''}
+                aria-pressed={language === 'vi'}
+                onClick={() => setLanguage('vi')}
+              >VI</button>
+            </div>
+            <IconAction
+              name={theme === 'light' ? 'moon' : 'sun'}
+              label={t(L('Switch color theme', 'Đổi giao diện sáng tối'))}
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            />
+          </div>
+        </header>
+        <div className="staff-auth-body">
+          <div className="staff-auth-content">
+            <div className="staff-auth-kicker">
+              <Icon name="shield" size={16} />
+              {t(L('Staff access', 'Truy cập nhân viên'))}
+            </div>
+            {children}
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>);
+}
+export function AuthPage({ path, go }: {
+  path: string;
+  go: (p: string) => void;
+}) {
+  const screen = path as Screen;
+  const copy = text[screen];
+  const { t, language } = useLocale();
+  const { api, login, notify } = useAdminAuth();
+  const signing = screen === '/login', forgot = screen === '/forgot-password', activation = screen === '/activate-account';
   const tokenPage = activation || screen === '/reset-password';
   const [token] = useState(() => tokenPage ? new URLSearchParams(window.location.hash.slice(1)).get('resetToken') ?? '' : '');
-  const [email, setEmail] = useState(''); const [password,setPassword] = useState(''); const [confirm,setConfirm] = useState(''); const [current,setCurrent] = useState('');
-  const [busy,setBusy] = useState(false); const [done,setDone] = useState(false); const [verified,setVerified] = useState<'checking'|'valid'|'invalid'>(tokenPage?'checking':'valid');
-  const [invited,setInvited] = useState<{ email: string; role: StaffRole; fullName: string | null } | null>(null);
-  useEffect(() => { if (!tokenPage) return; let alive=true; if (!token) { setVerified('invalid'); return; } window.history.replaceState({}, '', window.location.pathname); api<{ email: string; role: StaffRole; fullName: string | null }>(`/auth/staff${screen}/verify`, { method:'POST', body:{token}, auth:false, silentSuccess:true, silentError:true }).then(data=>{ if(alive){setInvited(data);setVerified('valid');} }).catch(()=>{if(alive)setVerified('invalid');}); return ()=>{alive=false;}; }, [api, screen, token, tokenPage]);
-  const submit = async (e: FormEvent) => { e.preventDefault(); if (busy) return; if (!signing && !forgot && password!==confirm) { notify('Passwords do not match.', true); return; } setBusy(true); try {
-    if(signing){ await login(email.trim(),password); go('/dashboard'); }
-    else if(forgot){ await api('/auth/staff/forgot-password',{method:'POST',body:{email:email.trim(),locale:language},auth:false}); setDone(true); }
-    else if(changing){await api('/auth/staff/change-password',{method:'POST',body:{currentPassword:current,password}});clear();go('/login');}
-    else {await api(`/auth/staff${screen}`,{method:'POST',body:{token,password},auth:false});setDone(true);setPassword('');setConfirm('');}
-  } catch { /* API client shows error */ } finally {setBusy(false);} };
-  const back = <button type="button" className="auth-back" onClick={()=>go('/login')}><Icon name="left" size={16}/>{t(L('Back to sign in','Quay lại đăng nhập'))}</button>;
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [verified, setVerified] = useState<'checking' | 'valid' | 'invalid'>(tokenPage ? 'checking' : 'valid');
+  const [invited, setInvited] = useState<{
+    email: string;
+    role: StaffRole;
+    fullName: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!tokenPage) return;
+    if (!token) {
+      setVerified('invalid');
+      return;
+    }
+    let alive = true;
+    window.history.replaceState({}, '', window.location.pathname);
+    api<{ email: string; role: StaffRole; fullName: string | null }>(
+      `/auth/staff${screen}/verify`,
+      { method: 'POST', body: { token }, auth: false, silentSuccess: true, silentError: true },
+    )
+      .then(data => {
+        if (alive) {
+          setInvited(data);
+          setVerified('valid');
+        }
+      })
+      .catch(() => {
+        if (alive) setVerified('invalid');
+      });
+    return () => { alive = false; };
+  }, [api, screen, token, tokenPage]);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy)
+      return;
+    if (!signing && !forgot && password !== confirm) {
+      notify('Passwords do not match.', true);
+      return;
+    }
+    setBusy(true);
+    try {
+      if (signing) {
+        await login(email.trim(), password);
+        go('/dashboard');
+      }
+      else if (forgot) {
+        await api('/auth/staff/forgot-password', { method: 'POST', body: { email: email.trim(), locale: language }, auth: false });
+        setDone(true);
+      }
+      else {
+        await api(`/auth/staff${screen}`, { method: 'POST', body: { token, password }, auth: false });
+        setDone(true);
+        setPassword('');
+        setConfirm('');
+      }
+    }
+    catch { /* API client shows error */ }
+    finally {
+      setBusy(false);
+    }
+  };
+  const back = <button type="button" className="auth-back" onClick={() => go('/login')}>
+    <Icon name="left" size={16} />
+    {t(L('Back to sign in', 'Quay lại đăng nhập'))}
+  </button>;
   let content: ReactNode;
-  if(done) content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={forgot?'mail':'check'} size={25}/></div><h1>{t(forgot?L('Check your email','Kiểm tra email'):activation?L('Account activated','Tài khoản đã kích hoạt'):L('Password updated','Đã cập nhật mật khẩu'))}</h1><p>{t(forgot?L('If an eligible account exists, a reset link will be sent.','Nếu tài khoản hợp lệ tồn tại, liên kết đặt lại mật khẩu sẽ được gửi.'):L('You can now sign in with your new password.','Bạn có thể đăng nhập bằng mật khẩu mới.'))}</p><Button onClick={()=>go('/login')}>{t(L('Back to sign in','Quay lại đăng nhập'))}</Button></div>;
-  else if(verified!=='valid') content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={verified==='checking'?'key':'info'} size={24}/></div><h1>{t(verified==='checking'?L('Checking link…','Đang kiểm tra liên kết…'):L('Link invalid or unavailable','Liên kết không hợp lệ hoặc không khả dụng'))}</h1>{verified==='invalid'&&<><p>{t(activation?L('Contact your administrator for a new invitation.','Liên hệ quản trị viên để nhận thư mời mới.'):L('Request a new password reset link.','Yêu cầu liên kết đặt lại mật khẩu mới.'))}</p><Button onClick={()=>go(activation?'/login':'/forgot-password')}>{t(activation?L('Back to sign in','Quay lại đăng nhập'):L('Request a new link','Yêu cầu liên kết mới'))}</Button></>}</div>;
-  else content=<form className="staff-auth-card" onSubmit={submit}><div className="auth-form-heading">{changing && <div className="auth-form-icon"><Icon name={copy.icon} size={24}/></div>}<h1>{t(copy.title)}</h1><p className="auth-desc">{t(copy.desc)}</p></div>{activation&&invited&&<div className="auth-invited"><small>{t(L('Invited account','Tài khoản được mời'))}</small><strong>{invited.fullName || invited.email}</strong><span>{invited.email}</span><span>{t(roleNames[invited.role])}</span></div>}{(signing||forgot)&&<label className="form-field"><span className="form-label">Email</span><div className="auth-input"><Icon name="mail" size={17}/><input type="email" required maxLength={180} autoComplete="username" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/></div></label>}{changing&&<PasswordField label={t(L('Current password','Mật khẩu hiện tại'))} value={current} onChange={setCurrent} current/>}{!forgot&&<PasswordField label={t(signing||activation?L('Password','Mật khẩu'):L('New password','Mật khẩu mới'))} value={password} onChange={setPassword} login={signing}/ >}{!signing&&!forgot&&<><PasswordField label={t(L('Confirm password','Xác nhận mật khẩu'))} value={confirm} onChange={setConfirm}/><div className="auth-password-meter">{[0,1,2,3].map(i=><span key={i} className={password.length>=12&&i<[password.length>=12, password.length>=16, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length?'filled':''}/>)}</div><small>{t(L('Use at least 12 characters.','Sử dụng ít nhất 12 ký tự.'))}</small></>}{signing&&<button type="button" className="auth-forgot" onClick={()=>go('/forgot-password')}>{t(L('Forgot password?','Quên mật khẩu?'))}</button>}<Button type="submit" disabled={busy} icon="arrow">{busy?t(L('Processing…','Đang xử lý…')):t(copy.button)}</Button>{changing?<Button type="button" variant="secondary" onClick={()=>go('/profile')}>{t(L('Cancel','Hủy'))}</Button>:!signing&&back}</form>;
-  return changing ? (
-    <div className="staff-security">
-      <nav className="auth-breadcrumb" aria-label={t(L('Breadcrumb', 'Đường dẫn điều hướng'))}>
-        <button type="button" onClick={() => go('/profile')}>{t(L('My Profile', 'Hồ sơ cá nhân'))}</button>
-        <Icon name="right" size={14} />
-        <span aria-current="page">{t(L('Security', 'Bảo mật'))}</span>
-      </nav>
-      {content}
-    </div>
-  ) : <AuthLayout>{content}</AuthLayout>;
+  if (done)
+    content = <div className="staff-auth-card auth-state">
+      <div className="auth-form-icon">
+        <Icon name={forgot ? 'mail' : 'check'} size={25} />
+      </div>
+      <h1>
+        {t(forgot ? L('Check your email', 'Kiểm tra email') : activation ? L('Account activated', 'Tài khoản đã kích hoạt') : L('Password updated', 'Đã cập nhật mật khẩu'))}
+      </h1>
+      <p>
+        {t(forgot ? L('If an eligible account exists, a reset link will be sent.', 'Nếu tài khoản hợp lệ tồn tại, liên kết đặt lại mật khẩu sẽ được gửi.') : L('You can now sign in with your new password.', 'Bạn có thể đăng nhập bằng mật khẩu mới.'))}
+      </p>
+      <Button onClick={() => go('/login')}>
+        {t(L('Back to sign in', 'Quay lại đăng nhập'))}
+      </Button>
+    </div>;
+  else if (verified !== 'valid')
+    content = <div className="staff-auth-card auth-state">
+      <div className="auth-form-icon">
+        <Icon name={verified === 'checking' ? 'key' : 'info'} size={24} />
+      </div>
+      <h1>
+        {t(verified === 'checking' ? L('Checking link…', 'Đang kiểm tra liên kết…') : L('Link invalid or unavailable', 'Liên kết không hợp lệ hoặc không khả dụng'))}
+      </h1>
+      {verified === 'invalid' && <>
+        <p>
+          {t(activation ? L('Contact your administrator for a new invitation.', 'Liên hệ quản trị viên để nhận thư mời mới.') : L('Request a new password reset link.', 'Yêu cầu liên kết đặt lại mật khẩu mới.'))}
+        </p>
+        <Button onClick={() => go(activation ? '/login' : '/forgot-password')}>
+          {t(activation ? L('Back to sign in', 'Quay lại đăng nhập') : L('Request a new link', 'Yêu cầu liên kết mới'))}
+        </Button>
+      </>}
+    </div>;
+  else
+    content = <form className="staff-auth-card" onSubmit={submit}>
+      <div className="auth-form-heading">
+        <h1>
+          {t(copy.title)}
+        </h1>
+        <p className="auth-desc">
+          {t(copy.desc)}
+        </p>
+      </div>
+      {activation && invited && <div className="auth-invited">
+        <small>
+          {t(L('Invited account', 'Tài khoản được mời'))}
+        </small>
+        <strong>
+          {invited.fullName || invited.email}
+        </strong>
+        <span>
+          {invited.email}
+        </span>
+        <span>
+          {t(roleNames[invited.role])}
+        </span>
+      </div>}
+      {(signing || forgot) && <label className="form-field">
+        <span className="form-label">Email</span>
+        <div className="auth-input">
+          <Icon name="mail" size={17} />
+          <input
+            type="email"
+            required
+            maxLength={180}
+            autoComplete="username"
+            placeholder="name@example.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+        </div>
+      </label>}
+      {!forgot && <PasswordField
+        label={t(signing || activation ? L('Password', 'Mật khẩu') : L('New password', 'Mật khẩu mới'))}
+        value={password}
+        onChange={setPassword}
+        login={signing}
+      />}
+      {!signing && !forgot && <>
+        <PasswordField
+          label={t(L('Confirm password', 'Xác nhận mật khẩu'))}
+          value={confirm}
+          onChange={setConfirm}
+        />
+        <PasswordStrength password={password} />
+        <small>
+          {t(L('Use at least 12 characters.', 'Sử dụng ít nhất 12 ký tự.'))}
+        </small>
+      </>}
+      {signing && <button type="button" className="auth-forgot" onClick={() => go('/forgot-password')}>
+        {t(L('Forgot password?', 'Quên mật khẩu?'))}
+      </button>}
+      <Button type="submit" disabled={busy} icon="arrow">
+        {busy ? t(L('Processing…', 'Đang xử lý…')) : t(copy.button)}
+      </Button>
+      {!signing && back}
+    </form>;
+  return <AuthLayout>
+    {content}
+  </AuthLayout>;
 }

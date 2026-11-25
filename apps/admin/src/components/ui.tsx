@@ -1,19 +1,7 @@
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type ButtonHTMLAttributes,
-  type ChangeEvent,
-  type InputHTMLAttributes,
-  type ReactNode,
-  type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
-} from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocale } from '../lib/locale';
 import { L, formatMoney, type Language } from '../lib/domain';
-
 const paths: Record<string, ReactNode> = {
   grid: <>
     <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -43,8 +31,14 @@ const paths: Record<string, ReactNode> = {
     <rect x="5" y="4" width="14" height="18" rx="2" />
     <path d="M9 4V2h6v2M9 11h6M9 15h6" />
   </>,
-  lock: <><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></>,
-  mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></>,
+  lock: <>
+    <rect x="5" y="10" width="14" height="11" rx="2" />
+    <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+  </>,
+  mail: <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m3 7 9 6 9-6" />
+  </>,
   key: <>
     <circle cx="8" cy="15" r="5" />
     <path d="m12 11 9-9m-4 4 3 3M14 9l3 3" />
@@ -141,8 +135,11 @@ const paths: Record<string, ReactNode> = {
     <path d="m21 15-4.5-4.5L8 19" />
   </>,
 };
-
-export function Icon({ name, size = 18, className = '' }: { name: string; size?: number; className?: string; }) {
+export function Icon({ name, size = 18, className = '' }: {
+  name: string;
+  size?: number;
+  className?: string;
+}) {
   return <svg
     className={className}
     width={size}
@@ -153,25 +150,31 @@ export function Icon({ name, size = 18, className = '' }: { name: string; size?:
     strokeWidth="1.65"
     strokeLinecap="round"
     strokeLinejoin="round"
-    aria-hidden="true">
+    aria-hidden="true"
+  >
     {paths[name] ?? paths.grid}
   </svg>;
 }
-
-export function Button({ children, variant = 'primary', icon, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; icon?: string; }) {
+export function Button({ children, variant = 'primary', icon, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  icon?: string;
+}) {
   return <button {...props} className={`btn btn-${variant} ${props.className ?? ''}`}>
     {icon && <Icon name={icon} size={15} />}
-    <span>{children}</span>
+    <span>
+      {children}
+    </span>
   </button>;
 }
-
-export function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'gold'; }) {
+export function Badge({ children, tone = 'neutral' }: {
+  children: ReactNode;
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'gold';
+}) {
   return <span className={`status-badge badge-${tone}`}>
     <span className="status-dot" />
     {children}
   </span>;
 }
-
 const statusTranslations: Record<string, string> = {
   Pending: 'Đang chờ',
   Confirmed: 'Đã xác nhận',
@@ -208,35 +211,39 @@ const statusTranslations: Record<string, string> = {
   Available: 'Còn trống',
   'Needs cleaning': 'Cần dọn',
 };
-
 export function statusTone(s: string): 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'neutral' {
   const value = s.toLowerCase();
-  if (/cancel|failed|maintenance|inactive|expired|blocked|unpaid|no-show/.test(value)) return 'danger';
-  if (/pending|reserved|dirty|partial|awaiting|in progress|needs cleaning/.test(value)) return 'warning';
-  if (/refunded|occupied|returning|manager/.test(value)) return 'info';
-  if (/paid|confirmed|active|clean|inspected|published|available|completed|checked-in|vacant/.test(value)) return 'success';
+  if (/cancel|failed|maintenance|inactive|expired|blocked|unpaid|no-show/.test(value))
+    return 'danger';
+  if (/pending|reserved|dirty|partial|awaiting|in progress|needs cleaning/.test(value))
+    return 'warning';
+  if (/refunded|occupied|returning|manager/.test(value))
+    return 'info';
+  if (/paid|confirmed|active|clean|inspected|published|available|completed|checked-in|vacant/.test(value))
+    return 'success';
   return 'neutral';
 }
-
-export function Status({ value }: { value: string; }) {
+export function Status({ value }: {
+  value: string;
+}) {
   const { language } = useLocale();
-  return <Badge tone={statusTone(value)}>{language === 'vi' ? (statusTranslations[value] ?? value) : value}</Badge>;
+  return <Badge tone={statusTone(value)}>
+    {language === 'vi' ? (statusTranslations[value] ?? value) : value}
+  </Badge>;
 }
-
-function useDismissLayer(
-  open: boolean,
-  refs: React.RefObject<HTMLElement | null>[],
-  onDismiss: () => void,
-) {
+function useDismissLayer(open: boolean, refs: React.RefObject<HTMLElement | null>[], onDismiss: () => void) {
   useEffect(() => {
-    if (!open) return;
+    if (!open)
+      return;
     const onPointer = (event: MouseEvent) => {
       const target = event.target as Node;
       const isInside = refs.some((ref) => ref.current?.contains(target));
-      if (!isInside) onDismiss();
+      if (!isInside)
+        onDismiss();
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onDismiss();
+      if (event.key === 'Escape')
+        onDismiss();
     };
     document.addEventListener('mousedown', onPointer);
     document.addEventListener('keydown', onKey);
@@ -246,42 +253,37 @@ function useDismissLayer(
     };
   }, [open, refs, onDismiss]);
 }
-
 function emitInputValue(name: string | undefined, value: string, onChange?: (event: ChangeEvent<HTMLInputElement>) => void) {
   onChange?.({ target: { name, value } } as ChangeEvent<HTMLInputElement>);
 }
-
 function emitSelectValue(name: string | undefined, value: string, onChange?: (event: ChangeEvent<HTMLSelectElement>) => void) {
   onChange?.({ target: { name, value } } as ChangeEvent<HTMLSelectElement>);
 }
-
 function parseIsoDate(value?: string | number | readonly string[]) {
-  if (typeof value !== 'string' || !value) return null;
+  if (typeof value !== 'string' || !value)
+    return null;
   const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day) return null;
+  if (!year || !month || !day)
+    return null;
   return new Date(year, month - 1, day, 12, 0, 0);
 }
-
 function toIsoDate(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
-
 function sameDate(a: Date | null, b: Date | null) {
-  if (!a || !b) return false;
+  if (!a || !b)
+    return false;
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
-
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0);
 }
-
 function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1, 12, 0, 0);
 }
-
 function calendarCells(month: Date) {
   const first = startOfMonth(month);
   const firstDay = first.getDay();
@@ -293,55 +295,79 @@ function calendarCells(month: Date) {
     return value;
   });
 }
-
 function formatDisplayDate(value: string | number | readonly string[] | undefined, locale: string) {
   const parsed = parseIsoDate(value);
-  if (!parsed) return '';
+  if (!parsed)
+    return '';
   return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
 }
-
-export function Card({ children, className = '', title, subtitle, action }: { children: ReactNode; className?: string; title?: ReactNode; subtitle?: ReactNode; action?: ReactNode; }) {
+export function Card({ children, className = '', title, subtitle, action }: {
+  children: ReactNode;
+  className?: string;
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  action?: ReactNode;
+}) {
   return <section className={`panel ${className}`}>
     {(title || subtitle || action) && <div className="panel-heading">
       <div>
-        {title && <h2>{title}</h2>}
-        {subtitle && <p>{subtitle}</p>}
+        {title && <h2>
+          {title}
+        </h2>}
+        {subtitle && <p>
+          {subtitle}
+        </p>}
       </div>
       {action}
     </div>}
     {children}
   </section>;
 }
-
-export function PageHeader({ title, description, action }: { eyebrow?: ReactNode; title: ReactNode; description?: ReactNode; action?: ReactNode; }) {
+export function PageHeader({ title, description, action }: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+}) {
   return <div className="page-heading">
     <div>
-      <h1>{title}</h1>
-      {description && <p>{description}</p>}
+      <h1>
+        {title}
+      </h1>
+      {description && <p>
+        {description}
+      </p>}
     </div>
-    {action && <div className="page-actions">{action}</div>}
+    {action && <div className="page-actions">
+      {action}
+    </div>}
   </div>;
 }
-
-export function Metric({ label, value, delta, icon }: { label: ReactNode; value: ReactNode; delta?: string; icon?: string; }) {
+export function Metric({ label, value, delta, icon }: {
+  label: ReactNode;
+  value: ReactNode;
+  delta?: string;
+  icon?: string;
+}) {
   return <div className="metric">
     <div className="metric-top">
-      <span>{label}</span>
+      <span>
+        {label}
+      </span>
       {icon && <Icon name={icon} size={18} />}
     </div>
-    <div className="metric-value">{value}</div>
-    {delta && <div className="metric-detail">{delta}</div>}
+    <div className="metric-value">
+      {value}
+    </div>
+    {delta && <div className="metric-detail">
+      {delta}
+    </div>}
   </div>;
 }
-
-export function DateField({
-  label,
-  placeholder,
-  className = '',
-  value,
-  onChange,
-  name,
-}: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; placeholder?: string; }) {
+export function DateField({ label, placeholder, className = '', value, onChange, name, }: InputHTMLAttributes<HTMLInputElement> & {
+  label?: ReactNode;
+  placeholder?: string;
+}) {
   const { language, t } = useLocale();
   const locale = language === 'vi' ? 'vi-VN' : 'en-US';
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -351,45 +377,63 @@ export function DateField({
   const [month, setMonth] = useState<Date>(() => selectedDate ?? new Date());
   const today = useMemo(() => new Date(), []);
   useEffect(() => {
-    if (selectedDate) setMonth(selectedDate);
+    if (selectedDate)
+      setMonth(selectedDate);
   }, [value]);
   useDismissLayer(open, [wrapperRef], () => setOpen(false));
-
   const weekNames = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(2026, 10, 1 + index);
     return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
   });
   const days = calendarCells(month);
   const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month);
-
   return <label className="form-field">
-    {label && <span className="form-label">{label}</span>}
+    {label && <span className="form-label">
+      {label}
+    </span>}
     <div className="popover-control" ref={wrapperRef}>
       <input type="hidden" name={name} value={typeof value === 'string' ? value : ''} />
       <button
         ref={buttonRef}
         type="button"
         className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()}
-        onClick={() => setOpen((current) => !current)}>
+        onClick={() => setOpen((current) => !current)}
+      >
         <span className={`control-text ${value ? '' : 'placeholder'}`}>
           {formatDisplayDate(value, locale) || placeholder || t(L('Select date', 'Chọn ngày'))}
         </span>
         <Icon name="calendar" size={16} className="control-icon" />
       </button>
-      {open && <div className="popover-panel date-panel" role="dialog" aria-label={t(L('Select date', 'Chọn ngày'))}>
+      {open && <div
+        className="popover-panel date-panel"
+        role="dialog"
+        aria-label={t(L('Select date', 'Chọn ngày'))}
+      >
         <div className="popover-header">
-          <strong>{monthLabel}</strong>
+          <strong>
+            {monthLabel}
+          </strong>
           <div className="popover-actions">
-            <button type="button" className="mini-icon-btn" onClick={() => setMonth((current) => addMonths(current, -1))}>
+            <button
+              type="button"
+              className="mini-icon-btn"
+              onClick={() => setMonth((current) => addMonths(current, -1))}
+            >
               <Icon name="left" size={14} />
             </button>
-            <button type="button" className="mini-icon-btn" onClick={() => setMonth((current) => addMonths(current, 1))}>
+            <button
+              type="button"
+              className="mini-icon-btn"
+              onClick={() => setMonth((current) => addMonths(current, 1))}
+            >
               <Icon name="right" size={14} />
             </button>
           </div>
         </div>
         <div className="date-grid-head">
-          {weekNames.map((item) => <span key={item}>{item}</span>)}
+          {weekNames.map((item) => <span key={item}>
+            {item}
+          </span>)}
         </div>
         <div className="date-grid-body">
           {days.map((day) => {
@@ -404,16 +448,25 @@ export function DateField({
               onClick={() => {
                 emitInputValue(name, iso, onChange);
                 setOpen(false);
-              }}>
+              }}
+            >
               {day.getDate()}
             </button>;
           })}
         </div>
         <div className="popover-footer">
-          <button type="button" className="popover-link" onClick={() => { emitInputValue(name, '', onChange); setOpen(false); }}>
+          <button
+            type="button"
+            className="popover-link"
+            onClick={() => { emitInputValue(name, '', onChange); setOpen(false); }}
+          >
             {t(L('Clear', 'Xóa'))}
           </button>
-          <button type="button" className="popover-link strong" onClick={() => { const next = toIsoDate(today); emitInputValue(name, next, onChange); setMonth(today); setOpen(false); }}>
+          <button
+            type="button"
+            className="popover-link strong"
+            onClick={() => { const next = toIsoDate(today); emitInputValue(name, next, onChange); setMonth(today); setOpen(false); }}
+          >
             {t(L('Today', 'Hôm nay'))}
           </button>
         </div>
@@ -421,33 +474,37 @@ export function DateField({
     </div>
   </label>;
 }
-
-export function TextInput({ label, type, ...props }: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; }) {
+export function TextInput({ label, type, ...props }: InputHTMLAttributes<HTMLInputElement> & {
+  label?: ReactNode;
+}) {
   if (type === 'date') {
     return <DateField label={label} type={type} {...props} />;
   }
   return <label className="form-field">
-    {label && <span className="form-label">{label}</span>}
+    {label && <span className="form-label">
+      {label}
+    </span>}
     <input {...props} type={type} className={`field-control ${props.className ?? ''}`.trim()} />
   </label>;
 }
-
-export function TextArea({ label, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: ReactNode; }) {
+export function TextArea({ label, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label?: ReactNode;
+}) {
   return <label className="form-field">
-    {label && <span className="form-label">{label}</span>}
+    {label && <span className="form-label">
+      {label}
+    </span>}
     <textarea {...props} className={`field-control field-textarea ${props.className ?? ''}`.trim()} />
   </label>;
 }
-
-export function NativeSelect({
-  label,
-  choices,
-  placeholder,
-  value,
-  onChange,
-  name,
-  className = '',
-}: SelectHTMLAttributes<HTMLSelectElement> & { label?: ReactNode; choices: { value: string; label: string; }[]; placeholder?: string; }) {
+export function NativeSelect({ label, choices, placeholder, value, onChange, name, className = '', }: SelectHTMLAttributes<HTMLSelectElement> & {
+  label?: ReactNode;
+  choices: {
+    value: string;
+    label: string;
+  }[];
+  placeholder?: string;
+}) {
   const { t } = useLocale();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -455,16 +512,20 @@ export function NativeSelect({
   const currentValue = typeof value === 'string' ? value : '';
   const active = choices.find((choice) => choice.value === currentValue);
   const display = active?.label ?? placeholder ?? t(L('Select value', 'Chọn giá trị'));
-
   return <label className="form-field">
-    {label && <span className="form-label">{label}</span>}
+    {label && <span className="form-label">
+      {label}
+    </span>}
     <div className="popover-control" ref={wrapperRef}>
       <input type="hidden" name={name} value={currentValue} />
       <button
         type="button"
         className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()}
-        onClick={() => setOpen((current) => !current)}>
-        <span className={`control-text ${active ? '' : 'placeholder'}`}>{display}</span>
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className={`control-text ${active ? '' : 'placeholder'}`}>
+          {display}
+        </span>
         <Icon name="down" size={15} className={`control-icon ${open ? 'rotate' : ''}`} />
       </button>
       {open && <div className="popover-panel select-panel" role="listbox">
@@ -475,22 +536,18 @@ export function NativeSelect({
           onClick={() => {
             emitSelectValue(name, choice.value, onChange);
             setOpen(false);
-          }}>
-          <span>{choice.label}</span>
+          }}
+        >
+          <span>
+            {choice.label}
+          </span>
           {choice.value === currentValue && <Icon name="check" size={14} />}
         </button>)}
       </div>}
     </div>
   </label>;
 }
-
-export function FileUploadField({
-  label,
-  value,
-  onChange,
-  help,
-  accept = 'image/*',
-}: {
+export function FileUploadField({ label, value, onChange, help, accept = 'image/*', }: {
   label?: ReactNode;
   value?: string;
   onChange: (next: string) => void;
@@ -499,9 +556,10 @@ export function FileUploadField({
 }) {
   const { t } = useLocale();
   const inputRef = useRef<HTMLInputElement>(null);
-
   return <div className="form-field">
-    {label && <span className="form-label">{label}</span>}
+    {label && <span className="form-label">
+      {label}
+    </span>}
     <input
       ref={inputRef}
       type="file"
@@ -509,86 +567,194 @@ export function FileUploadField({
       hidden
       onChange={(event) => {
         const file = event.target.files?.[0];
-        if (!file) return;
+        if (!file)
+          return;
         const reader = new FileReader();
         reader.onload = () => onChange(String(reader.result ?? ''));
         reader.readAsDataURL(file);
-      }} />
+      }}
+    />
     <div className={`upload-field ${value ? 'has-preview' : ''}`}>
       <div className="upload-preview" aria-hidden="true">
         {value ? <img src={value} alt="Preview upload" /> : <div className="upload-empty-state">
           <Icon name="image" size={20} />
-          <span>{t(L('Image preview', 'Xem trước ảnh'))}</span>
+          <span>
+            {t(L('Image preview', 'Xem trước ảnh'))}
+          </span>
         </div>}
       </div>
       <div className="upload-copy">
-        <strong>{t(L('Upload an image', 'Tải ảnh lên'))}</strong>
-        <span>{t(L('Use local files instead of pasting image URLs. Supported formats: JPG, PNG and WEBP.', 'Dùng file nội bộ thay vì dán URL ảnh. Hỗ trợ JPG, PNG và WEBP.'))}</span>
+        <strong>
+          {t(L('Upload an image', 'Tải ảnh lên'))}
+        </strong>
+        <span>
+          {t(L('Use local files instead of pasting image URLs. Supported formats: JPG, PNG and WEBP.', 'Dùng file nội bộ thay vì dán URL ảnh. Hỗ trợ JPG, PNG và WEBP.'))}
+        </span>
         <div className="upload-actions">
           <Button type="button" variant="secondary" icon="upload" onClick={() => inputRef.current?.click()}>
             {value ? t(L('Replace image', 'Thay ảnh')) : t(L('Choose image', 'Chọn ảnh'))}
           </Button>
-          {value && <Button type="button" variant="ghost" icon="trash" onClick={() => { onChange(''); if (inputRef.current) inputRef.current.value = ''; }}>
+          {value && <Button
+            type="button"
+            variant="ghost"
+            icon="trash"
+            onClick={() => {
+              onChange(''); if (inputRef.current)
+                inputRef.current.value = '';
+            }}
+          >
             {t(L('Remove', 'Xóa ảnh'))}
           </Button>}
         </div>
       </div>
     </div>
-    {help && <span className="field-help">{help}</span>}
+    {help && <span className="field-help">
+      {help}
+    </span>}
   </div>;
 }
-
-export function Modal({ title, onClose, children, footer, width = 'md' }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; width?: 'md' | 'lg'; }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
+export function Modal({ title, onClose, children, footer, width = 'md' }: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  width?: 'md' | 'lg';
+}) {
+  const { t } = useLocale();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog)
+      return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')).filter(element => element.tabIndex >= 0 && element.getClientRects().length > 0);
+    const firstField = focusable().find(element =>
+      element.matches('.modal-body input:not([readonly]), .modal-body textarea:not([readonly]), .modal-body select'),
+    );
+    (firstField ?? focusable()[0] ?? dialog).focus({ preventScroll: true });
     const key = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.defaultPrevented)
+        return;
+      if (event.key === 'Escape') {
+        if (dialog.querySelector('.popover-control .is-open'))
+          return;
+        event.preventDefault();
+        onCloseRef.current();
+      }
+      else if (event.key === 'Tab') {
+        const items = focusable();
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (!first || !last) {
+          event.preventDefault();
+          dialog.focus();
+        }
+        else if (event.shiftKey && (document.activeElement === first || !items.includes(document.activeElement as HTMLElement))) {
+          event.preventDefault();
+          last.focus();
+        }
+        else if (!event.shiftKey && (document.activeElement === last || !items.includes(document.activeElement as HTMLElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', key);
-    closeRef.current?.focus();
-    return () => document.removeEventListener('keydown', key);
-  }, [onClose]);
-
-  return <div className="modal-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div role="dialog" aria-modal="true" aria-label={title} className={`modal modal-${width}`}>
+    return () => {
+      document.removeEventListener('keydown', key);
+      document.body.style.overflow = previousOverflow;
+      if (previous?.isConnected)
+        previous.focus({ preventScroll: true });
+    };
+  }, []);
+  return createPortal(<div
+    className="modal-overlay"
+    role="presentation"
+    onMouseDown={event => {
+      if (event.target === event.currentTarget)
+        onClose();
+    }}
+  >
+    <div
+      ref={dialogRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className={`modal modal-${width}`}
+    >
       <header className="modal-header">
-        <h2>{title}</h2>
-        <button ref={closeRef} className="icon-btn" aria-label="Close" onClick={onClose}>
+        <h2 id={titleId}>
+          {title}
+        </h2>
+        <button type="button" className="icon-btn" aria-label={t(L('Close', 'Đóng'))} onClick={onClose}>
           <Icon name="close" />
         </button>
       </header>
-      <div className="modal-body">{children}</div>
-      {footer && <footer className="modal-footer">{footer}</footer>}
+      <div className="modal-body">
+        {children}
+      </div>
+      {footer && <footer className="modal-footer">
+        {footer}
+      </footer>}
     </div>
-  </div>;
+  </div>, document.body);
 }
-
-export function Empty({ message }: { message: ReactNode; }) {
+export function Empty({ message }: {
+  message: ReactNode;
+}) {
   return <div className="empty">
     <Icon name="search" size={24} />
-    <p>{message}</p>
+    <p>
+      {message}
+    </p>
   </div>;
 }
-
-export function SimpleTable({ columns, rows, empty }: { columns: { title: ReactNode; key: string; className?: string; render?: (row: Record<string, unknown>) => ReactNode; }[]; rows: Record<string, unknown>[]; empty?: ReactNode; }) {
+export function SimpleTable({ columns, rows, empty }: {
+  columns: {
+    title: ReactNode;
+    key: string;
+    className?: string;
+    render?: (row: Record<string, unknown>) => ReactNode;
+  }[];
+  rows: Record<string, unknown>[];
+  empty?: ReactNode;
+}) {
   return <div className="table-wrap">
     <table className="data-table">
       <thead>
         <tr>
-          {columns.map((column) => <th key={column.key} className={column.className}>{column.title}</th>)}
+          {columns.map((column) => <th key={column.key} className={column.className}>
+            {column.title}
+          </th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((row, index) => <tr key={String(row.id ?? row.number ?? row.code ?? row.email ?? index)}>
-          {columns.map((column) => <td key={column.key} className={column.className}>{column.render?.(row) ?? String(row[column.key] ?? '—')}</td>)}
+          {columns.map((column) => <td key={column.key} className={column.className}>
+            {column.render?.(row) ?? String(row[column.key] ?? '—')}
+          </td>)}
         </tr>)}
       </tbody>
     </table>
     {!rows.length && <Empty message={empty ?? 'No records match your filters.'} />}
   </div>;
 }
-
-export function Tabs({ items, value, onChange }: { items: { id: string; label: ReactNode; }[]; value: string; onChange: (s: string) => void; }) {
+export function Tabs({ items, value, onChange }: {
+  items: {
+    id: string;
+    label: ReactNode;
+  }[];
+  value: string;
+  onChange: (s: string) => void;
+}) {
   return <div className="tabs" role="tablist">
     {items.map((item) => <button
       key={item.id}
@@ -596,88 +762,141 @@ export function Tabs({ items, value, onChange }: { items: { id: string; label: R
       role="tab"
       aria-selected={value === item.id}
       className={value === item.id ? 'tab active' : 'tab'}
-      onClick={() => onChange(item.id)}>
+      onClick={() => onChange(item.id)}
+    >
       {item.label}
     </button>)}
   </div>;
 }
-
-export function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (s: string) => void; placeholder?: string; }) {
+export function SearchBox({ value, onChange, placeholder }: {
+  value: string;
+  onChange: (s: string) => void;
+  placeholder?: string;
+}) {
   const { t } = useLocale();
   return <label className="search-box">
     <Icon name="search" size={17} />
-    <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder ?? t(L('Search records…', 'Tìm kiếm dữ liệu…'))} />
+    <input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder ?? t(L('Search records…', 'Tìm kiếm dữ liệu…'))}
+    />
   </label>;
 }
-
 export function useToast() {
   const [toast, setToast] = useState('');
   useEffect(() => {
-    if (!toast) return;
+    if (!toast)
+      return;
     const timeout = setTimeout(() => setToast(''), 3600);
     return () => clearTimeout(timeout);
   }, [toast]);
   return {
     toast,
     notify: setToast,
-    Toast: () => toast ? <div className="toast" role="status"><Icon name="check" />{toast}</div> : null,
+    Toast: () => toast ? <div className="toast" role="status">
+      <Icon name="check" />
+      {toast}
+    </div> : null,
   };
 }
-
-export function Money({ value }: { value: number; }) {
+export function Money({ value }: {
+  value: number;
+}) {
   const { language } = useLocale();
-  return <>{formatMoney(value, language)}</>;
+  return <>
+    {formatMoney(value, language)}
+  </>;
 }
-
-export function FieldHelp({ children }: { children: ReactNode; }) {
-  return <span className="field-help">{children}</span>;
+export function FieldHelp({ children }: {
+  children: ReactNode;
+}) {
+  return <span className="field-help">
+    {children}
+  </span>;
 }
-
-export function ProgressBar({ value, max = 100 }: { value: number; max?: number; }) {
-  return <div className="progress-track"><span style={{ width: `${Math.min(100, Math.max(0, value / max * 100))}%` }} /></div>;
+export function ProgressBar({ value, max = 100 }: {
+  value: number;
+  max?: number;
+}) {
+  return <div className="progress-track">
+    <span style={{ width: `${Math.min(100, Math.max(0, value / max * 100))}%` }} />
+  </div>;
 }
-
-export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (next: boolean) => void; label: string; }) {
+export function Switch({ checked, onChange, label }: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
   const id = useId();
   return <label className="switch-row" htmlFor={id}>
-    <span>{label}</span>
-    <input id={id} type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <span>
+      {label}
+    </span>
+    <input
+      id={id}
+      type="checkbox"
+      role="switch"
+      checked={checked}
+      onChange={(event) => onChange(event.target.checked)}
+    />
     <span className="switch-track" />
   </label>;
 }
-
-export function InfoBanner({ children }: { children: ReactNode; }) {
+export function InfoBanner({ children }: {
+  children: ReactNode;
+}) {
   return <div className="info-banner">
     <Icon name="info" size={17} />
-    <div>{children}</div>
+    <div>
+      {children}
+    </div>
   </div>;
 }
-
-export function MiniBarChart({ values, labels }: { values: number[]; labels?: string[]; }) {
+export function MiniBarChart({ values, labels }: {
+  values: number[];
+  labels?: string[];
+}) {
   const max = Math.max(...values, 1);
   return <div className="mini-chart">
     {values.map((value, index) => <div className="mini-col" key={index}>
-      <span className="mini-column" style={{ height: `${Math.max(5, value / max * 100)}%` }} title={`${labels?.[index] ?? index + 1}: ${value}`} />
-      {labels && <small>{labels[index]}</small>}
+      <span
+        className="mini-column"
+        style={{ height: `${Math.max(5, value / max * 100)}%` }}
+        title={`${labels?.[index] ?? index + 1}: ${value}`}
+      />
+      {labels && <small>
+        {labels[index]}
+      </small>}
     </div>)}
   </div>;
 }
-
-export function StatList({ items }: { items: { label: ReactNode; value: ReactNode; }[]; }) {
+export function StatList({ items }: {
+  items: {
+    label: ReactNode;
+    value: ReactNode;
+  }[];
+}) {
   return <div className="stat-list">
     {items.map((item, index) => <div key={index}>
-      <span>{item.label}</span>
-      <strong>{item.value}</strong>
+      <span>
+        {item.label}
+      </span>
+      <strong>
+        {item.value}
+      </strong>
     </div>)}
   </div>;
 }
-
-export function IconAction({ label, name, onClick }: { label: string; name: string; onClick: () => void; }) {
+export function IconAction({ label, name, onClick }: {
+  label: string;
+  name: string;
+  onClick: () => void;
+}) {
   return <button type="button" className="icon-btn" title={label} aria-label={label} onClick={onClick}>
     <Icon name={name} />
   </button>;
 }
-
 export const paidMessage = (language: Language) => language === 'en'
   ? 'Demo data only — no transactions are processed.'
   : 'Chỉ là dữ liệu mẫu — không có giao dịch thực tế.';
