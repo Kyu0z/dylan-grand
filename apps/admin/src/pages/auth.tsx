@@ -18,7 +18,44 @@ function PasswordField({ label, value, onChange, current = false, login = false 
 }
 function AuthLayout({ children }: { children: ReactNode }) {
   const { t, theme, setTheme, language, setLanguage } = useLocale();
-  return <div className="staff-auth-layout"><header className="staff-auth-top"><div><Icon name="shield" size={18}/>{t(L('Dylan Grand Hotel · Administration', 'Dylan Grand Hotel · Quản trị'))}</div><div className="topbar-right"><div className="language-toggle"><button className={language==='en'?'chosen':''} onClick={()=>setLanguage('en')}>EN</button><button className={language==='vi'?'chosen':''} onClick={()=>setLanguage('vi')}>VI</button></div><IconAction name={theme==='light'?'moon':'sun'} label={t(L('Switch color theme','Đổi giao diện sáng tối'))} onClick={()=>setTheme(theme==='light'?'dark':'light')}/></div></header><div className="staff-auth-split"><aside className="staff-auth-brand"><div className="admin-brand-stacked staff-auth-logo" role="img" aria-label="Dylan Grand Hotel"/><span className="staff-auth-rule"/><h2>{t(L('Hotel Management','Quản lý khách sạn'))}</h2><p>{t(L('Staff portal','Cổng thông tin nhân viên'))}</p><svg className="staff-auth-pattern" viewBox="0 0 160 180" aria-hidden="true">{[0,1,2,3].map(i=><path key={i} d={`M${10+i*13} 180 V${75+i*10} L80 ${5+i*19} L${150-i*13} ${75+i*10} V180`}/>)}</svg></aside><main className="staff-auth-main">{children}<small>© Dylan Grand Hotel</small></main></div></div>;
+  return (
+    <div className="staff-auth-layout">
+      <div className="staff-auth-split">
+        <aside className="staff-auth-brand" aria-label="Dylan Grand Hotel">
+          <svg className="staff-auth-pattern" viewBox="0 0 440 540" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
+            {[0, 1, 2, 3, 4, 5].map(i => (
+              <path key={i} d={`M${40 + i * 34} 540 V${360 + i * 16} L440 ${26 + i * 56}`} />
+            ))}
+          </svg>
+          <div className="admin-brand-horizontal staff-auth-logo" role="img" aria-label="Dylan Grand Hotel" />
+          <div className="staff-auth-brand-copy">
+            <span className="staff-auth-rule" aria-hidden="true" />
+            <p className="staff-auth-brand-kicker">{t(L('Administration', 'Quản trị'))}</p>
+            <h2>{t(L('Hotel', 'Quản lý'))}<br />{t(L('Management.', 'khách sạn.'))}</h2>
+            <p className="staff-auth-brand-caption">Dylan Grand Hotel <span aria-hidden="true">·</span> {t(L('Staff portal', 'Cổng thông tin nhân viên'))}</p>
+          </div>
+          <small className="staff-auth-copyright">© Dylan Grand Hotel</small>
+        </aside>
+        <main className="staff-auth-main">
+          <header className="staff-auth-top">
+            <div className="topbar-right">
+              <div className="language-toggle" role="group" aria-label={t(L('Language', 'Ngôn ngữ'))}>
+                <button type="button" className={language === 'en' ? 'chosen' : ''} aria-pressed={language === 'en'} onClick={() => setLanguage('en')}>EN</button>
+                <button type="button" className={language === 'vi' ? 'chosen' : ''} aria-pressed={language === 'vi'} onClick={() => setLanguage('vi')}>VI</button>
+              </div>
+              <IconAction name={theme === 'light' ? 'moon' : 'sun'} label={t(L('Switch color theme', 'Đổi giao diện sáng tối'))} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} />
+            </div>
+          </header>
+          <div className="staff-auth-body">
+            <div className="staff-auth-content">
+              <div className="staff-auth-kicker"><Icon name="shield" size={16} />{t(L('Staff access', 'Truy cập nhân viên'))}</div>
+              {children}
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 }
 export function AuthPage({ path, go }: { path: string; go: (p: string) => void }) {
   const screen = path as Screen; const copy = text[screen];
@@ -38,8 +75,17 @@ export function AuthPage({ path, go }: { path: string; go: (p: string) => void }
   } catch { /* API client shows error */ } finally {setBusy(false);} };
   const back = <button type="button" className="auth-back" onClick={()=>go('/login')}><Icon name="left" size={16}/>{t(L('Back to sign in','Quay lại đăng nhập'))}</button>;
   let content: ReactNode;
-  if(done) content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={forgot?'mail':'check'} size={25}/></div><h2>{t(forgot?L('Check your email','Kiểm tra email'):activation?L('Account activated','Tài khoản đã kích hoạt'):L('Password updated','Đã cập nhật mật khẩu'))}</h2><p>{t(forgot?L('If an eligible account exists, a reset link will be sent.','Nếu tài khoản hợp lệ tồn tại, liên kết đặt lại mật khẩu sẽ được gửi.'):L('You can now sign in with your new password.','Bạn có thể đăng nhập bằng mật khẩu mới.'))}</p><Button onClick={()=>go('/login')}>{t(L('Back to sign in','Quay lại đăng nhập'))}</Button></div>;
-  else if(verified!=='valid') content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={verified==='checking'?'key':'info'} size={24}/></div><h2>{t(verified==='checking'?L('Checking link…','Đang kiểm tra liên kết…'):L('Link invalid or unavailable','Liên kết không hợp lệ hoặc không khả dụng'))}</h2>{verified==='invalid'&&<><p>{t(activation?L('Contact your administrator for a new invitation.','Liên hệ quản trị viên để nhận thư mời mới.'):L('Request a new password reset link.','Yêu cầu liên kết đặt lại mật khẩu mới.'))}</p><Button onClick={()=>go(activation?'/login':'/forgot-password')}>{t(activation?L('Back to sign in','Quay lại đăng nhập'):L('Request a new link','Yêu cầu liên kết mới'))}</Button></>}</div>;
-  else content=<form className="staff-auth-card" onSubmit={submit}><div className="auth-form-icon"><Icon name={copy.icon} size={24}/></div><h2>{t(copy.title)}</h2><p className="auth-desc">{t(copy.desc)}</p>{activation&&invited&&<div className="auth-invited"><small>{t(L('Invited account','Tài khoản được mời'))}</small><strong>{invited.fullName || invited.email}</strong><span>{invited.email}</span><span>{t(roleNames[invited.role])}</span></div>}{(signing||forgot)&&<label className="form-field"><span className="form-label">Email</span><div className="auth-input"><Icon name="mail" size={17}/><input type="email" required maxLength={180} autoComplete="username" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/></div></label>}{changing&&<PasswordField label={t(L('Current password','Mật khẩu hiện tại'))} value={current} onChange={setCurrent} current/>}{!forgot&&<PasswordField label={t(signing||activation?L('Password','Mật khẩu'):L('New password','Mật khẩu mới'))} value={password} onChange={setPassword} login={signing}/ >}{!signing&&!forgot&&<><PasswordField label={t(L('Confirm password','Xác nhận mật khẩu'))} value={confirm} onChange={setConfirm}/><div className="auth-password-meter">{[0,1,2,3].map(i=><span key={i} className={password.length>=12&&i<[password.length>=12, password.length>=16, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length?'filled':''}/>)}</div><small>{t(L('Use at least 12 characters.','Sử dụng ít nhất 12 ký tự.'))}</small></>}{signing&&<button type="button" className="auth-forgot" onClick={()=>go('/forgot-password')}>{t(L('Forgot password?','Quên mật khẩu?'))}</button>}<Button type="submit" disabled={busy} icon="arrow">{busy?t(L('Processing…','Đang xử lý…')):t(copy.button)}</Button>{changing?<Button type="button" variant="secondary" onClick={()=>go('/profile')}>{t(L('Cancel','Hủy'))}</Button>:!signing&&back}</form>;
-  return changing ? <div className="staff-security"><div className="auth-breadcrumb">{t(L('My Profile','Hồ sơ cá nhân'))} / {t(L('Security','Bảo mật'))}</div>{content}</div> : <AuthLayout>{content}</AuthLayout>;
+  if(done) content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={forgot?'mail':'check'} size={25}/></div><h1>{t(forgot?L('Check your email','Kiểm tra email'):activation?L('Account activated','Tài khoản đã kích hoạt'):L('Password updated','Đã cập nhật mật khẩu'))}</h1><p>{t(forgot?L('If an eligible account exists, a reset link will be sent.','Nếu tài khoản hợp lệ tồn tại, liên kết đặt lại mật khẩu sẽ được gửi.'):L('You can now sign in with your new password.','Bạn có thể đăng nhập bằng mật khẩu mới.'))}</p><Button onClick={()=>go('/login')}>{t(L('Back to sign in','Quay lại đăng nhập'))}</Button></div>;
+  else if(verified!=='valid') content=<div className="staff-auth-card auth-state"><div className="auth-form-icon"><Icon name={verified==='checking'?'key':'info'} size={24}/></div><h1>{t(verified==='checking'?L('Checking link…','Đang kiểm tra liên kết…'):L('Link invalid or unavailable','Liên kết không hợp lệ hoặc không khả dụng'))}</h1>{verified==='invalid'&&<><p>{t(activation?L('Contact your administrator for a new invitation.','Liên hệ quản trị viên để nhận thư mời mới.'):L('Request a new password reset link.','Yêu cầu liên kết đặt lại mật khẩu mới.'))}</p><Button onClick={()=>go(activation?'/login':'/forgot-password')}>{t(activation?L('Back to sign in','Quay lại đăng nhập'):L('Request a new link','Yêu cầu liên kết mới'))}</Button></>}</div>;
+  else content=<form className="staff-auth-card" onSubmit={submit}><div className="auth-form-heading">{changing && <div className="auth-form-icon"><Icon name={copy.icon} size={24}/></div>}<h1>{t(copy.title)}</h1><p className="auth-desc">{t(copy.desc)}</p></div>{activation&&invited&&<div className="auth-invited"><small>{t(L('Invited account','Tài khoản được mời'))}</small><strong>{invited.fullName || invited.email}</strong><span>{invited.email}</span><span>{t(roleNames[invited.role])}</span></div>}{(signing||forgot)&&<label className="form-field"><span className="form-label">Email</span><div className="auth-input"><Icon name="mail" size={17}/><input type="email" required maxLength={180} autoComplete="username" placeholder="name@example.com" value={email} onChange={e=>setEmail(e.target.value)}/></div></label>}{changing&&<PasswordField label={t(L('Current password','Mật khẩu hiện tại'))} value={current} onChange={setCurrent} current/>}{!forgot&&<PasswordField label={t(signing||activation?L('Password','Mật khẩu'):L('New password','Mật khẩu mới'))} value={password} onChange={setPassword} login={signing}/ >}{!signing&&!forgot&&<><PasswordField label={t(L('Confirm password','Xác nhận mật khẩu'))} value={confirm} onChange={setConfirm}/><div className="auth-password-meter">{[0,1,2,3].map(i=><span key={i} className={password.length>=12&&i<[password.length>=12, password.length>=16, /[0-9]/.test(password), /[^A-Za-z0-9]/.test(password)].filter(Boolean).length?'filled':''}/>)}</div><small>{t(L('Use at least 12 characters.','Sử dụng ít nhất 12 ký tự.'))}</small></>}{signing&&<button type="button" className="auth-forgot" onClick={()=>go('/forgot-password')}>{t(L('Forgot password?','Quên mật khẩu?'))}</button>}<Button type="submit" disabled={busy} icon="arrow">{busy?t(L('Processing…','Đang xử lý…')):t(copy.button)}</Button>{changing?<Button type="button" variant="secondary" onClick={()=>go('/profile')}>{t(L('Cancel','Hủy'))}</Button>:!signing&&back}</form>;
+  return changing ? (
+    <div className="staff-security">
+      <nav className="auth-breadcrumb" aria-label={t(L('Breadcrumb', 'Đường dẫn điều hướng'))}>
+        <button type="button" onClick={() => go('/profile')}>{t(L('My Profile', 'Hồ sơ cá nhân'))}</button>
+        <Icon name="right" size={14} />
+        <span aria-current="page">{t(L('Security', 'Bảo mật'))}</span>
+      </nav>
+      {content}
+    </div>
+  ) : <AuthLayout>{content}</AuthLayout>;
 }
