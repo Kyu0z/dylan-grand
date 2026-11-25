@@ -147,7 +147,7 @@ function AvailabilityContent() {
               <p className="body-copy mt-4">
                 {t(room.description)}
               </p>
-              <p className="mt-4 text-xs text-muted">{t(room.beds)} <T>{"· Up to"}</T>{" "}{room.guests} <T>{"guests ·"}</T>{" "}{t(room.view)}</p>
+              <p className="mt-4 mb-4 text-xs text-muted">{t(room.beds)} <T>{"· Up to"}</T>{" "}{room.guests} <T>{"guests ·"}</T>{" "}{t(room.view)}</p>
               <div className="mt-auto flex flex-wrap items-end justify-between gap-4 border-t border-line pt-6">
                 <div>
                   <span className="field-label"><T>{"ESTIMATED TOTAL"}</T></span>

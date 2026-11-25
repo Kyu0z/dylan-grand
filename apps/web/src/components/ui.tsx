@@ -117,7 +117,7 @@ export function RoomCard({
 
   return (
     <>
-      <article className="group flex flex-col overflow-hidden bg-paper">
+      <article className="group flex flex-col overflow-hidden border border-line bg-paper">
         <div className="relative">
           <Link
             href={detailHref}
