@@ -3,5 +3,7 @@ import { DatabaseHealthController } from '../../database/database-health.control
 import { HealthController } from '../../health/health.controller';
 import { AuthController } from './auth/auth.controller';
 
-@Module({ controllers: [HealthController, DatabaseHealthController, AuthController] })
+import { StaffAuthController } from './auth/staff-auth.controller';
+
+@Module({ controllers: [HealthController, DatabaseHealthController, AuthController, StaffAuthController] })
 export class SharedModule {}

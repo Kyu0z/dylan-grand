@@ -16,7 +16,7 @@ export function Overview({ go }: { go: (path: string) => void; }) {
   const revenue = useMemo(() => bookings.filter(b => b.payment === 'Paid').reduce((sum, b) => sum + b.total, 0), [bookings]);
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-01 / OVERVIEW"
+      
       title={t(L('A clear view of your hotel.', 'Toàn cảnh hoạt động khách sạn.'))}
       description={t(L('Your operations at a glance — bookings, rooms and revenue in one place.', 'Tổng quan đặt phòng, tình trạng phòng và doanh thu tại một nơi.'))}
       action={<>
@@ -53,7 +53,7 @@ export function Overview({ go }: { go: (path: string) => void; }) {
     <div className="overview-main-grid">
       <Card
         title={t(L('Revenue overview', 'Tổng quan doanh thu'))}
-        subtitle={t(L('Illustrative monthly trend', 'Xu hướng theo tháng — dữ liệu mẫu'))}
+        
         action={<Badge tone="gold">2026</Badge>}>
         <div className="revenue-header">
           <div>
@@ -68,7 +68,7 @@ export function Overview({ go }: { go: (path: string) => void; }) {
         </div>
         <MiniBarChart values={trends} labels={['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']} />
       </Card>
-      <Card title={t(L('Room occupancy', 'Tỷ lệ lấp đầy'))} subtitle={t(L('Current sample property status', 'Tình trạng phòng mẫu hiện tại'))}>
+      <Card title={t(L('Room occupancy', 'Tỷ lệ lấp đầy'))} >
         <div className="occupancy-big">
           <strong>{Math.round(occupied / rooms.length * 100)}%</strong>
           <span>

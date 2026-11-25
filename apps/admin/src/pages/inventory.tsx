@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { L, type Room } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, Icon, InfoBanner, Modal, NativeSelect, PageHeader, SearchBox, Status, useToast } from '../components/ui';
+import { Button, Card, Icon, Modal, NativeSelect, PageHeader, SearchBox, Status, useToast } from '../components/ui';
 
 const isoAtOffset = (offset: number) => {
   const date = new Date('2026-11-21T12:00:00');
@@ -56,7 +56,7 @@ export function InventoryPage() {
 
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-05 / INVENTORY"
+      
       title={t(L('Inventory calendar', 'Lịch tồn phòng'))}
       description={t(L('See your sellable rooms, reservations and maintenance in one timeline.', 'Theo dõi phòng mở bán, booking và bảo trì trong cùng một lịch vận hành.'))}
       action={<Button icon="plus" onClick={() => setSelected(rooms[0] ?? null)}>{t(L('Block a room', 'Chặn bán phòng'))}</Button>} />
@@ -130,9 +130,7 @@ export function InventoryPage() {
       </div>
     </Card>
 
-    <InfoBanner>
-      {t(L('Timeline is illustrative. Real inventory must be calculated nightly from reservations, active holds and maintenance blocks.', 'Lịch này là mô phỏng giao diện. Tồn phòng thực tế cần được tính theo từng đêm từ booking, giữ chỗ và lịch chặn bảo trì.'))}
-    </InfoBanner>
+    
 
     {selected && <Modal
       title={`${t(L('Room', 'Phòng'))} #${selected.number}`}
@@ -144,7 +142,7 @@ export function InventoryPage() {
             ? { ...room, sellable: !room.sellable, occupancy: room.sellable ? 'Maintenance' : 'Vacant', notes: room.sellable ? reason : '' }
             : room));
           setSelected(null);
-          notify(t(L('Room availability updated in the preview.', 'Đã cập nhật trạng thái phòng trong bản demo.')));
+          notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')));
         }}>{selected.sellable ? t(L('Block sale', 'Chặn bán')) : t(L('Unblock room', 'Mở bán lại'))}</Button>
       </>}>
       <div className="stack-fields">
@@ -157,9 +155,7 @@ export function InventoryPage() {
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           choices={['Maintenance', 'Private use', 'Out of service'].map((value) => ({ value, label: value }))} />
-        <InfoBanner>
-          {t(L('For the preview, this action changes the room sellability, not a date-range maintenance record.', 'Ở bản demo, thao tác này thay đổi trạng thái được bán của phòng chứ chưa tạo lịch chặn theo khoảng ngày.'))}
-        </InfoBanner>
+        
       </div>
     </Modal>}
     <Toast />

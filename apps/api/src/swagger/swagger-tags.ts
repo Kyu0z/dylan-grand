@@ -1,5 +1,6 @@
 export const SWAGGER_TAGS = [
   { name: 'Shared · Health', description: 'Status and basic diagnostics. LIVE.' },
+  { name: 'Admin · Authentication', description: 'Staff-only login, activation, password recovery, profile, password change and session revocation.' },
   { name: 'Shared · Authentication', description: 'Customer and employee identity. DB · JWT bearer login, customer registration and staff RBAC.' },
   { name: 'Customer · Hotel', description: 'Public hotel information. Public property settings from PostgreSQL.' },
   { name: 'Customer · Rooms', description: 'Public room types. Published, priced room types from PostgreSQL.' },

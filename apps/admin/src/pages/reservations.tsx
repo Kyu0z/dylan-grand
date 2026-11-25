@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { L, formatDate, formatMoney, type Reservation } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, IconAction, InfoBanner, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextArea, TextInput, useToast } from '../components/ui';
+import { Button, Card, IconAction, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextArea, TextInput, useToast } from '../components/ui';
 
 const statusOptions = ['Pending', 'Confirmed', 'Checked-in', 'Checked-out', 'Cancelled', 'No-show', 'Expired'];
 const bookingEmpty: Reservation = { id: '', guest: '', email: '', roomType: 'Deluxe Room', room: '', checkIn: '2026-11-21', checkOut: '2026-11-23', status: 'Pending', payment: 'Unpaid', total: 3700000, channel: 'Walk-in', notes: '' };
@@ -18,12 +18,12 @@ export function ReservationsPage() {
   const counts = Object.fromEntries(statusOptions.map(s => [s, bookings.filter(b => b.status === s).length]));
   const filtered = useMemo(() => bookings.filter(b => (b.id + b.guest + b.email).toLowerCase().includes(query.toLowerCase()) && (tab === 'All' || b.status === tab) && (!start || b.checkIn >= start)), [bookings, query, tab, start]);
   const openNew = () => setDraft({ ...bookingEmpty, id: `DGH-${Date.now().toString().slice(-6)}` });
-  const save = (event: FormEvent) => { event.preventDefault(); if (!draft) return; if (draft.checkOut <= draft.checkIn) { notify(t(L('Check-out must be after check-in.', 'Ngày trả phòng phải sau ngày nhận phòng.'))); return; } update('bookings', bookings.some(b => b.id === draft.id) ? bookings.map(b => b.id === draft.id ? draft : b) : [draft, ...bookings]); setDraft(null); setSelected(null); notify(t(L('Reservation saved to demo data.', 'Đã lưu đặt phòng vào dữ liệu mẫu.'))); };
-  const changeStatus = (value: string) => { if (!selected) return; const next = { ...selected, status: value }; update('bookings', bookings.map(b => b.id === selected.id ? next : b)); setSelected(next); notify(t(L('Demo booking status updated.', 'Đã cập nhật trạng thái booking mẫu.'))); };
-  const csv = () => { const header = ['ID', 'Guest', 'Email', 'Room Type', 'Room', 'Check In', 'Check Out', 'Status', 'Payment', 'Total']; const lines = [header, ...filtered.map(b => [b.id, b.guest, b.email, b.roomType, b.room, b.checkIn, b.checkOut, b.status, b.payment, String(b.total)])]; const csvData = lines.map(line => line.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob(['\ufeff', csvData], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = 'dylan-grand-demo-reservations.csv'; link.click(); URL.revokeObjectURL(url); };
+  const save = (event: FormEvent) => { event.preventDefault(); if (!draft) return; if (draft.checkOut <= draft.checkIn) { notify(t(L('Check-out must be after check-in.', 'Ngày trả phòng phải sau ngày nhận phòng.'))); return; } update('bookings', bookings.some(b => b.id === draft.id) ? bookings.map(b => b.id === draft.id ? draft : b) : [draft, ...bookings]); setDraft(null); setSelected(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); };
+  const changeStatus = (value: string) => { if (!selected) return; const next = { ...selected, status: value }; update('bookings', bookings.map(b => b.id === selected.id ? next : b)); setSelected(next); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); };
+  const csv = () => { const header = ['ID', 'Guest', 'Email', 'Room Type', 'Room', 'Check In', 'Check Out', 'Status', 'Payment', 'Total']; const lines = [header, ...filtered.map(b => [b.id, b.guest, b.email, b.roomType, b.room, b.checkIn, b.checkOut, b.status, b.payment, String(b.total)])]; const csvData = lines.map(line => line.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob(['\ufeff', csvData], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = 'dylan-grand-reservations.csv'; link.click(); URL.revokeObjectURL(url); };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-07 / RESERVATIONS"
+      
       title={t(L('Reservation management', 'Quản lý đặt phòng'))}
       description={t(L('Every guest journey, carefully organized.', 'Theo dõi và quản lý mọi hành trình lưu trú của khách.'))}
       action={<>
@@ -233,13 +233,11 @@ export function ReservationsPage() {
           </div>
         </div>
         <NativeSelect
-          label={t(L('Update booking status (demo)', 'Đổi trạng thái booking (demo)'))}
+          label={t(L('Update booking status', 'Đổi trạng thái đặt phòng'))}
           value={selected.status}
           onChange={e => changeStatus(e.target.value)}
           choices={statusOptions.map(s => ({ value: s, label: s }))} />
-        <InfoBanner>
-          {t(L('Status transitions in this UI are illustrative; policy checks are not connected.', 'Chuyển trạng thái chỉ mô phỏng; chưa áp dụng quy tắc nghiệp vụ backend.'))}
-        </InfoBanner>
+        
       </div>
     </Modal>}
     {draft && <Modal

@@ -16,7 +16,10 @@ export class RegisterDto extends CredentialsDto {
 export class SetupAdminDto extends CredentialsDto {
   @ApiProperty({ description: 'Value of BOOTSTRAP_KEY in apps/api/.env' }) @IsString() @MinLength(16) setupKey!: string;
 }
-export class CreateEmployeeDto extends CredentialsDto {
+export class CreateEmployeeDto {
+  @ApiProperty() @IsEmail() @MaxLength(180) email!: string;
+  @ApiProperty() @IsString() @Matches(/\S/) @MaxLength(120) fullName!: string;
+  @ApiPropertyOptional({ enum: ['en', 'vi'] }) @IsOptional() @IsIn(['en', 'vi']) locale?: 'en' | 'vi';
   @ApiProperty({ enum: ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'] })
   @IsIn(['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING']) role!: string;
 }

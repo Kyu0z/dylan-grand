@@ -27,13 +27,13 @@ export function HotelContent() {
   const { notify, Toast } = useToast();
   const saveSettings = () => {
     try { localStorage.setItem('dgh-admin-hotel-settings', JSON.stringify(settings)); } catch { /* Optional demo storage. */ }
-    notify(t(L('Changes saved in this preview.', 'Đã lưu thay đổi trong bản demo.')));
+    notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')));
   };
   const change = (key: keyof typeof settings, value: string) => setSettings(v => ({ ...v, [key]: value }));
   const fields = (items: { key: keyof typeof settings; label: string; }[]) => items.map(item => <TextInput key={item.key} label={item.label} value={settings[item.key]} onChange={e => change(item.key, e.target.value)} />);
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-02 / PROPERTY"
+      
       title={t(L('Hotel information', 'Thông tin khách sạn'))}
       description={t(L('Manage the identity, content and public-facing hotel details.', 'Quản lý nhận diện, nội dung và thông tin hiển thị trên website.'))}
       action={<Button icon="check" onClick={saveSettings}>
@@ -56,9 +56,7 @@ export function HotelContent() {
             {t(L('A refined stay, thoughtfully curated.', 'Một kỳ nghỉ tinh tế, được chăm chút.'))}
           </p>
         </div>
-        <InfoBanner>
-          {t(L('Preview changes are local and are not published to the Customer Site.', 'Thay đổi trong bản demo chỉ lưu cục bộ và chưa đăng lên User Site.'))}
-        </InfoBanner>
+        
       </Card>
     </div>}
     {tab === 'content' && <div className="two-column-layout">
@@ -152,7 +150,6 @@ export function HotelContent() {
           </div>
         </div>
         <p className="image-disclaimer">
-          {t(L('Default photos remain as placeholders until the admin uploads replacements in the demo workspace.', 'Ảnh mặc định sẽ được giữ làm placeholder cho đến khi admin tải ảnh thay thế trong workspace demo.'))}
         </p>
       </Card>
     </div>}
@@ -168,11 +165,11 @@ export function RoomTypesPage() {
   const [draft, setDraft] = useState<RoomType | null>(null);
   const { notify, Toast } = useToast();
   const open = (room?: RoomType) => { const value = room ?? { id: `RT-${Date.now().toString().slice(-5)}`, name: '', size: 32, beds: 'King', capacity: 2, price: 0, status: 'Draft', amenities: [], image: '', description: '' }; setEditing(value); setDraft({ ...value, amenities: [...value.amenities] }); };
-  const save = (e: FormEvent) => { e.preventDefault(); if (!draft) return; update('roomTypes', editing && roomTypes.some(r => r.id === editing.id) ? roomTypes.map(r => r.id === draft.id ? draft : r) : [...roomTypes, draft]); setDraft(null); setEditing(null); notify(t(L('Room type saved to the demo data.', 'Đã lưu hạng phòng vào dữ liệu mẫu.'))); };
+  const save = (e: FormEvent) => { e.preventDefault(); if (!draft) return; update('roomTypes', editing && roomTypes.some(r => r.id === editing.id) ? roomTypes.map(r => r.id === draft.id ? draft : r) : [...roomTypes, draft]); setDraft(null); setEditing(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); };
   const filtered = roomTypes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-03 / ROOM TYPES"
+      
       title={t(L('Rooms & suites', 'Hạng phòng & suite'))}
       description={t(L('Curate the room categories shown to your guests.', 'Quản lý các hạng phòng được giới thiệu và mở bán cho khách.'))}
       action={<Button icon="plus" onClick={() => open()}>
@@ -278,7 +275,7 @@ export function RoomTypesPage() {
           label={t(L('Room hero image', 'Ảnh đại diện hạng phòng'))}
           value={draft.image}
           onChange={(next) => setDraft({ ...draft, image: next })}
-          help={t(L('Stored locally in demo state after selection.', 'Ảnh được lưu tạm trong demo state sau khi chọn.'))} />
+           />
         <TextInput
           label={t(L('Amenities (comma separated)', 'Tiện ích (cách nhau bằng dấu phẩy)'))}
           value={draft.amenities.join(', ')}
@@ -301,10 +298,10 @@ export function PhysicalRoomsPage() {
   const { notify, Toast } = useToast();
   const filtered = rooms.filter(r => (r.number + r.type).toLowerCase().includes(query.toLowerCase()) && (status === 'All' || r.occupancy === status));
   const open = (r?: Room) => { setOriginal(r?.number ?? null); setDraft(r ? { ...r } : { number: '', floor: 2, type: roomTypes[0]?.name ?? 'Deluxe Room', occupancy: 'Vacant', housekeeping: 'Clean', sellable: true, notes: '' }); };
-  const save = (e: FormEvent) => { e.preventDefault(); if (!draft) return; if (rooms.some(r => r.number === draft.number && r.number !== original)) { notify(t(L('Room number already exists.', 'Số phòng đã tồn tại.'))); return; } update('rooms', original ? rooms.map(r => r.number === original ? draft : r) : [...rooms, draft]); setDraft(null); notify(t(L('Room updated in demo data.', 'Đã cập nhật phòng mẫu.'))); };
+  const save = (e: FormEvent) => { e.preventDefault(); if (!draft) return; if (rooms.some(r => r.number === draft.number && r.number !== original)) { notify(t(L('Room number already exists.', 'Số phòng đã tồn tại.'))); return; } update('rooms', original ? rooms.map(r => r.number === original ? draft : r) : [...rooms, draft]); setDraft(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-04 / PHYSICAL ROOMS"
+      
       title={t(L('Room directory', 'Danh sách phòng vật lý'))}
       description={t(L('Manage individual rooms, floors, sellability and maintenance.', 'Quản lý từng phòng, tầng, khả năng bán và tình trạng bảo trì.'))}
       action={<Button icon="plus" onClick={() => open()}>

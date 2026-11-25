@@ -71,6 +71,9 @@ model User {
   passwordHash String    @db.VarChar(240)
   role         UserRole  @default(CUSTOMER)
   isActive     Boolean   @default(true)
+  fullName     String?   @db.VarChar(120)
+  pendingActivation Boolean @default(false)
+  staffSessionVersion Int @default(0)
   bookings     Booking[]
   guestProfile Guest?
   createdAt    DateTime  @default(now())

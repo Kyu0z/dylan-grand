@@ -20,7 +20,7 @@ export function PricingPage() {
   const selected = roomTypes.find(r => r.id === roomId) ?? roomTypes[0];
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-06 / REVENUE"
+      
       title={t(L('Rates & pricing', 'Giá phòng & gói giá'))}
       description={t(L('Thoughtful pricing for every room type and rate plan.', 'Thiết lập giá theo từng hạng phòng và các gói giá.'))}
       action={<Button icon="plus" onClick={() => setModal(true)}>
@@ -108,7 +108,7 @@ export function PricingPage() {
     </Card>}
     {tab === 'calendar' && <Card
       title={t(L('Daily rate calendar', 'Lịch giá theo ngày'))}
-      subtitle={t(L('Illustrative daily rates — no backend adjustments', 'Giá theo ngày minh họa, chưa có cập nhật backend'))}>
+      >
       <div className="table-toolbar">
         <NativeSelect
           label={t(L('Room category', 'Hạng phòng'))}
@@ -132,7 +132,6 @@ export function PricingPage() {
         })}
       </div>
       <div className="subtle-note">
-        {t(L('Weekend premiums are illustrative. Real daily overrides will require a pricing specification.', 'Phụ thu cuối tuần chỉ minh họa. Giá theo ngày cần đặc tả trước khi tích hợp.'))}
       </div>
     </Card>}
     {tab === 'plans' && <div className="rate-plan-grid">
@@ -145,7 +144,7 @@ export function PricingPage() {
         <div className="plan-adjustment">{plan.adjust > 0 ? '+' : ''}{plan.adjust}% <small>
           {t(L('vs. base rate', 'so với giá gốc'))}
         </small></div>
-        <Button variant="secondary" onClick={() => notify(t(L('Rate-plan editing is a UI preview only.', 'Chỉnh sửa gói giá hiện chỉ là giao diện mẫu.')))}>
+        <Button variant="secondary" onClick={() => notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')))}>
           {t(L('View details', 'Xem chi tiết'))}
         </Button>
       </Card>)}
@@ -161,7 +160,7 @@ export function PricingPage() {
           <TextInput type="number" min={1} defaultValue={3} label={t(L('Maximum guests', 'Số khách tối đa'))} />
         </div>
         <div className="top-gap">
-          <Button onClick={() => notify(t(L('Stay restrictions saved locally (preview).', 'Đã lưu quy định lưu trú trong bản demo.')))}>
+          <Button onClick={() => notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')))}>
             {t(L('Save rules', 'Lưu quy định'))}
           </Button>
         </div>
@@ -197,7 +196,7 @@ export function PricingPage() {
         <Button variant="ghost" onClick={() => setModal(false)}>
           {t(L('Cancel', 'Hủy'))}
         </Button>
-        <Button onClick={() => { const value = Number(dayRate || selected?.price); if (!Number.isFinite(value) || value < 0) return; update('roomTypes', roomTypes.map(r => r.id === roomId ? { ...r, price: value } : r)); setModal(false); setDayRate(''); notify(t(L('Demo base rate updated.', 'Đã cập nhật giá mẫu.'))); }}>
+        <Button onClick={() => { const value = Number(dayRate || selected?.price); if (!Number.isFinite(value) || value < 0) return; update('roomTypes', roomTypes.map(r => r.id === roomId ? { ...r, price: value } : r)); setModal(false); setDayRate(''); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); }}>
           {t(L('Save rate', 'Lưu giá'))}
         </Button>
       </>}>
@@ -214,9 +213,7 @@ export function PricingPage() {
           value={dayRate}
           placeholder={String(selected?.price ?? 0)}
           onChange={e => setDayRate(e.target.value)} />
-        <InfoBanner>
-          {t(L('This preview updates the displayed base rate, not rate-plan or date rules.', 'Bản demo chỉ cập nhật giá cơ bản, không thay đổi gói giá hoặc lịch giá theo ngày.'))}
-        </InfoBanner>
+        
       </div>
     </Modal>}
     <Toast />

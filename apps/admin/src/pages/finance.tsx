@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { L, formatDate, formatMoney, type Payment } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, InfoBanner, Metric, MiniBarChart, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextInput, useToast } from '../components/ui';
+import { Button, Card, Metric, MiniBarChart, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextInput, useToast } from '../components/ui';
 
 export function PaymentsPage() {
   const { t, language } = useLocale();
@@ -20,11 +20,11 @@ export function PaymentsPage() {
     if (!draft.booking || !Number.isFinite(value) || value <= 0) { notify(t(L('Select a booking and enter a positive amount.', 'Chọn booking và nhập số tiền lớn hơn 0.'))); return; }
     const booking = bookings.find(b => b.id === draft.booking);
     const payment: Payment = { id: `PAY-${Date.now().toString().slice(-6)}`, booking: draft.booking, guest: booking?.guest ?? 'Guest', amount: modal === 'refund' ? -value : value, method: draft.method, date: new Date().toISOString().slice(0, 10), status: modal === 'refund' ? 'Refunded' : 'Paid', kind: modal === 'refund' ? 'Refund' : 'Charge' };
-    update('payments', [payment, ...payments]); setModal(null); setDraft({ booking: bookings[0]?.id ?? '', amount: '', method: 'Cash', note: '' }); notify(t(L('Transaction added to the presentation data.', 'Đã thêm giao dịch vào dữ liệu mẫu.')));
+    update('payments', [payment, ...payments]); setModal(null); setDraft({ booking: bookings[0]?.id ?? '', amount: '', method: 'Cash', note: '' }); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')));
   };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-09 / FINANCE"
+      
       title={t(L('Payments & refunds', 'Thanh toán & hoàn tiền'))}
       description={t(L('Monitor every transaction and outstanding guest balance.', 'Theo dõi giao dịch và các khoản thanh toán của khách.'))}
       action={<>
@@ -113,9 +113,7 @@ export function PaymentsPage() {
         </table>
       </div>
     </Card>
-    <InfoBanner>
-      {t(L('Payment entry and refunds are UI demonstrations. No payment gateway or accounting system is connected.', 'Ghi nhận thanh toán và hoàn tiền chỉ là demo giao diện, chưa kết nối cổng thanh toán hoặc kế toán.'))}
-    </InfoBanner>
+    
     {modal && <Modal
       title={modal === 'payment' ? t(L('Record a payment', 'Ghi nhận thanh toán')) : t(L('Record a refund', 'Ghi nhận hoàn tiền'))}
       onClose={() => setModal(null)}
@@ -145,9 +143,7 @@ export function PaymentsPage() {
           value={draft.method}
           onChange={e => setDraft({ ...draft, method: e.target.value })}
           choices={['Cash', 'Card', 'Transfer'].map(x => ({ value: x, label: x }))} />
-        <InfoBanner>
-          {t(L('This action only adds a sample transaction to the local UI.', 'Thao tác này chỉ thêm giao dịch mẫu trong giao diện.'))}
-        </InfoBanner>
+        
       </div>
     </Modal>}
     <Toast />
@@ -169,10 +165,10 @@ export function ReportsPage() {
   const adr = stayNights ? roomRevenue / stayNights : 0;
   const revpar = roomRevenue / (rooms.length * 30);
   const summary = [{ label: L('Total bookings', 'Tổng đặt phòng'), value: bookings.length.toString(), hint: L('Across all statuses', 'Tất cả trạng thái') }, { label: L('Revenue collected', 'Doanh thu đã thu'), value: formatMoney(paid, language), hint: L('Paid transactions', 'Giao dịch đã thu') }, { label: L('Current occupancy', 'Lấp đầy hiện tại'), value: `${Math.round(occupied / rooms.length * 100)}%`, hint: L('Illustrative snapshot', 'Thống kê mẫu') }, { label: L('Cancellations / no-shows', 'Hủy / không đến'), value: String(bookings.filter(b => ['Cancelled', 'No-show'].includes(b.status)).length), hint: L('Sample reservation history', 'Lịch sử đặt phòng mẫu') }];
-  const exportCSV = () => { const rows = [['Room Type', 'Confirmed Bookings', 'Revenue'], ...roomTypes.map(r => [r.name, confirmed.filter(b => b.roomType === r.name).length, String(confirmed.filter(b => b.roomType === r.name).reduce((s, b) => s + b.total, 0))])]; const body = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n'); const url = URL.createObjectURL(new Blob(['\ufeff', body], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'dylan-grand-demo-report.csv'; a.click(); URL.revokeObjectURL(url); };
+  const exportCSV = () => { const rows = [['Room Type', 'Confirmed Bookings', 'Revenue'], ...roomTypes.map(r => [r.name, confirmed.filter(b => b.roomType === r.name).length, String(confirmed.filter(b => b.roomType === r.name).reduce((s, b) => s + b.total, 0))])]; const body = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n'); const url = URL.createObjectURL(new Blob(['\ufeff', body], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'dylan-grand-report.csv'; a.click(); URL.revokeObjectURL(url); };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-14 / ANALYTICS"
+      
       title={t(L('Reports & insights', 'Báo cáo & phân tích'))}
       description={t(L('Understand your hotel’s performance through a considered lens.', 'Theo dõi hiệu quả vận hành và doanh thu một cách trực quan.'))}
       action={<>
@@ -190,7 +186,7 @@ export function ReportsPage() {
     <div className="overview-main-grid">
       <Card
         title={t(L('Performance trend', 'Xu hướng hoạt động'))}
-        subtitle={t(L('Illustrative trend — sample data, not calculated records', 'Biểu đồ xu hướng minh họa, không phải số liệu tính từ giao dịch'))}
+        
         action={<NativeSelect
           value={metric}
           onChange={e => setMetric(e.target.value)}
@@ -209,7 +205,7 @@ export function ReportsPage() {
       </Card>
       <Card
         title={t(L('Revenue by room category', 'Doanh thu theo hạng phòng'))}
-        subtitle={t(L('Based on confirmed demo bookings', 'Từ booking mẫu đã xác nhận'))}>
+        >
         <div className="room-revenue-list">
           {roomTypes.map(r => {
             const value = confirmed.filter(b => b.roomType === r.name).reduce((s, b) => s + b.total, 0); return <div key={r.id}>
@@ -251,8 +247,6 @@ export function ReportsPage() {
         </strong>
       </div>
     </div>
-    <InfoBanner>
-      {t(L('ADR, RevPAR and monthly trends are illustrative. Production calculations must follow the agreed reporting period and revenue recognition rules.', 'ADR, RevPAR và xu hướng tháng chỉ mang tính minh họa. Công thức thực tế cần thống nhất kỳ báo cáo và quy tắc ghi nhận doanh thu.'))}
-    </InfoBanner>
+    
   </div>;
 }

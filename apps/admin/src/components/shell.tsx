@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { nav, L, type NavEntry } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { Icon, IconAction } from './ui';
+import { canAccess, roleNames, useAdminAuth } from '../lib/admin-auth';
 
 const icons: Record<string, string> = {
   'ad-01': 'grid', 'ad-02': 'hotel', 'ad-03': 'bed', 'ad-04': 'door', 'ad-05': 'calendar',
@@ -23,20 +24,26 @@ export function useAdminPath() {
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
   }, []);
-  const go = (url: string) => {
+  const go = useCallback((url: string) => {
     if (url === path) return;
     window.history.pushState({}, '', url);
     setPath(url);
     window.scrollTo({ top: 0, behavior: 'instant' });
-  };
+  }, [path]);
   return { path, go };
 }
 export function AdminShell({ path, go, children }: { path: string; go: (url: string) => void; children: ReactNode; }) {
   const { t, language, setLanguage, theme, setTheme } = useLocale();
+  const { user, logout } = useAdminAuth();
+  const [menu, setMenu] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const name = user?.fullName || user?.email || '';
+  const initials = (user?.fullName ? user.fullName.trim().split(/\s+/).map(x=>x[0]).slice(0,2).join('') : name.slice(0,2)).toUpperCase();
+  const signOut = async () => { setSigningOut(true); try { await logout(); } catch { /* local session cleared even when offline */ } finally { setSigningOut(false); go('/login'); } };
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState('');
   const active = nav.find(x => x.path === path) ?? nav[0];
-  const filtered = nav.filter(x => t(x.label).toLowerCase().includes(query.toLowerCase()) || x.id.includes(query.toLowerCase()));
+  const filtered = nav.filter(x => user && canAccess(user.role, x.path) && t(x.label).toLowerCase().includes(query.toLowerCase()));
   return <div className={`admin-layout ${collapsed ? 'sidebar-collapsed' : ''}`}>
     <aside className="sidebar" aria-label="Admin navigation">
       <div className="sidebar-brand">
@@ -53,18 +60,6 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
           onClick={() => setCollapsed(x => !x)}>
           <Icon name="menu" size={19} />
         </button>
-      </div>
-      <div className="sidebar-property">
-        <div className="property-monogram" aria-label="Dylan Grand Hotel">
-          <span className="admin-brand-symbol" aria-hidden="true" />
-        </div>
-        <div className="property-copy">
-          <strong>Dylan Grand Hotel</strong>
-          <span>
-            {t(L('Property workspace', 'Quản lý khách sạn'))}
-          </span>
-        </div>
-        <Icon name="down" size={15} />
       </div>
       <nav className="sidebar-nav">
         {groups.map(group => {
@@ -90,22 +85,14 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
         })}
       </nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-support">
-          <Icon name="info" size={17} />
-          <span>
-            {t(L('Portfolio demo environment', 'Môi trường demo portfolio'))}
-          </span>
-        </div>
-        <div className="sidebar-profile">
-          <div className="avatar">DG</div>
-          <div className="profile-details">
-            <strong>Demo Administrator</strong>
-            <span>
-              {t(L('Presentation access', 'Truy cập bản trình diễn'))}
-            </span>
-          </div>
-          <Icon name="dots" size={18} />
-        </div>
+        {menu && <div className="staff-profile-menu">
+          <button type="button" onClick={()=>{setMenu(false);go('/profile');}}><Icon name="users" size={17}/>{t(L('My Profile','Hồ sơ cá nhân'))}</button>
+          <button type="button" onClick={()=>{setMenu(false);go('/profile/security');}}><Icon name="key" size={17}/>{t(L('Change password','Đổi mật khẩu'))}</button>
+          <button type="button" disabled={signingOut} onClick={()=>void signOut()}><Icon name="arrow" size={17}/>{t(L('Sign out','Đăng xuất'))}</button>
+        </div>}
+        <button type="button" className="sidebar-profile staff-profile-trigger" aria-expanded={menu} aria-label={t(L('Account menu','Menu tài khoản'))} onClick={()=>setMenu(x=>!x)}>
+          <div className="avatar">{initials}</div><div className="profile-details"><strong>{name}</strong><span>{user&&t(roleNames[user.role])}</span></div><Icon name="dots" size={18}/>
+        </button>
       </div>
     </aside>
     <div className="workspace">
@@ -117,7 +104,7 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
             </span>
             <Icon name="chevron" size={14} />
             <strong>
-              {t(active.label)}
+              {path.startsWith('/profile') ? t(L('My Profile','Hồ sơ cá nhân')) : t(active.label)}
             </strong>
           </div>
         </div>
@@ -129,7 +116,7 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
               onChange={e => setQuery(e.target.value)}
               placeholder={t(L('Find a module…', 'Tìm module…'))}
               aria-label={t(L('Find a module', 'Tìm module'))} />
-            <kbd>/</kbd>
+            
           </div>
           <div className="language-toggle" role="group" aria-label="Language">
             <button className={language === 'en' ? 'chosen' : ''} onClick={() => setLanguage('en')}>EN</button>
@@ -140,18 +127,12 @@ export function AdminShell({ path, go, children }: { path: string; go: (url: str
             label={t(L('Switch color theme', 'Đổi giao diện sáng tối'))}
             onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} />
           <span className="topbar-separator" />
-          <div className="topbar-avatar" title="Demo Administrator">DG</div>
+          <button type="button" className="topbar-avatar" title={name} aria-label={t(L('My Profile','Hồ sơ cá nhân'))} onClick={()=>go('/profile')}>{initials}</button>
         </div>
       </header>
       <main className="workspace-content" id="content">
-        <div className="demo-ribbon">
-          <span className="live-dot" />
-          {t(L('DEMO WORKSPACE', 'KHÔNG GIAN DEMO'))}
-          <span className="ribbon-spacer" />
-          {t(L('Sample data · No live backend connected', 'Dữ liệu minh họa · Chưa kết nối backend'))}
-        </div>
         {children}
-        <footer className="workspace-footer">© Dylan Grand Hotel <span>·</span> {t(L('Admin presentation · AD-01 to AD-14', 'Bản giao diện Admin · AD-01 đến AD-14'))}</footer>
+        <footer className="workspace-footer">© Dylan Grand Hotel</footer>
       </main>
     </div>
   </div>;

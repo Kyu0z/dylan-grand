@@ -1,6 +1,6 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
-  UnauthorizedException,
+  UnauthorizedException, ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { issueResetToken, readResetToken, verifyResetToken, passwordVersion, sendResetEmail, resetEmailConfig, limitResetRequest } from './password-reset';
@@ -56,12 +56,17 @@ export class AuthService {
     }
   }
 
-  async login(email: string, password: string) {
+  async staffLogin(email: string, password: string, ip: string) {
+    return this.login(email, password, true, ip);
+  }
+
+  async login(email: string, password: string, staffOnly = false, ip?: string) {
+    if (ip) limitResetRequest('login-ip', ip, 40, 15 * 60_000);
     const user = await this.db.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user || !user.isActive || !passwordMatches(password, user.passwordHash)) throw new UnauthorizedException('Invalid credentials.');
+    if (!user || !user.isActive || user.pendingActivation || (staffOnly && user.role === 'CUSTOMER') || !passwordMatches(password, user.passwordHash)) throw new UnauthorizedException('Invalid credentials.');
     const issuedAt = Math.floor(Date.now() / 1000);
     const header = base64({ alg: 'HS256', typ: 'JWT' });
-    const payload = base64({ sub: user.id, iss: 'dylan-grand-api', aud: 'dylan-grand', iat: issuedAt, exp: issuedAt + 8 * 3600, ...(user.role === 'CUSTOMER' ? { pv: passwordVersion(user.passwordHash, secret()) } : {}) });
+    const payload = base64({ sub: user.id, iss: 'dylan-grand-api', aud: 'dylan-grand', iat: issuedAt, exp: issuedAt + 8 * 3600, pv: passwordVersion(user.passwordHash, secret()), ...(user.role === 'CUSTOMER' ? {} : { sv: user.staffSessionVersion }) });
     const input = `${header}.${payload}`;
     const signature = createHmac('sha256', secret()).update(input).digest('base64url');
     return { accessToken: `${input}.${signature}`, tokenType: 'Bearer', expiresIn: 8 * 3600, role: user.role };
@@ -75,15 +80,15 @@ export class AuthService {
     const expected = createHmac('sha256', secret()).update(`${header}.${payload}`).digest();
     const received = Buffer.from(sig, 'base64url');
     if (received.length !== expected.length || !timingSafeEqual(received, expected)) throw new UnauthorizedException('Invalid signature.');
-    let claims: { sub?: string; exp?: number; iss?: string; aud?: string; pv?: string };
+    let claims: { sub?: string; exp?: number; iss?: string; aud?: string; pv?: string; sv?: number };
     try { claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); }
     catch { throw new UnauthorizedException('Invalid token payload.'); }
     if (!claims.sub || claims.iss !== 'dylan-grand-api' || claims.aud !== 'dylan-grand' || !claims.exp || claims.exp <= Date.now() / 1000) {
       throw new UnauthorizedException('Expired or invalid access token.');
     }
-    const user = await this.db.user.findUnique({ where: { id: claims.sub }, select: { id: true, email: true, role: true, isActive: true, passwordHash: true } });
-    if (!user?.isActive) throw new UnauthorizedException('Account disabled.');
-    if (user.role === 'CUSTOMER' && claims.pv !== passwordVersion(user.passwordHash, secret())) {
+    const user = await this.db.user.findUnique({ where: { id: claims.sub }, select: { id: true, email: true, role: true, isActive: true, passwordHash: true, pendingActivation: true, staffSessionVersion: true } });
+    if (!user?.isActive || user.pendingActivation) throw new UnauthorizedException('Account disabled.');
+    if (claims.pv !== passwordVersion(user.passwordHash, secret()) || (user.role !== 'CUSTOMER' && claims.sv !== user.staffSessionVersion)) {
       throw new UnauthorizedException('Expired or invalid access token.');
     }
     return { id: user.id, email: user.email, role: user.role, isActive: user.isActive };
@@ -138,30 +143,137 @@ export class AuthService {
     return { id: userId, email, fullName: guest.name, phone: guest.phone ?? '' };
   }
 
-  listStaff() { return this.db.user.findMany({ where: { role: { not: 'CUSTOMER' } }, select: { id: true, email: true, role: true, isActive: true, createdAt: true }, orderBy: { createdAt: 'desc' } }); }
+  private readonly staffSelect = { id: true, email: true, fullName: true, role: true, isActive: true, pendingActivation: true, createdAt: true } as const;
 
-  async createStaff(dto: CreateEmployeeDto) {
-    if (dto.role === 'CUSTOMER') throw new BadRequestException('Use customer registration.');
-    const email = dto.email.toLowerCase();
-    if (await this.db.user.findUnique({ where: { email } })) throw new ConflictException('Email already registered.');
-    return this.db.user.create({ data: { email, passwordHash: passwordHash(dto.password), role: dto.role as 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING' }, select: { id: true, email: true, role: true, isActive: true } });
+  async staffProfile(id: string) {
+    const user = await this.db.user.findUnique({ where: { id }, select: this.staffSelect });
+    if (!user?.isActive || user.pendingActivation || user.role === 'CUSTOMER') throw new UnauthorizedException('Account disabled.');
+    return user;
   }
 
-  async setActive(userId: string, isActive: boolean, actorId: string) {
-    if (userId === actorId) throw new BadRequestException('Cannot disable your own account.');
+  async staffForgotPassword(email: string, ip: string, locale: 'en' | 'vi' = 'en') {
+    const normalized = email.trim().toLowerCase();
+    const config = resetEmailConfig('staff-password-reset');
+    limitResetRequest('staff-request-ip', ip, 30, 15 * 60_000);
+    const response = { message: 'If an eligible account exists, a reset link will be sent.' };
+    if (!limitResetRequest('staff-request-email', normalized, 1, 60_000, true)) return response;
+    const user = await this.db.user.findUnique({ where: { email: normalized } });
+    if (user?.isActive && !user.pendingActivation && user.role !== 'CUSTOMER') {
+      await sendResetEmail(config, normalized, issueResetToken(user.id, user.passwordHash, secret(), 'staff-password-reset'), locale, 'staff-password-reset');
+    }
+    return response;
+  }
+
+  private async staffTokenAccount(token: string, activation: boolean) {
+    const purpose = activation ? 'staff-activation' : 'staff-password-reset';
+    const invalid = () => new BadRequestException('Reset link is invalid or expired.');
+    const claims = readResetToken(token, purpose);
+    if (!claims) throw invalid();
+    const user = await this.db.user.findUnique({ where: { id: claims.sub } });
+    if (!user || user.role === 'CUSTOMER' || user.pendingActivation !== activation || user.isActive === activation || !verifyResetToken(token, user.passwordHash, secret(), purpose)) throw invalid();
+    return user;
+  }
+
+  async inspectStaffToken(token: string, activation: boolean, ip: string) {
+    limitResetRequest('staff-inspect-ip', ip, 60, 15 * 60_000);
+    const user = await this.staffTokenAccount(token, activation);
+    return { email: user.email, role: user.role, fullName: user.fullName };
+  }
+
+  async completeStaffPassword(token: string, password: string, ip: string, activation = false) {
+    limitResetRequest('staff-confirm-ip', ip, 30, 15 * 60_000);
+    const user = await this.staffTokenAccount(token, activation);
+    await this.db.$transaction(async tx => {
+      const changed = await tx.user.updateMany({ where: { id: user.id, passwordHash: user.passwordHash, role: user.role, isActive: !activation, pendingActivation: activation }, data: { passwordHash: passwordHash(password), pendingActivation: false, isActive: true, staffSessionVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new BadRequestException('Reset link is invalid or expired.');
+      await tx.auditLog.create({ data: { actorId: user.id, operation: activation ? 'ACTIVATE_STAFF' : 'RESET_STAFF_PASSWORD', entity: 'User', entityId: user.id, detail: {} } });
+    });
+    return { message: activation ? 'Account activated. Please sign in.' : 'Password updated. Please sign in.' };
+  }
+
+  async changeStaffPassword(id: string, current: string, password: string) {
+    limitResetRequest('staff-change-password', id, 10, 15 * 60_000);
+    const user = await this.db.user.findUnique({ where: { id } });
+    if (!user?.isActive || user.pendingActivation || user.role === 'CUSTOMER' || !passwordMatches(current, user.passwordHash)) throw new BadRequestException('Current password is incorrect.');
+    if (current === password) throw new BadRequestException('New password must be different.');
+    await this.db.$transaction(async tx => {
+      const changed = await tx.user.updateMany({ where: { id, passwordHash: user.passwordHash, isActive: true, role: user.role }, data: { passwordHash: passwordHash(password), staffSessionVersion: { increment: 1 } } });
+      if (changed.count !== 1) throw new UnauthorizedException('Expired or invalid access token.');
+      await tx.auditLog.create({ data: { actorId: id, operation: 'CHANGE_STAFF_PASSWORD', entity: 'User', entityId: id, detail: {} } });
+    });
+    return { message: 'Password updated. Please sign in.' };
+  }
+
+  async logoutStaff(id: string) {
+    await this.db.user.updateMany({ where: { id, role: { not: 'CUSTOMER' } }, data: { staffSessionVersion: { increment: 1 } } });
+    return { message: 'Signed out successfully.' };
+  }
+
+  private assertStaffPermission(actorRole: string, targetRole: string) {
+    if (!['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'].includes(targetRole) || (actorRole !== 'ADMIN' && !(actorRole === 'MANAGER' && ['RECEPTIONIST', 'HOUSEKEEPING'].includes(targetRole)))) throw new ForbiddenException('Insufficient role permissions.');
+  }
+
+  listStaff(actorRole: string) {
+    if (!['ADMIN', 'MANAGER'].includes(actorRole)) throw new ForbiddenException('Insufficient role permissions.');
+    const roles = actorRole === 'ADMIN' ? ['ADMIN', 'MANAGER', 'RECEPTIONIST', 'HOUSEKEEPING'] as const : ['RECEPTIONIST', 'HOUSEKEEPING'] as const;
+    return this.db.user.findMany({ where: { role: { in: [...roles] } }, select: this.staffSelect, orderBy: { createdAt: 'desc' } });
+  }
+
+  async createStaff(dto: CreateEmployeeDto, actor: { id: string; role: string }) {
+    this.assertStaffPermission(actor.role, dto.role);
+    const config = resetEmailConfig('staff-activation');
+    limitResetRequest('staff-invite', actor.id, 20, 60 * 60_000);
+    const email = dto.email.trim().toLowerCase();
+    if (await this.db.user.findUnique({ where: { email } })) throw new ConflictException('Email already registered.');
+    const hash = passwordHash(randomBytes(32).toString('base64url'));
+    const user = await this.db.$transaction(async tx => {
+      const created = await tx.user.create({ data: { email, fullName: dto.fullName.trim(), passwordHash: hash, role: dto.role as 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING', isActive: false, pendingActivation: true }, select: this.staffSelect });
+      await tx.auditLog.create({ data: { actorId: actor.id, operation: 'INVITE_STAFF', entity: 'User', entityId: created.id, detail: { role: created.role } } });
+      return created;
+    });
+    const invitationSent = await sendResetEmail(config, email, issueResetToken(user.id, hash, secret(), 'staff-activation'), dto.locale ?? 'en', 'staff-activation');
+    return { ...user, invitationSent, message: invitationSent ? 'Staff invitation sent successfully.' : 'Staff account created. Invitation delivery failed. Please resend.' };
+  }
+
+  async resendStaffInvitation(id: string, actor: { id: string; role: string }, locale: 'en' | 'vi') {
+    const config = resetEmailConfig('staff-activation');
+    limitResetRequest('staff-resend', actor.id, 20, 60 * 60_000);
+    const user = await this.db.user.findUnique({ where: { id } });
+    if (!user?.pendingActivation || user.isActive) throw new BadRequestException('Staff invitation is not pending.');
+    this.assertStaffPermission(actor.role, user.role);
+    limitResetRequest('staff-resend-target', id, 1, 60_000);
+    const hash = passwordHash(randomBytes(32).toString('base64url'));
+    const result = await this.db.user.updateMany({ where: { id, role: user.role, passwordHash: user.passwordHash, pendingActivation: true, isActive: false }, data: { passwordHash: hash } });
+    if (result.count !== 1) throw new BadRequestException('Staff invitation is not pending.');
+    if (!await sendResetEmail(config, user.email, issueResetToken(id, hash, secret(), 'staff-activation'), locale, 'staff-activation')) throw new ServiceUnavailableException('Invitation delivery failed. Please resend.');
+    return { message: 'Staff invitation sent successfully.' };
+  }
+
+  async setActive(userId: string, isActive: boolean, actor: { id: string; role: string }) {
+    if (userId === actor.id) throw new BadRequestException('Cannot disable your own account.');
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user || user.role === 'CUSTOMER') throw new BadRequestException('Staff account not found.');
-    const updated = await this.db.user.update({ where: { id: userId }, data: { isActive }, select: { id: true, email: true, role: true, isActive: true } });
-    await this.db.auditLog.create({ data: { actorId, operation: 'SET_STAFF_ACTIVE', entity: 'User', entityId: userId, detail: { isActive } } });
-    return updated;
+    this.assertStaffPermission(actor.role, user.role);
+    if (user.pendingActivation) throw new BadRequestException('Staff invitation is pending.');
+    return this.db.$transaction(async tx => {
+      const updated = await tx.user.updateMany({ where: { id: userId, role: user.role, pendingActivation: false }, data: { isActive, staffSessionVersion: { increment: 1 } } });
+      if (updated.count !== 1) throw new ConflictException('Staff account changed. Please reload.');
+      await tx.auditLog.create({ data: { actorId: actor.id, operation: 'SET_STAFF_ACTIVE', entity: 'User', entityId: userId, detail: { isActive } } });
+      return tx.user.findUniqueOrThrow({ where: { id: userId }, select: this.staffSelect });
+    });
   }
 
-  async changeRole(userId: string, dto: UpdateRoleDto, actorId: string) {
-    if (userId === actorId) throw new BadRequestException('You cannot change your own role.');
+  async changeRole(userId: string, dto: UpdateRoleDto, actor: { id: string; role: string }) {
+    if (userId === actor.id) throw new BadRequestException('You cannot change your own role.');
     const user = await this.db.user.findUnique({ where: { id: userId } });
-    if (!user) throw new BadRequestException('User not found.');
-    const updated = await this.db.user.update({ where: { id: userId }, data: { role: dto.role as 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING' }, select: { id: true, email: true, role: true } });
-    await this.db.auditLog.create({ data: { actorId, operation: 'CHANGE_STAFF_ROLE', entity: 'User', entityId: userId, detail: { previousRole: user.role, newRole: dto.role } } });
-    return updated;
+    if (!user || user.role === 'CUSTOMER') throw new BadRequestException('Staff account not found.');
+    this.assertStaffPermission(actor.role, user.role);
+    this.assertStaffPermission(actor.role, dto.role);
+    return this.db.$transaction(async tx => {
+      const updated = await tx.user.updateMany({ where: { id: userId, role: user.role }, data: { role: dto.role as 'ADMIN' | 'MANAGER' | 'RECEPTIONIST' | 'HOUSEKEEPING', staffSessionVersion: { increment: 1 } } });
+      if (updated.count !== 1) throw new ConflictException('Staff account changed. Please reload.');
+      await tx.auditLog.create({ data: { actorId: actor.id, operation: 'CHANGE_STAFF_ROLE', entity: 'User', entityId: userId, detail: { previousRole: user.role, newRole: dto.role } } });
+      return tx.user.findUniqueOrThrow({ where: { id: userId }, select: this.staffSelect });
+    });
   }
 }

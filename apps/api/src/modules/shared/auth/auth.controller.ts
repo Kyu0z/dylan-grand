@@ -30,5 +30,5 @@ export class AuthController {
   @Post('login')
   @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: '[DB] Login; copy accessToken to Swagger Authorize', description: 'Roles come from database on every protected API request.' })
-  login(@Body() dto: LoginDto) { return this.auth.login(dto.email, dto.password); }
+  login(@Body() dto: LoginDto, @Req() req: { ip?: string }) { return this.auth.login(dto.email, dto.password, false, req.ip ?? 'unknown'); }
 }

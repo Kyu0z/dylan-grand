@@ -43,6 +43,8 @@ const paths: Record<string, ReactNode> = {
     <rect x="5" y="4" width="14" height="18" rx="2" />
     <path d="M9 4V2h6v2M9 11h6M9 15h6" />
   </>,
+  lock: <><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></>,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></>,
   key: <>
     <circle cx="8" cy="15" r="5" />
     <path d="m12 11 9-9m-4 4 3 3M14 9l3 3" />
@@ -311,10 +313,9 @@ export function Card({ children, className = '', title, subtitle, action }: { ch
   </section>;
 }
 
-export function PageHeader({ eyebrow, title, description, action }: { eyebrow?: ReactNode; title: ReactNode; description?: ReactNode; action?: ReactNode; }) {
+export function PageHeader({ title, description, action }: { eyebrow?: ReactNode; title: ReactNode; description?: ReactNode; action?: ReactNode; }) {
   return <div className="page-heading">
     <div>
-      {eyebrow && <div className="eyebrow">{eyebrow}</div>}
       <h1>{title}</h1>
       {description && <p>{description}</p>}
     </div>
@@ -522,7 +523,7 @@ export function FileUploadField({
       </div>
       <div className="upload-copy">
         <strong>{t(L('Upload an image', 'Tải ảnh lên'))}</strong>
-        <span>{t(L('Use local files instead of pasting image URLs. JPG, PNG or WEBP work well for this demo.', 'Dùng file nội bộ thay vì dán URL ảnh. JPG, PNG hoặc WEBP đều phù hợp cho bản demo này.'))}</span>
+        <span>{t(L('Use local files instead of pasting image URLs. Supported formats: JPG, PNG and WEBP.', 'Dùng file nội bộ thay vì dán URL ảnh. Hỗ trợ JPG, PNG và WEBP.'))}</span>
         <div className="upload-actions">
           <Button type="button" variant="secondary" icon="upload" onClick={() => inputRef.current?.click()}>
             {value ? t(L('Replace image', 'Thay ảnh')) : t(L('Choose image', 'Chọn ảnh'))}

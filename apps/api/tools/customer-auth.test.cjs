@@ -19,7 +19,7 @@ function fixture() {
     user: {
       findUnique: async ({ where }) => structuredClone([...users.values()].find(u => where.id ? u.id === where.id : u.email === where.email) ?? null),
       create: async ({ data, select }) => {
-        const row = { id: `u${++next}`, role: 'CUSTOMER', isActive: true, ...data, guestProfile: data.guestProfile?.create ?? null };
+        const row = { id: `u${++next}`, role: 'CUSTOMER', isActive: true, pendingActivation: false, staffSessionVersion: 0, ...data, guestProfile: data.guestProfile?.create ?? null };
         users.set(row.id, row);
         return Object.fromEntries(Object.keys(select).map(key => [key, row[key]]));
       },
@@ -52,7 +52,8 @@ test('register persists full name, rejects duplicate email and verifies customer
 test('email reset is generic, customer-only, single use and invalidates previous JWTs', async () => {
   const { auth, users } = fixture();
   const user = await auth.register({ email: 'reset@example.test', password: 'OriginalPassword!42', fullName: 'Test User' });
-  const staff = await auth.createStaff({ email: 'staff@example.test', password: 'OriginalPassword!42', role: 'ADMIN' });
+  const staff = await auth.register({ email: 'staff@example.test', password: 'OriginalPassword!42', fullName: 'Existing Admin' });
+  users.get(staff.id).role = 'ADMIN';
   const old = await auth.login(user.email, 'OriginalPassword!42');
   const staffLogin = await auth.login(staff.email, 'OriginalPassword!42');
   const calls = [];

@@ -3,7 +3,8 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const lifetimeSeconds = 20 * 60;
 const logger = new Logger('CustomerPasswordReset');
-type Claims = { sub: string; exp: number; nonce: string; purpose: 'customer-password-reset' };
+export type TokenPurpose = 'customer-password-reset' | 'staff-password-reset' | 'staff-activation';
+type Claims = { sub: string; exp: number; nonce: string; purpose: TokenPurpose };
 
 export function passwordVersion(hash: string, secret: string) {
   return createHmac('sha256', secret).update('customer-session\0').update(hash).digest('base64url');
@@ -11,22 +12,22 @@ export function passwordVersion(hash: string, secret: string) {
 function signature(payload: string, hash: string, secret: string) {
   return createHmac('sha256', secret).update('customer-password-reset\0').update(hash).update('\0').update(payload).digest();
 }
-export function issueResetToken(id: string, hash: string, secret: string) {
-  const claims: Claims = { sub: id, exp: Math.floor(Date.now() / 1000) + lifetimeSeconds, nonce: randomBytes(24).toString('base64url'), purpose: 'customer-password-reset' };
+export function issueResetToken(id: string, hash: string, secret: string, purpose: TokenPurpose = 'customer-password-reset') {
+  const claims: Claims = { sub: id, exp: Math.floor(Date.now() / 1000) + (purpose === 'staff-activation' ? 24 * 3600 : lifetimeSeconds), nonce: randomBytes(24).toString('base64url'), purpose };
   const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
   return `${payload}.${signature(payload, hash, secret).toString('base64url')}`;
 }
-export function readResetToken(token: string): Claims | null {
+export function readResetToken(token: string, purpose: TokenPurpose = 'customer-password-reset'): Claims | null {
   if (token.length > 1024 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) return null;
   try {
     const claims = JSON.parse(Buffer.from(token.split('.')[0]!, 'base64url').toString('utf8')) as Claims;
-    if (!claims || claims.purpose !== 'customer-password-reset' || typeof claims.sub !== 'string' || !claims.sub ||
+    if (!claims || claims.purpose !== purpose || typeof claims.sub !== 'string' || !claims.sub ||
       typeof claims.nonce !== 'string' || !Number.isSafeInteger(claims.exp) || claims.exp <= Date.now() / 1000) return null;
     return claims;
   } catch { return null; }
 }
-export function verifyResetToken(token: string, hash: string, secret: string) {
-  if (!readResetToken(token)) return false;
+export function verifyResetToken(token: string, hash: string, secret: string, purpose: TokenPurpose = 'customer-password-reset') {
+  if (!readResetToken(token, purpose)) return false;
   const [payload, sig] = token.split('.');
   const actual = Buffer.from(sig!, 'base64url');
   const expected = signature(payload!, hash, secret);
@@ -58,16 +59,16 @@ function validMailbox(email: string) {
   return !/[\r\n]/.test(email) && /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+$/.test(email);
 }
 
-export function resetEmailConfig() {
+export function resetEmailConfig(purpose: TokenPurpose = 'customer-password-reset') {
   const clientId = process.env.GMAIL_CLIENT_ID?.trim();
   const clientSecret = process.env.GMAIL_CLIENT_SECRET?.trim();
   const refreshToken = process.env.GMAIL_REFRESH_TOKEN?.trim();
   const sender = process.env.GMAIL_SENDER_EMAIL?.trim();
   try {
-    const url = new URL(process.env.CUSTOMER_RESET_URL ?? '');
+    const url = new URL((purpose === 'customer-password-reset' ? process.env.CUSTOMER_RESET_URL : purpose === 'staff-activation' ? process.env.ADMIN_ACTIVATE_URL : process.env.ADMIN_RESET_URL) ?? '');
     const local = process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1'].includes(url.hostname) && url.protocol === 'http:';
     if (!clientId || !clientSecret || !refreshToken || !sender || !validMailbox(sender) ||
-      (!local && url.protocol !== 'https:') || url.username || url.password || url.hash || url.search || url.pathname !== '/account') {
+      (!local && url.protocol !== 'https:') || url.username || url.password || url.hash || url.search || url.pathname !== (purpose === 'customer-password-reset' ? '/account' : purpose === 'staff-activation' ? '/activate-account' : '/reset-password')) {
       throw new Error();
     }
     return { clientId, clientSecret, refreshToken, sender, url };
@@ -118,21 +119,22 @@ function encodeMime(sender: string, email: string, subject: string, text: string
   return Buffer.from(message, 'utf8').toString('base64url');
 }
 
-export async function sendResetEmail(config: ResetEmailConfig, email: string, token: string, locale: 'en' | 'vi') {
+export async function sendResetEmail(config: ResetEmailConfig, email: string, token: string, locale: 'en' | 'vi', purpose: TokenPurpose = 'customer-password-reset'): Promise<boolean> {
   if (!validMailbox(email)) {
     logger.error('Gmail reset recipient is not a supported single mailbox address.');
-    return;
+    return false;
   }
   const url = new URL(config.url);
   url.hash = new URLSearchParams({ resetToken: token }).toString();
   const vi = locale === 'vi';
-  const subject = vi ? 'Dylan Grand Hotel - Đặt lại mật khẩu' : 'Dylan Grand Hotel — Reset your password';
-  const text = vi ? `Sử dụng liên kết sau để đặt lại mật khẩu: ${url}\nLiên kết hết hạn sau 20 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.` :
+  const activation = purpose === 'staff-activation';
+  const subject = activation ? (vi ? 'Dylan Grand Hotel - Kích hoạt tài khoản nhân viên' : 'Dylan Grand Hotel — Activate staff account') : vi ? 'Dylan Grand Hotel - Đặt lại mật khẩu' : 'Dylan Grand Hotel — Reset your password';
+  const text = activation ? (vi ? `Kích hoạt tài khoản nhân viên: ${url}\nLiên kết hết hạn sau 24 giờ.` : `Activate your staff account: ${url}\nThe link expires in 24 hours.`) : vi ? `Sử dụng liên kết sau để đặt lại mật khẩu: ${url}\nLiên kết hết hạn sau 20 phút. Nếu bạn không yêu cầu, hãy bỏ qua email này.` :
     `Use this link to reset your password: ${url}\nThe link expires in 20 minutes. If you did not request it, ignore this email.`;
   let stage = 'OAuth token';
   try {
     const accessToken = await getGmailAccessToken(config);
-    if (!accessToken) return;
+    if (!accessToken) return false;
     stage = 'delivery';
     const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
       method: 'POST',
@@ -141,6 +143,7 @@ export async function sendResetEmail(config: ResetEmailConfig, email: string, to
       body: JSON.stringify({ raw: encodeMime(config.sender, email, subject, text) }),
     });
     if (!response.ok) logger.error(`Gmail reset email delivery returned HTTP ${response.status}.`);
-  } catch { logger.error(`Gmail reset email ${stage} request failed.`); }
+    return response.ok;
+  } catch { logger.error(`Gmail reset email ${stage} request failed.`); return false; }
   // Never expose provider errors, account existence, or tokens through the public endpoint.
 }

@@ -7,6 +7,8 @@ export const API_MESSAGE_HEADER = 'X-Dylan-Message';
 // Keep the existing response body (including arrays, tokens and Swagger contracts).
 // The header is additive and available on every successful controller response.
 const successMessages: Record<string, string> = {
+  'POST /api/v1/auth/staff/login': 'Signed in successfully.',
+  'POST /api/v1/auth/staff/logout': 'Signed out successfully.',
   'POST /api/v1/auth/login': 'Signed in successfully.',
   'POST /api/v1/auth/register': 'Account created successfully.',
   'POST /api/v1/auth/setup-admin': 'Admin account created successfully.',

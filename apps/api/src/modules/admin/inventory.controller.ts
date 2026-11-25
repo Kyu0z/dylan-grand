@@ -7,6 +7,7 @@ import { CreateMaintenanceBlockDto } from './dto/admin-contract.dto';
 
 @ApiBearerAuth('access-token')
 @ApiTags('Admin · Inventory')
+@Roles('ADMIN','MANAGER','RECEPTIONIST')
 @Controller('admin/inventory')
 export class AdminInventoryController {
   constructor(private readonly hotel: HotelService) {}

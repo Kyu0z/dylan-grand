@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { L, formatDate, type Reservation } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, DateField, Icon, InfoBanner, Modal, NativeSelect, PageHeader, Status, Tabs, useToast } from '../components/ui';
+import { Button, Card, DateField, Icon, Modal, NativeSelect, PageHeader, Status, Tabs, useToast } from '../components/ui';
 
 export function FrontDeskPage() {
   const { t, language } = useLocale();
@@ -23,11 +23,11 @@ export function FrontDeskPage() {
     update('bookings', bookings.map(x => x.id === b.id ? { ...x, status: action, room } : x));
     if (action === 'Checked-in') update('rooms', rooms.map(r => r.number === room ? { ...r, occupancy: 'Occupied' } : r));
     if (action === 'Checked-out') update('rooms', rooms.map(r => r.number === b.room ? { ...r, occupancy: 'Vacant', housekeeping: 'Dirty' } : r));
-    setSelected(null); setAssigned(''); notify(t(L('Front desk status updated in demo.', 'Đã cập nhật trạng thái lễ tân trong bản demo.')));
+    setSelected(null); setAssigned(''); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')));
   };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-08 / FRONT DESK"
+      
       title={t(L('Front desk', 'Lễ tân'))}
       description={t(L('A thoughtful arrival and departure experience, from one workspace.', 'Quản lý đón khách và trả phòng thuận tiện trong một màn hình.'))}
       action={<div className="date-chip">
@@ -93,9 +93,7 @@ export function FrontDeskPage() {
         </div>}
       </div>
     </Card>
-    <InfoBanner>
-      {t(L('Check-in checks room readiness; check-out marks housekeeping as Dirty. All transitions are preview-only.', 'Nhận phòng có kiểm tra trạng thái sạch; trả phòng sẽ chuyển dọn phòng thành Dirty. Các thao tác chỉ là mô phỏng.'))}
-    </InfoBanner>
+    
     {selected && <Modal
       title={t(L('Guest stay details', 'Chi tiết lưu trú'))}
       onClose={() => setSelected(null)}
@@ -147,7 +145,7 @@ export function FrontDeskPage() {
           </span>
         </div>}
         {selected.status === 'Confirmed' && <Button variant="ghost" onClick={() => act(selected, 'No-show')}>
-          {t(L('Mark no-show (demo)', 'Đánh dấu vắng mặt (demo)'))}
+          {t(L('Mark no-show', 'Đánh dấu vắng mặt'))}
         </Button>}
       </div>
     </Modal>}

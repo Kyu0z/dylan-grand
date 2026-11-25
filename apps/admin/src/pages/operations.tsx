@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { L, formatMoney, type Guest, type Promotion, type Service, type Staff } from '../lib/domain';
+import { L, formatMoney, type Guest, type Promotion, type Service } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
 import { Badge, Button, Card, Icon, IconAction, InfoBanner, Metric, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextArea, TextInput, useToast } from '../components/ui';
@@ -19,11 +19,11 @@ export function HousekeepingPage() {
   const shown = rooms.filter(r => filter === 'All' || r.housekeeping === filter);
   const change = (roomNumber: string, status: string) => {
     update('rooms', rooms.map(r => r.number === roomNumber ? { ...r, housekeeping: status, notes: note || r.notes } : r));
-    setSelected(null); setNote(''); notify(t(L('Room status updated in demo.', 'Đã cập nhật trạng thái dọn phòng mẫu.')));
+    setSelected(null); setNote(''); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.')));
   };
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-10 / HOUSEKEEPING"
+      
       title={t(L('Housekeeping board', 'Bảng công việc buồng phòng'))}
       description={t(L('A room is ready only when service and front desk are aligned.', 'Phòng chỉ sẵn sàng khi tình trạng vệ sinh và vận hành phù hợp.'))} />
     <div className="metric-grid three">
@@ -113,7 +113,7 @@ export function GuestsPage() {
   const { notify, Toast } = useToast();
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-11 / RELATIONSHIPS"
+      
       title={t(L('Guests & reviews', 'Khách hàng & đánh giá'))}
       description={t(L('Know your guests, remember their preferences and respond thoughtfully.', 'Theo dõi lịch sử, nhu cầu của khách và phản hồi đánh giá.'))} />
     <div className="metric-grid three">
@@ -265,7 +265,7 @@ export function GuestsPage() {
           {t(L('Cancel', 'Hủy'))}
         </Button>
         <Button
-          onClick={() => { update('reviews', reviews.map((r, i) => i === Number(reply) ? { ...r, reply: response, status: 'Published' } : r)); setReply(null); notify(t(L('Demo reply saved.', 'Đã lưu phản hồi mẫu.'))); }}
+          onClick={() => { update('reviews', reviews.map((r, i) => i === Number(reply) ? { ...r, reply: response, status: 'Published' } : r)); setReply(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); }}
           disabled={!response.trim()}>
           {t(L('Publish response', 'Đăng phản hồi'))}
         </Button>
@@ -285,7 +285,7 @@ export function PromotionsPage() {
   const { notify, Toast } = useToast();
   return <div className="page-stack">
     <PageHeader
-      eyebrow="AD-12 / OFFERS"
+      
       title={t(L('Offers & extra services', 'Ưu đãi & dịch vụ bổ sung'))}
       description={t(L('Create meaningful offers and curated guest experiences.', 'Quản lý chương trình ưu đãi và những trải nghiệm dành cho khách.'))}
       action={<Button
@@ -375,7 +375,7 @@ export function PromotionsPage() {
         <Button variant="ghost" onClick={() => setPromo(null)}>
           {t(L('Cancel', 'Hủy'))}
         </Button>
-        <Button onClick={() => { if (!promo.code.trim() || promo.to < promo.from) { notify(t(L('Check code and validity dates.', 'Kiểm tra mã và ngày hiệu lực.'))); return; } update('promotions', promotions.some(p => p.code === promo.code) ? promotions.map(p => p.code === promo.code ? promo : p) : [promo, ...promotions]); setPromo(null); notify(t(L('Promotion saved in demo.', 'Đã lưu ưu đãi mẫu.'))); }}>
+        <Button onClick={() => { if (!promo.code.trim() || promo.to < promo.from) { notify(t(L('Check code and validity dates.', 'Kiểm tra mã và ngày hiệu lực.'))); return; } update('promotions', promotions.some(p => p.code === promo.code) ? promotions.map(p => p.code === promo.code ? promo : p) : [promo, ...promotions]); setPromo(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); }}>
           {t(L('Save promotion', 'Lưu ưu đãi'))}
         </Button>
       </>}>
@@ -419,7 +419,7 @@ export function PromotionsPage() {
         <Button variant="ghost" onClick={() => setService(null)}>
           {t(L('Cancel', 'Hủy'))}
         </Button>
-        <Button onClick={() => { if (!service.name.trim()) return; update('services', services.some(s => s.name === service.name) ? services.map(s => s.name === service.name ? service : s) : [service, ...services]); setService(null); notify(t(L('Service saved in demo.', 'Đã lưu dịch vụ mẫu.'))); }}>
+        <Button onClick={() => { if (!service.name.trim()) return; update('services', services.some(s => s.name === service.name) ? services.map(s => s.name === service.name ? service : s) : [service, ...services]); setService(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); }}>
           {t(L('Save service', 'Lưu dịch vụ'))}
         </Button>
       </>}>
@@ -443,144 +443,6 @@ export function PromotionsPage() {
             onChange={e => setService({ ...service, status: e.target.value })}
             choices={['Active', 'Inactive'].map(x => ({ value: x, label: x }))} />
         </div>
-      </div>
-    </Modal>}
-    <Toast />
-  </div>;
-}
-
-export function StaffPage() {
-  const { t } = useLocale();
-  const { staff, update } = useDemoStore();
-  const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState<Staff | null>(null);
-  const { notify, Toast } = useToast();
-  const roles = ['Manager', 'Receptionist', 'Housekeeping', 'Admin'];
-  return <div className="page-stack">
-    <PageHeader
-      eyebrow="AD-13 / TEAM"
-      title={t(L('Staff & roles', 'Nhân sự & vai trò'))}
-      description={t(L('An overview of the people behind an exceptional stay.', 'Thông tin nhân sự và các vai trò vận hành khách sạn.'))}
-      action={<Button icon="plus" onClick={() => setSelected({ name: '', role: 'Receptionist', email: '', status: 'Active', shift: 'Morning' })}>
-        {t(L('Add staff member', 'Thêm nhân viên'))}
-      </Button>} />
-    <div className="metric-grid three">
-      <Metric label={t(L('Team members', 'Nhân viên'))} value={staff.length} icon="users" />
-      <Metric label={t(L('Active accounts', 'Tài khoản hoạt động'))} value={staff.filter(s => s.status === 'Active').length} icon="check" />
-      <Metric label={t(L('Staff roles', 'Vai trò'))} value={new Set(staff.map(s => s.role)).size} icon="shield" />
-    </div>
-    <Card title={t(L('Team directory', 'Danh sách nhân sự'))}>
-      <div className="table-toolbar">
-        <SearchBox value={search} onChange={setSearch} placeholder={t(L('Search a team member…', 'Tìm nhân viên…'))} />
-      </div>
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>
-                {t(L('Staff member', 'Nhân viên'))}
-              </th>
-              <th>
-                {t(L('Role', 'Vai trò'))}
-              </th>
-              <th>
-                {t(L('Shift', 'Ca'))}
-              </th>
-              <th>
-                {t(L('Account', 'Tài khoản'))}
-              </th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {staff.filter(s => (s.name + s.email).toLowerCase().includes(search.toLowerCase())).map(s => <tr key={s.email}>
-              <td>
-                <div className="staff-person">
-                  <div className="guest-avatar">
-                    {s.name.split(' ').map(x => x[0]).slice(0, 2).join('')}
-                  </div>
-                  <div>
-                    <strong>
-                      {s.name}
-                    </strong>
-                    <small className="table-subtext">
-                      {s.email}
-                    </small>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <Badge tone={s.role === 'Manager' ? 'gold' : 'neutral'}>
-                  {s.role}
-                </Badge>
-              </td>
-              <td>
-                {s.shift}
-              </td>
-              <td>
-                <Status value={s.status} />
-              </td>
-              <td>
-                <IconAction name="edit" label={t(L('Edit team member', 'Sửa nhân viên'))} onClick={() => setSelected({ ...s })} />
-              </td>
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-    <Card title={t(L('Role overview', 'Tổng quan vai trò'))}>
-      <div className="role-grid">
-        {roles.map(role => <div className="role-card" key={role}>
-          <div className="role-icon">
-            <Icon name="shield" />
-          </div>
-          <strong>
-            {role}
-          </strong>
-          <span>
-            {staff.filter(s => s.role === role).length}
-            {t(L('members', 'nhân viên'))}
-          </span>
-          <small>
-            {t(L('Permissions require the future RBAC specification.', 'Quyền chi tiết sẽ được xác định theo RBAC sau.'))}
-          </small>
-        </div>)}
-      </div>
-    </Card>
-    <InfoBanner>
-      {t(L('This screen only manages sample staff records. Authentication, permissions, audit logs and MFA are not implemented.', 'Trang này chỉ quản lý bản ghi nhân viên mẫu. Chưa triển khai đăng nhập, phân quyền, nhật ký thao tác hay MFA.'))}
-    </InfoBanner>
-    {selected && <Modal
-      title={t(L('Staff profile', 'Hồ sơ nhân viên'))}
-      onClose={() => setSelected(null)}
-      footer={<>
-        <Button variant="ghost" onClick={() => setSelected(null)}>
-          {t(L('Cancel', 'Hủy'))}
-        </Button>
-        <Button onClick={() => { if (!selected.name.trim() || !selected.email.trim()) return; update('staff', staff.some(s => s.email === selected.email) ? staff.map(s => s.email === selected.email ? selected : s) : [...staff, selected]); setSelected(null); notify(t(L('Staff profile updated in demo.', 'Đã cập nhật hồ sơ nhân viên mẫu.'))); }}>
-          {t(L('Save member', 'Lưu nhân viên'))}
-        </Button>
-      </>}>
-      <div className="stack-fields">
-        <TextInput label={t(L('Full name', 'Họ tên'))} required value={selected.name} onChange={e => setSelected({ ...selected, name: e.target.value })} />
-        <TextInput type="email" label="Email" required value={selected.email} onChange={e => setSelected({ ...selected, email: e.target.value })} />
-        <div className="form-grid two">
-          <NativeSelect
-            label={t(L('Role', 'Vai trò'))}
-            value={selected.role}
-            onChange={e => setSelected({ ...selected, role: e.target.value })}
-            choices={roles.map(x => ({ value: x, label: x }))} />
-          <NativeSelect
-            label={t(L('Shift', 'Ca làm'))}
-            value={selected.shift}
-            onChange={e => setSelected({ ...selected, shift: e.target.value })}
-            choices={['Morning', 'Evening', 'Day', 'Night'].map(x => ({ value: x, label: x }))} />
-        </div>
-        <NativeSelect
-          label={t(L('Account status', 'Trạng thái tài khoản'))}
-          value={selected.status}
-          onChange={e => setSelected({ ...selected, status: e.target.value })}
-          choices={['Active', 'Inactive'].map(x => ({ value: x, label: x }))} />
       </div>
     </Modal>}
     <Toast />

@@ -6,6 +6,7 @@ import { ExtraServiceDto, PromotionDto, ServiceOrderDto } from '../../core/contr
 
 @ApiBearerAuth('access-token')
 @ApiTags('Admin · Promotions')
+@Roles('ADMIN','MANAGER')
 @Controller('admin/promotions')
 export class AdminPromotionsController {
   constructor(private readonly finance: FinanceService) {}

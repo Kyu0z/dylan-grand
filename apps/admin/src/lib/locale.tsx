@@ -30,7 +30,7 @@ export function LocaleProvider({ children }: { children: ReactNode; }) {
       localStorage.setItem('dgh-admin-language', language);
       localStorage.setItem('dgh-admin-theme', theme);
     } catch {
-      // Browser storage is optional for this presentation-only UI.
+      // Browser storage is optional.
     }
   }, [language, theme]);
 

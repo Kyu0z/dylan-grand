@@ -1,0 +1,3 @@
+ALTER TABLE "User" ADD COLUMN "fullName" VARCHAR(120),
+ADD COLUMN "pendingActivation" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "staffSessionVersion" INTEGER NOT NULL DEFAULT 0;

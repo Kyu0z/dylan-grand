@@ -1,44 +1,37 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminShell, useAdminPath } from './components/shell';
-import { DemoStoreProvider } from './lib/demo-store';
-import { LocaleProvider } from './lib/locale';
-import { Overview } from './pages/overview';
-import { HotelContent, RoomTypesPage, PhysicalRoomsPage } from './pages/property';
-import { InventoryPage } from './pages/inventory';
-import { PricingPage } from './pages/pricing';
-import { ReservationsPage } from './pages/reservations';
-import { FrontDeskPage } from './pages/front-desk';
-import { PaymentsPage, ReportsPage } from './pages/finance';
-import { HousekeepingPage, GuestsPage, PromotionsPage, StaffPage } from './pages/operations';
+import { Button, Card, Icon, Metric, PageHeader } from './components/ui';
+import { AdminAuthProvider, canAccess, roleNames, useAdminAuth } from './lib/admin-auth';
+import { L, nav } from './lib/domain';
+import { LocaleProvider, useLocale } from './lib/locale';
+import { AuthPage, publicPaths } from './pages/auth';
+import { StaffPage } from './pages/staff';
 
+type DashboardData = { date: string; sellableRooms: number; totalBookings: number; arrivals: number; departures: number; dirtyRooms: number };
+function Dashboard() {
+  const { t } = useLocale(); const { api } = useAdminAuth();
+  const [data,setData] = useState<DashboardData|null>(null); const [failed,setFailed] = useState(false); const [attempt,setAttempt] = useState(0);
+  useEffect(()=>{let active=true;setFailed(false);api<DashboardData>('/admin/dashboard').then(result=>{if(active)setData(result);}).catch(()=>{if(active)setFailed(true);});return()=>{active=false;};},[api,attempt]);
+  return <div className="page-stack"><PageHeader title={t(L('Overview','Tổng quan'))} description={data?.date} action={<Button variant="secondary" onClick={()=>setAttempt(x=>x+1)}>{t(L('Refresh','Tải lại'))}</Button>}/>{failed?<Card>{t(L('Unable to load overview. Please retry.','Không thể tải tổng quan. Vui lòng thử lại.'))}</Card>:<div className="metric-grid three"><Metric label={t(L('Sellable rooms','Phòng có thể bán'))} value={data?.sellableRooms??'—'} icon="bed"/><Metric label={t(L('Total reservations','Tổng lượt đặt phòng'))} value={data?.totalBookings??'—'} icon="clipboard"/><Metric label={t(L('Arrivals today','Khách đến hôm nay'))} value={data?.arrivals??'—'} icon="key"/><Metric label={t(L('Departures today','Khách đi hôm nay'))} value={data?.departures??'—'} icon="door"/><Metric label={t(L('Dirty rooms','Phòng cần dọn'))} value={data?.dirtyRooms??'—'} icon="sparkles"/></div>}</div>;
+}
+function Profile({go}:{go:(p:string)=>void}) { const {user}=useAdminAuth();const {t}=useLocale();return <div className="page-stack"><PageHeader title={t(L('My Profile','Hồ sơ cá nhân'))}/><Card><div className="staff-profile-summary"><div><small>{t(L('Full name','Họ tên'))}</small><strong>{user?.fullName||'—'}</strong></div><div><small>Email</small><strong>{user?.email}</strong></div><div><small>{t(L('Role','Vai trò'))}</small><strong>{user&&t(roleNames[user.role])}</strong></div><Button onClick={()=>go('/profile/security')}>{t(L('Change password','Đổi mật khẩu'))}</Button></div></Card></div>; }
 function Router() {
-  const { path, go } = useAdminPath();
-  const routes: Record<string, ReactNode> = {
-    '/': <Overview go={go} />,
-    '/dashboard': <Overview go={go} />,
-    '/hotel': <HotelContent />,
-    '/room-types': <RoomTypesPage />,
-    '/physical-rooms': <PhysicalRoomsPage />,
-    '/inventory': <InventoryPage />,
-    '/pricing': <PricingPage />,
-    '/reservations': <ReservationsPage />,
-    '/front-desk': <FrontDeskPage />,
-    '/payments': <PaymentsPage />,
-    '/housekeeping': <HousekeepingPage />,
-    '/guests': <GuestsPage />,
-    '/promotions': <PromotionsPage />,
-    '/staff': <StaffPage />,
-    '/reports': <ReportsPage />,
-  };
-  return <AdminShell path={path} go={go}>
-    {routes[path] ?? <Overview go={go} />}
-  </AdminShell>;
+  const { path, go } = useAdminPath(); const { t }=useLocale(); const { user,loading,sessionError,refresh,clear }=useAdminAuth();
+  const isPublic=publicPaths.includes(path);
+  useEffect(()=>{ if(loading||sessionError)return;if(!user&&!isPublic)go('/login');else if(user&&path==='/login')go('/dashboard'); },[path,user,loading,sessionError,isPublic,go]);
+  if(isPublic&&path!=='/login')return <AuthPage key={path} path={path} go={go}/>;
+  if(loading||sessionError)return <main className="auth-session-state"><Icon name="shield" size={32}/><p>{t(sessionError?L('Unable to verify your session.','Không thể xác minh phiên đăng nhập.'):L('Checking your session…','Đang kiểm tra phiên đăng nhập…'))}</p>{sessionError&&<><Button onClick={()=>void refresh()}>{t(L('Retry','Thử lại'))}</Button><Button variant="secondary" onClick={()=>{clear();go('/login');}}>{t(L('Sign in again','Đăng nhập lại'))}</Button></>}</main>;
+  if(!user)return <AuthPage key="login" path="/login" go={go}/>;
+  const actual=path==='/'||path==='/login'?'/dashboard':path;
+  const entry=nav.find(x=>x.path===actual);
+  let content;
+  if(!canAccess(user.role,actual))content=<Card title={t(L('Access denied','Không có quyền truy cập'))}><Button onClick={()=>go('/dashboard')}>{t(L('Back to overview','Về tổng quan'))}</Button></Card>;
+  else if(actual==='/dashboard')content=<Dashboard/>;
+  else if(actual==='/staff')content=<StaffPage/>;
+  else if(actual==='/profile')content=<Profile go={go}/>;
+  else if(actual==='/profile/security')content=<AuthPage key={actual} path={actual} go={go}/>;
+  else if(entry)content=<div className="page-stack"><PageHeader title={t(entry.label)}/><Card><div className="module-unavailable"><Icon name="info" size={24}/><p>{t(L('This module is not available yet.','Chức năng này hiện chưa khả dụng.'))}</p></div></Card></div>;
+  else content=<Card title={t(L('Page not found','Không tìm thấy trang'))}><Button onClick={()=>go('/dashboard')}>{t(L('Back to overview','Về tổng quan'))}</Button></Card>;
+  return <AdminShell path={actual} go={go}>{content}</AdminShell>;
 }
-
-export default function App() {
-  return <LocaleProvider>
-    <DemoStoreProvider>
-      <Router />
-    </DemoStoreProvider>
-  </LocaleProvider>;
-}
+export default function App() { return <LocaleProvider><AdminAuthProvider><Router/></AdminAuthProvider></LocaleProvider>; }
