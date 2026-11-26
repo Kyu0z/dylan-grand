@@ -1,9 +1,11 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-
-export type RoomImageFile = { buffer: Buffer; mimetype: string; size: number; };
-
-export async function uploadRoomImage(file?: RoomImageFile) {
+export type RoomImageFile = {
+  buffer: Buffer;
+  mimetype: string;
+  size: number;
+};
+export async function uploadRoomImage(file?: RoomImageFile, folder: 'dylan-grand/rooms' | 'dylan-grand/services' = 'dylan-grand/rooms') {
   const bytes = file?.buffer;
   if (!file || !bytes || file.size < 1 || file.size > 5 * 1024 * 1024) {
     throw new BadRequestException('Choose an image no larger than 5 MB.');
@@ -12,15 +14,14 @@ export async function uploadRoomImage(file?: RoomImageFile) {
   const png = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   const webp = bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
   const mime = jpeg ? 'image/jpeg' : png ? 'image/png' : webp ? 'image/webp' : '';
-  if (!mime || mime !== file.mimetype) throw new BadRequestException('Only JPEG, PNG and WebP images are allowed.');
-
+  if (!mime || mime !== file.mimetype)
+    throw new BadRequestException('Only JPEG, PNG and WebP images are allowed.');
   const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const key = process.env.CLOUDINARY_API_KEY?.trim();
   const secret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloud || !/^[a-zA-Z0-9_-]+$/.test(cloud) || !key || !secret) {
     throw new ServiceUnavailableException('Image storage is not configured.');
   }
-  const folder = 'dylan-grand/rooms';
   const timestamp = String(Math.floor(Date.now() / 1000));
   const signature = createHash('sha1').update(`folder=${folder}&timestamp=${timestamp}${secret}`).digest('hex');
   const form = new FormData();
@@ -39,7 +40,8 @@ export async function uploadRoomImage(file?: RoomImageFile) {
       throw new Error('Invalid upload response');
     }
     return { url: record.secure_url, message: 'Image uploaded successfully.' };
-  } catch {
+  }
+  catch {
     // Provider response may contain account details: never return it to a browser.
     throw new ServiceUnavailableException('Image upload failed. Please try again.');
   }

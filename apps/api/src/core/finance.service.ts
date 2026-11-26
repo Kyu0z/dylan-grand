@@ -1,8 +1,9 @@
+import { assertPromotionUnused, assertServiceUnused, promotionValues, serviceValues } from './catalog-management';
 import { createWithCode, normalizeCatalogCode, promotionCode } from './catalog-code';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
-import { ExtraServiceDto, FolioAdjustmentDto, ManualPaymentDto, ManualRefundDto, PromotionDto, ReviewDto, ReviewResponseDto, ServiceOrderDto } from './contracts';
+import { ExtraServiceDto, FolioAdjustmentDto, ManualPaymentDto, ManualRefundDto, PromotionDto, ReviewDto, ReviewResponseDto, ServiceOrderDto, UpdateExtraServiceDto, UpdatePromotionDto } from './contracts';
 import { assertVnd } from './util';
 @Injectable()
 export class FinanceService {
@@ -123,7 +124,8 @@ export class FinanceService {
   }
   services() { return this.db.extraService.findMany({ orderBy: { code: 'asc' } }); }
   async createService(dto: ExtraServiceDto) {
-    const { code, ...data } = dto;
+    const { code } = dto;
+    const data = serviceValues(dto);
     return createWithCode({
       explicit: code, base: normalizeCatalogCode(dto.name, 'service'), separator: '_',
       create: (generatedCode) => this.db.extraService.create({ data: { ...data, code: generatedCode } }),
@@ -140,17 +142,16 @@ export class FinanceService {
     }
     if (!['CONFIRMED', 'CHECKED_IN'].includes(b.status))
       throw new ConflictException('Services can only be added to confirmed/in-house stays.');
-    const service = await this.db.extraService.findUnique({ where: { code: dto.serviceCode } });
-    if (!service || !service.isActive)
-      throw new NotFoundException('Service unavailable.');
-    const amount = service.priceVnd * dto.quantity;
-    if (!Number.isSafeInteger(amount) || amount > 2000000000)
-      throw new BadRequestException('Service charge exceeds limit.');
     const order = await this.db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`folio-${b.id}`}))`;
       const current = await tx.booking.findUnique({ where: { id: b.id } });
       if (!current || !['CONFIRMED', 'CHECKED_IN'].includes(current.status))
         throw new ConflictException('Stay is closed; cannot add service.');
+      const service = await tx.extraService.findUnique({ where: { code: dto.serviceCode } });
+      if (!service || !service.isActive)
+        throw new NotFoundException('Service unavailable.');
+      const amount = service.priceVnd * dto.quantity;
+      assertVnd(amount);
       assertVnd(current.totalVnd + amount);
       const order = await tx.serviceOrder.create({ data: { clientRequestId: dto.clientRequestId, bookingId: b.id, serviceId: service.id, quantity: dto.quantity, unitPriceVnd: service.priceVnd, totalVnd: amount } });
       await tx.booking.update({ where: { id: b.id }, data: { extraTotalVnd: { increment: amount }, totalVnd: { increment: amount } } });
@@ -195,16 +196,59 @@ export class FinanceService {
     throw new ConflictException('Promotion code already exists.');
   }
   async createPromotion(dto: PromotionDto) {
-    const startsAt = new Date(dto.startsAt);
-    const endsAt = new Date(dto.endsAt);
-    if (!Number.isFinite(startsAt.valueOf()) || !Number.isFinite(endsAt.valueOf()) || endsAt <= startsAt)
-      throw new BadRequestException('Invalid promotion period.');
-    const { code, ...data } = dto;
+    const data = promotionValues(dto);
     return createWithCode({
-      explicit: code,
-      create: (generatedCode) => this.db.promotion.create({ data: { ...data, code: generatedCode, startsAt, endsAt } }),
+      explicit: dto.code,
+      create: (generatedCode) => this.db.promotion.create({ data: { ...data, code: generatedCode } }),
       conflictMessage: 'Promotion code already exists.'
     });
+  }
+  async updatePromotion(code: string, dto: UpdatePromotionDto, actorId: string) {
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`promo-${code}`}))`;
+      const current = await tx.promotion.findUnique({ where: { code } });
+      if (!current)
+        throw new NotFoundException('Promotion not found.');
+      const data = promotionValues(dto, current.usageCount);
+      const record = await tx.promotion.update({ where: { id: current.id }, data });
+      await tx.auditLog.create({ data: { actorId, operation: 'UPDATE_PROMOTION', entity: 'Promotion', entityId: record.id, detail: { code } } });
+      return record;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  async deletePromotion(code: string, actorId: string) {
+    return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext(${`promo-${code}`}))`;
+      const current = await tx.promotion.findUnique({ where: { code } });
+      if (!current)
+        throw new NotFoundException('Promotion not found.');
+      const bookings = await tx.booking.count({ where: { promoCode: code } });
+      assertPromotionUnused(current.usageCount, bookings);
+      await tx.promotion.delete({ where: { id: current.id } });
+      await tx.auditLog.create({ data: { actorId, operation: 'DELETE_PROMOTION', entity: 'Promotion', entityId: current.id, detail: { code } } });
+      return { message: 'Promotion deleted successfully.' };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  async updateService(code: string, dto: UpdateExtraServiceDto, actorId: string) {
+    const data = serviceValues(dto);
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.extraService.findUnique({ where: { code } });
+      if (!current)
+        throw new NotFoundException('Service not found.');
+      const record = await tx.extraService.update({ where: { id: current.id }, data });
+      await tx.auditLog.create({ data: { actorId, operation: 'UPDATE_EXTRA_SERVICE', entity: 'ExtraService', entityId: record.id, detail: { code, previousPriceVnd: current.priceVnd, priceVnd: record.priceVnd } } });
+      return record;
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+  async deleteService(code: string, actorId: string) {
+    return this.db.$transaction(async (tx) => {
+      const current = await tx.extraService.findUnique({ where: { code } });
+      if (!current)
+        throw new NotFoundException('Service not found.');
+      assertServiceUnused(await tx.serviceOrder.count({ where: { serviceId: current.id } }));
+      await tx.extraService.delete({ where: { id: current.id } });
+      await tx.auditLog.create({ data: { actorId, operation: 'DELETE_EXTRA_SERVICE', entity: 'ExtraService', entityId: current.id, detail: { code } } });
+      return { message: 'Extra service deleted successfully.' };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
   async guests() {
     const guests = await this.db.guest.findMany({ include: { bookings: { select: { code: true, status: true, totalVnd: true } } }, orderBy: { createdAt: 'desc' } });

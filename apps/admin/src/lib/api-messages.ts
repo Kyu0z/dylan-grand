@@ -1,12 +1,22 @@
 // Stable server messages are translated at render time, so existing toasts react
 // to language changes. Unknown future messages stay readable in their original language.
 const viMessages: Record<string, string> = {
+  "Promotion updated successfully.": "Đã cập nhật ưu đãi.",
+  "Extra service updated successfully.": "Đã cập nhật dịch vụ bổ sung.",
+  "Promotion deleted successfully.": "Đã xóa ưu đãi.",
+  "Extra service deleted successfully.": "Đã xóa dịch vụ bổ sung.",
+  "Promotion not found.": "Không tìm thấy ưu đãi.",
+  "Service not found.": "Không tìm thấy dịch vụ.",
+  "Promotion has booking history. Deactivate it instead of deleting.": "Ưu đãi đã có lịch sử đặt phòng. Hãy tắt hoạt động thay vì xóa.",
+  "Service has order history. Deactivate it instead of deleting.": "Dịch vụ đã có lịch sử sử dụng. Hãy tắt hoạt động thay vì xóa.",
+  "Usage limit cannot be lower than the number of redemptions.": "Giới hạn không được thấp hơn số lượt đã dùng.",
+  "Choose a valid service image.": "Chọn ảnh dịch vụ hợp lệ.",
+  "Service name and unit are required.": "Vui lòng nhập tên và đơn vị dịch vụ.",
   'Choose an image no larger than 5 MB.': 'Chọn ảnh có dung lượng không quá 5 MB.',
   'Only JPEG, PNG and WebP images are allowed.': 'Chỉ hỗ trợ ảnh JPEG, PNG và WebP.',
   'Image storage is not configured.': 'Chưa cấu hình dịch vụ lưu ảnh.',
   'Image upload failed. Please try again.': 'Tải ảnh thất bại. Vui lòng thử lại.',
   'Image uploaded successfully.': 'Tải ảnh thành công.',
-
   'Reverse the folio credit before cancelling this service.': 'Hãy đảo khoản giảm trừ công nợ trước khi hủy dịch vụ này.',
   "Price changed. Please refresh your quote.": "Giá đã thay đổi. Vui lòng lấy lại báo giá.",
   "Duplicate extra service.": "Dịch vụ bổ sung bị trùng.",
@@ -26,7 +36,6 @@ const viMessages: Record<string, string> = {
   "Checking availability…": "Đang kiểm tra phòng trống…",
   "Unable to load availability. Retry": "Không tải được tồn phòng. Thử lại",
   "/ night · available rooms:": "/ đêm · phòng còn trống:",
-
   'Full name is required.': 'Vui lòng nhập họ tên.',
   'Too many requests. Please try again later.': 'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
   'Reset link is invalid or expired.': 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.',
@@ -48,7 +57,6 @@ const viMessages: Record<string, string> = {
   'API URL is not configured.': 'Chưa cấu hình địa chỉ API.',
   'Session expired. Please sign in.': 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.',
   'Unable to connect. Please try again.': 'Không thể kết nối. Vui lòng thử lại.',
-
   'Reservation created successfully.': 'Tạo đặt phòng thành công.',
   'Reservation cancelled successfully.': 'Hủy đặt phòng thành công.',
   'Review submitted successfully.': 'Gửi đánh giá thành công.',
@@ -81,7 +89,6 @@ const viMessages: Record<string, string> = {
   'Room updated successfully.': 'Cập nhật phòng thành công.',
   'Base rate updated successfully.': 'Cập nhật giá cơ bản thành công.',
   'Daily rate saved successfully.': 'Lưu giá theo ngày thành công.',
-
   'Success': 'Thành công',
   'Error': 'Lỗi',
   'Information': 'Thông tin',
@@ -215,42 +222,49 @@ const fields: Record<string, string> = {
   clientRequestId: 'Mã yêu cầu', lookupToken: 'Mã tra cứu', baseRateVnd: 'Giá cơ bản (VND)', maxGuests: 'Sức chứa tối đa',
 };
 const field = (name: string) => fields[name] ?? `Trường ${name}`;
-const patterns: [RegExp, (...parts: string[]) => string][] = [
-  [/^Room type '(.+)' does not exist\.$/, code => `Loại phòng '${code}' không tồn tại.`],
-  [/^Room type code '(.+)' already exists\.$/, code => `Mã loại phòng '${code}' đã tồn tại.`],
-  [/^Physical room '(.+)' does not exist\.$/, number => `Phòng '${number}' không tồn tại.`],
-  [/^Physical room number '(.+)' already exists\.$/, number => `Số phòng '${number}' đã tồn tại.`],
-  [/^Invalid calendar date '(.+)'\.$/, date => `Ngày '${date}' không hợp lệ.`],
-  [/^Stay must be between 1 and (\d+) nights; checkout is exclusive\.$/, max => `Kỳ lưu trú phải từ 1 đến ${max} đêm, không tính ngày trả phòng.`],
-  [/^(.+) must be a safe integer amount in VND\.$/, name => `${field(name)} phải là số nguyên hợp lệ tính bằng VND.`],
-  [/^Invalid housekeeping transition (.+) → (.+)\.$/, (from, to) => `Không thể chuyển trạng thái dọn phòng từ ${from} sang ${to}.`],
-  [/^Outstanding folio balance: (\d+) VND\. Collect or settle before checkout\.$/, amount => `Còn phải thanh toán ${amount} VND. Vui lòng tất toán trước khi trả phòng.`],
-  [/^(.+) is specified in the Swagger contract but is not implemented yet\.$/, feature => `Chức năng ${feature} đã có trong Swagger nhưng chưa được triển khai.`],
-  [/^Cannot (?:GET|POST|PATCH|PUT|DELETE|HEAD) .+$/, () => 'Không tìm thấy API được yêu cầu.'],
-  [/^property (.+) should not exist$/, name => `${field(name)} không được phép xuất hiện trong yêu cầu.`],
-  [/^(.+) must be an email$/, name => `${field(name)} phải là địa chỉ email hợp lệ.`],
-  [/^(.+) should not be empty$/, name => `${field(name)} không được để trống.`],
-  [/^(.+) must be a string$/, name => `${field(name)} phải là chuỗi ký tự.`],
-  [/^(.+) must be an integer number$/, name => `${field(name)} phải là số nguyên.`],
-  [/^(.+) must be a boolean value$/, name => `${field(name)} phải là giá trị đúng hoặc sai.`],
-  [/^(.+) must be longer than or equal to (\d+) characters$/, (name, count) => `${field(name)} phải có ít nhất ${count} ký tự.`],
-  [/^(.+) must be shorter than or equal to (\d+) characters$/, (name, count) => `${field(name)} không được vượt quá ${count} ký tự.`],
-  [/^(.+) must not be less than (-?\d+(?:\.\d+)?)$/, (name, min) => `${field(name)} không được nhỏ hơn ${min}.`],
-  [/^(.+) must not be greater than (-?\d+(?:\.\d+)?)$/, (name, max) => `${field(name)} không được lớn hơn ${max}.`],
-  [/^(.+) must be one of the following values: (.+)$/, (name, values) => `${field(name)} phải thuộc các giá trị: ${values}.`],
-  [/^(.+) must be equal to (.+)$/, (name, value) => `${field(name)} phải bằng ${value}.`],
-  [/^(.+) must match .+ regular expression$/, name => `${field(name)} không đúng định dạng yêu cầu.`],
-  [/^(.+) must be a valid enum value$/, name => `${field(name)} không thuộc các giá trị được phép.`],
-  [/^an unknown value was passed to the validate function$/, () => 'Dữ liệu gửi lên không hợp lệ.'],
-];
+const patterns: [
+  RegExp,
+  (...parts: string[]) => string
+][] = [
+    [/^Room type '(.+)' does not exist\.$/, code => `Loại phòng '${code}' không tồn tại.`],
+    [/^Room type code '(.+)' already exists\.$/, code => `Mã loại phòng '${code}' đã tồn tại.`],
+    [/^Physical room '(.+)' does not exist\.$/, number => `Phòng '${number}' không tồn tại.`],
+    [/^Physical room number '(.+)' already exists\.$/, number => `Số phòng '${number}' đã tồn tại.`],
+    [/^Invalid calendar date '(.+)'\.$/, date => `Ngày '${date}' không hợp lệ.`],
+    [/^Stay must be between 1 and (\d+) nights; checkout is exclusive\.$/, max => `Kỳ lưu trú phải từ 1 đến ${max} đêm, không tính ngày trả phòng.`],
+    [/^(.+) must be a safe integer amount in VND\.$/, name => `${field(name)} phải là số nguyên hợp lệ tính bằng VND.`],
+    [/^Invalid housekeeping transition (.+) → (.+)\.$/, (from, to) => `Không thể chuyển trạng thái dọn phòng từ ${from} sang ${to}.`],
+    [/^Outstanding folio balance: (\d+) VND\. Collect or settle before checkout\.$/, amount => `Còn phải thanh toán ${amount} VND. Vui lòng tất toán trước khi trả phòng.`],
+    [/^(.+) is specified in the Swagger contract but is not implemented yet\.$/, feature => `Chức năng ${feature} đã có trong Swagger nhưng chưa được triển khai.`],
+    [/^Cannot (?:GET|POST|PATCH|PUT|DELETE|HEAD) .+$/, () => 'Không tìm thấy API được yêu cầu.'],
+    [/^property (.+) should not exist$/, name => `${field(name)} không được phép xuất hiện trong yêu cầu.`],
+    [/^(.+) must be an email$/, name => `${field(name)} phải là địa chỉ email hợp lệ.`],
+    [/^(.+) should not be empty$/, name => `${field(name)} không được để trống.`],
+    [/^(.+) must be a string$/, name => `${field(name)} phải là chuỗi ký tự.`],
+    [/^(.+) must be an integer number$/, name => `${field(name)} phải là số nguyên.`],
+    [/^(.+) must be a boolean value$/, name => `${field(name)} phải là giá trị đúng hoặc sai.`],
+    [/^(.+) must be longer than or equal to (\d+) characters$/, (name, count) => `${field(name)} phải có ít nhất ${count} ký tự.`],
+    [/^(.+) must be shorter than or equal to (\d+) characters$/, (name, count) => `${field(name)} không được vượt quá ${count} ký tự.`],
+    [/^(.+) must not be less than (-?\d+(?:\.\d+)?)$/, (name, min) => `${field(name)} không được nhỏ hơn ${min}.`],
+    [/^(.+) must not be greater than (-?\d+(?:\.\d+)?)$/, (name, max) => `${field(name)} không được lớn hơn ${max}.`],
+    [/^(.+) must be one of the following values: (.+)$/, (name, values) => `${field(name)} phải thuộc các giá trị: ${values}.`],
+    [/^(.+) must be equal to (.+)$/, (name, value) => `${field(name)} phải bằng ${value}.`],
+    [/^(.+) must match .+ regular expression$/, name => `${field(name)} không đúng định dạng yêu cầu.`],
+    [/^(.+) must be a valid enum value$/, name => `${field(name)} không thuộc các giá trị được phép.`],
+    [/^an unknown value was passed to the validate function$/, () => 'Dữ liệu gửi lên không hợp lệ.'],
+  ];
 export function translateApiMessage(message: string, locale: 'en' | 'vi', t: (message: string) => string): string {
-  if (locale === 'en') return message;
-  if (Object.prototype.hasOwnProperty.call(viMessages, message)) return viMessages[message];
+  if (locale === 'en')
+    return message;
+  if (Object.prototype.hasOwnProperty.call(viMessages, message))
+    return viMessages[message];
   const existing = t(message);
-  if (existing !== message) return existing;
+  if (existing !== message)
+    return existing;
   for (const [pattern, translate] of patterns) {
     const match = pattern.exec(message);
-    if (match) return translate(...match.slice(1));
+    if (match)
+      return translate(...match.slice(1));
   }
   return message;
 }

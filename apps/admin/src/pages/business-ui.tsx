@@ -130,7 +130,7 @@ export function Table({ data, columns }: {
 export type Field = {
   key: string;
   label: Localized;
-  kind?: 'text' | 'promotion-code' | 'number' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images';
+  kind?: 'text' | 'promotion-code' | 'number' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images' | 'service-image';
   initial?: string | number | boolean;
   required?: boolean;
   min?: number;
@@ -150,6 +150,7 @@ export type Action = {
   run: (v: Values, requestId: string) => Promise<unknown>;
   detail?: Localized;
   danger?: boolean;
+  confirmLabel?: Localized;
 };
 export function useAction(reload: () => void) {
   const [action, setAction] = useState<Action | null>(null);
@@ -222,9 +223,10 @@ function ActionDialog({ action, onClose, onDone }: {
   const upload = async (key: string, files: File[]) => {
     if (lock.current || !files.length)
       return;
+    const single = action.fields.find(f => f.key === key)?.kind === 'service-image';
     const urls = str(values[key]).split('\n').filter(Boolean);
-    if (urls.length + files.length > 10) {
-      notify(t(L('Maximum 10 room photos.', 'Tối đa 10 ảnh phòng.')), true);
+    if (single ? files.length !== 1 : urls.length + files.length > 10) {
+      notify(t(single ? L('Select one service image.', 'Chọn một ảnh dịch vụ.') : L('Maximum 10 room photos.', 'Tối đa 10 ảnh phòng.')), true);
       return;
     }
     if (files.some(file => file.size > 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
@@ -239,8 +241,8 @@ function ActionDialog({ action, onClose, onDone }: {
         body.append('file', file);
         const result = await api<{
           url: string;
-        }>('/admin/room-types/images', { method: 'POST', body });
-        setValues(previous => ({ ...previous, [key]: [...str(previous[key]).split('\n').filter(Boolean), result.url].join('\n') }));
+        }>(single ? '/admin/promotions/services/images' : '/admin/room-types/images', { method: 'POST', body });
+        setValues(previous => ({ ...previous, [key]: single ? result.url : [...str(previous[key]).split('\n').filter(Boolean), result.url].join('\n') }));
       }
     }
     finally {
@@ -277,7 +279,7 @@ function ActionDialog({ action, onClose, onDone }: {
         </div>
         <p className="field-help">{t(L('Enter a code, generate one, or leave blank to generate on save.', 'Nhập mã, tạo mã hoặc để trống để hệ thống tự sinh khi lưu.'))}</p>
       </div>;
-    return f.kind === 'images' ? (<ImageUpload key={f.key} label={label} images={str(value).split('\n').filter(Boolean)} busy={busy} onFiles={files => upload(f.key, files)} onImagesChange={images => change(f.key, images.join('\n'))} onInvalid={message => notify(message, true)} />) : f.kind === 'check' ? <label className="live-check" key={f.key}>
+    return (f.kind === 'images' || f.kind === 'service-image') ? (<ImageUpload multiple={f.kind === 'images'} key={f.key} label={label} images={str(value).split('\n').filter(Boolean)} busy={busy} onFiles={files => upload(f.key, files)} onImagesChange={images => change(f.key, images.join('\n'))} onInvalid={message => notify(message, true)} />) : f.kind === 'check' ? <label className="live-check" key={f.key}>
       <input type="checkbox" checked={Boolean(value)} onChange={e => change(f.key, e.target.checked)} />
       {label}
     </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={dateMinimum ?? f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
@@ -294,7 +296,7 @@ function ActionDialog({ action, onClose, onDone }: {
     else
       renderedFields.push(renderField(f));
   }
-  return <Modal title={t(action.title)} width="lg" onClose={() => {
+  return <Modal title={t(action.title)} width={action.confirmLabel ? "md" : "lg"} onClose={() => {
     if (!lock.current)
       onClose();
   }}>
@@ -308,7 +310,7 @@ function ActionDialog({ action, onClose, onDone }: {
           {t(L('Cancel', 'Hủy'))}
         </Button>
         <Button type="submit" variant={action.danger ? 'danger' : 'primary'} disabled={busy || generating}>
-          {t(busy ? L('Processing…', 'Đang xử lý…') : L('Confirm', 'Xác nhận'))}
+          {t(busy ? L('Processing…', 'Đang xử lý…') : action.confirmLabel ?? L('Confirm', 'Xác nhận'))}
         </Button>
       </div>
     </form>

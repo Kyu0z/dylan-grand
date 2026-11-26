@@ -230,15 +230,22 @@ model PaymentTransaction {
 }
 
 model ExtraService {
-  id        String         @id @default(cuid())
-  code      String         @unique @db.VarChar(40)
-  name      String         @db.VarChar(120)
-  unit      String         @db.VarChar(40)
-  priceVnd  Int
-  isActive  Boolean        @default(true)
-  orders    ServiceOrder[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id             String          @id @default(cuid())
+  code           String          @unique @db.VarChar(40)
+  name           String          @db.VarChar(120)
+  unit           String          @db.VarChar(40)
+  priceVnd       Int
+  isActive       Boolean         @default(true)
+  nameVi         String?         @db.VarChar(120)
+  unitVi         String?         @db.VarChar(40)
+  eyebrowEn      String?         @db.VarChar(120)
+  eyebrowVi      String?         @db.VarChar(120)
+  descriptionEn  String?         @db.VarChar(2000)
+  descriptionVi  String?         @db.VarChar(2000)
+  imageUrl       String?         @db.VarChar(1000)
+  orders         ServiceOrder[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model ServiceOrder {

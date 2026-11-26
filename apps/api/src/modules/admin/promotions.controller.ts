@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Param, Post, Patch, Req } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { uploadRoomImage, type RoomImageFile } from '../../core/room-image';
+import { Body, Controller, Get, Param, Post, Patch, Delete, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { Roles } from '../../common/auth/auth.guard';
 import { FinanceService } from '../../core/finance.service';
-import { ExtraServiceDto, PromotionDto, ServiceOrderDto, SetActiveDto } from '../../core/contracts';
+import { ExtraServiceDto, PromotionDto, ServiceOrderDto, SetActiveDto, UpdatePromotionDto, UpdateExtraServiceDto } from '../../core/contracts';
 @ApiBearerAuth('access-token')
 @ApiTags('Admin · Promotions')
 @Roles('ADMIN', 'MANAGER')
@@ -31,6 +33,61 @@ export class AdminPromotionsController {
   addService(
     @Body()
     dto: ExtraServiceDto) { return this.finance.createService(dto); }
+  @Post('services/images')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } }, required: ['file'] } })
+  uploadServiceImage(
+    @UploadedFile()
+    file?: RoomImageFile) { return uploadRoomImage(file, 'dylan-grand/services'); }
+  @Patch(':code')
+  @ApiOperation({ summary: 'Edit promotion settings; code remains immutable' })
+  editPromotion(
+    @Param('code')
+    code: string,
+    @Body()
+    dto: UpdatePromotionDto,
+    @Req()
+    req: {
+      user: {
+        id: string;
+      };
+    }) { return this.finance.updatePromotion(code, dto, req.user.id); }
+  @Delete(':code')
+  @ApiOperation({ summary: 'Delete unused promotion' })
+  removePromotion(
+    @Param('code')
+    code: string,
+    @Req()
+    req: {
+      user: {
+        id: string;
+      };
+    }) { return this.finance.deletePromotion(code, req.user.id); }
+  @Patch('services/:code')
+  @ApiOperation({ summary: 'Edit extra service settings; code remains immutable' })
+  editService(
+    @Param('code')
+    code: string,
+    @Body()
+    dto: UpdateExtraServiceDto,
+    @Req()
+    req: {
+      user: {
+        id: string;
+      };
+    }) { return this.finance.updateService(code, dto, req.user.id); }
+  @Delete('services/:code')
+  @ApiOperation({ summary: 'Delete extra service without order history' })
+  removeService(
+    @Param('code')
+    code: string,
+    @Req()
+    req: {
+      user: {
+        id: string;
+      };
+    }) { return this.finance.deleteService(code, req.user.id); }
   @Patch(':code/active')
   @Roles('ADMIN', 'MANAGER')
   promotionActive(

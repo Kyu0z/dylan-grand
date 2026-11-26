@@ -35,6 +35,13 @@ export type Service = {
   name: string;
   unit: string;
   priceVnd: number;
+  nameVi?: string | null;
+  unitVi?: string | null;
+  eyebrowEn?: string | null;
+  eyebrowVi?: string | null;
+  descriptionEn?: string | null;
+  descriptionVi?: string | null;
+  imageUrl?: string | null;
 };
 export type Review = {
   id: string;

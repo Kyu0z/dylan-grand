@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsUrl, ValidateNested, Equals, IsBoolean, IsEmail, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import { ArrayMaxSize, IsArray, IsUrl, ValidateNested, Equals, IsBoolean, IsEmail, IsIn, IsInt, IsISO8601, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength, } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 function optionalCode(value: unknown, uppercase: boolean): unknown {
   if (typeof value !== 'string')
@@ -435,12 +435,56 @@ export class ExtraServiceDto {
   @ApiProperty({ example: 'per guest' })
   @IsString()
   @MinLength(2)
+  @Matches(/\S/)
   @MaxLength(40)
   unit!: string;
   @ApiProperty({ example: 250000 })
   @IsInt()
   @Min(0)
+  @Max(2000000000)
   priceVnd!: number;
+  @ApiPropertyOptional({ maxLength: 120, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  nameVi?: string | null;
+  @ApiPropertyOptional({ maxLength: 40, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  unitVi?: string | null;
+  @ApiPropertyOptional({ maxLength: 120, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  eyebrowEn?: string | null;
+  @ApiPropertyOptional({ maxLength: 120, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  eyebrowVi?: string | null;
+  @ApiPropertyOptional({ maxLength: 2000, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descriptionEn?: string | null;
+  @ApiPropertyOptional({ maxLength: 2000, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  descriptionVi?: string | null;
+  @ApiPropertyOptional({ maxLength: 1000, nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  imageUrl?: string | null;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+export class UpdateExtraServiceDto extends OmitType(ExtraServiceDto, ['code'] as const) {
 }
 export class ServiceOrderDto {
   @ApiProperty({ example: 'spa-order-001', description: 'Unique client idempotency key' })
@@ -471,14 +515,25 @@ export class PromotionDto {
   discountPercent!: number;
   @ApiProperty({ example: '2026-12-01T00:00:00.000Z' })
   @IsString()
+  @IsISO8601({ strict: true })
+  @Matches(/(?:Z|[+-]\d{2}:\d{2})$/i)
   startsAt!: string;
   @ApiProperty({ example: '2027-01-01T00:00:00.000Z' })
   @IsString()
+  @IsISO8601({ strict: true })
+  @Matches(/(?:Z|[+-]\d{2}:\d{2})$/i)
   endsAt!: string;
   @ApiProperty({ example: 100 })
   @IsInt()
   @Min(1)
+  @Max(2000000000)
   usageLimit!: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}
+export class UpdatePromotionDto extends OmitType(PromotionDto, ['code'] as const) {
 }
 export class ReviewDto {
   @ApiProperty({ example: 5 })

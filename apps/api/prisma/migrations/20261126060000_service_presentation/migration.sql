@@ -1,0 +1,8 @@
+ALTER TABLE "ExtraService"
+  ADD COLUMN "nameVi" VARCHAR(120),
+  ADD COLUMN "unitVi" VARCHAR(40),
+  ADD COLUMN "eyebrowEn" VARCHAR(120),
+  ADD COLUMN "eyebrowVi" VARCHAR(120),
+  ADD COLUMN "descriptionEn" VARCHAR(2000),
+  ADD COLUMN "descriptionVi" VARCHAR(2000),
+  ADD COLUMN "imageUrl" VARCHAR(1000);

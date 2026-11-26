@@ -519,17 +519,54 @@ function Guests() {
 function Promotions() {
   const d = useData<Row>('/admin/promotions');
   const o = useOps(d.reload);
+  const promotionFields = (r?: Row): Field[] => [
+    ...(!r ? [field('code', 'Promotion code', 'Mã ưu đãi', { kind: 'promotion-code', required: false, maxLength: 32 })] : []),
+    field('discountPercent', 'Discount (%)', 'Giảm (%)', { kind: 'number', min: 1, max: 30, initial: r ? num(r.discountPercent) : undefined }),
+    field('startsAt', 'Start (UTC+7)', 'Bắt đầu (UTC+7)', { kind: 'datetime-local', initial: r ? hotelNow(new Date(str(r.startsAt))) : undefined }),
+    field('endsAt', 'End (UTC+7)', 'Kết thúc (UTC+7)', { kind: 'datetime-local', initial: r ? hotelNow(new Date(str(r.endsAt))) : undefined }),
+    field('usageLimit', 'Usage limit', 'Giới hạn lượt dùng', { kind: 'number', min: Math.max(1, num(r?.usageCount)), max: 2000000000, initial: r ? num(r.usageLimit) : undefined }),
+    field('isActive', 'Active', 'Hoạt động', { kind: 'check', required: false, initial: r ? Boolean(r.isActive) : true }),
+  ];
+  const serviceFields = (r?: Row): Field[] => [
+    field('name', 'Service name (EN)', 'Tên dịch vụ (EN)', { maxLength: 120, initial: str(r?.name) }),
+    field('nameVi', 'Service name (VI)', 'Tên dịch vụ (VI)', { maxLength: 120, initial: str(r?.nameVi), required: false }),
+    field('unit', 'Unit (EN)', 'Đơn vị (EN)', { maxLength: 40, initial: str(r?.unit) }),
+    field('unitVi', 'Unit (VI)', 'Đơn vị (VI)', { maxLength: 40, initial: str(r?.unitVi), required: false }),
+    { ...amountField, key: 'priceVnd', min: 0, initial: r ? num(r.priceVnd) : undefined },
+    field('eyebrowEn', 'Subtitle (EN)', 'Tiêu đề phụ (EN)', { maxLength: 120, initial: str(r?.eyebrowEn), required: false }),
+    field('eyebrowVi', 'Subtitle (VI)', 'Tiêu đề phụ (VI)', { maxLength: 120, initial: str(r?.eyebrowVi), required: false }),
+    field('descriptionEn', 'Description (EN)', 'Mô tả (EN)', { kind: 'textarea', maxLength: 2000, initial: str(r?.descriptionEn), required: false }),
+    field('descriptionVi', 'Description (VI)', 'Mô tả (VI)', { kind: 'textarea', maxLength: 2000, initial: str(r?.descriptionVi), required: false }),
+    field('imageUrl', 'Service cover image', 'Ảnh đại diện dịch vụ', { kind: 'service-image', initial: str(r?.imageUrl), required: false }),
+    field('isActive', 'Active', 'Hoạt động', { kind: 'check', required: false, initial: r ? Boolean(r.isActive) : true }),
+  ];
+  const promotionPath = (r: Row) => `/admin/promotions/${pathId(r.code)}`;
+  const servicePath = (r: Row) => `/admin/promotions/services/${pathId(r.code)}`;
+  const serviceName = (r: Row) => (o.vi ? str(r.nameVi) : '') || str(r.name);
+  const serviceUnit = (r: Row) => (o.vi ? str(r.unitVi) : '') || str(r.unit);
+  const saveService = (r?: Row) => {
+    const fields = serviceFields(r);
+    o.action(r ? L('Edit extra service', 'Chỉnh sửa dịch vụ') : L('Create extra service', 'Tạo dịch vụ'), r ? servicePath(r) : '/admin/promotions/services', r ? 'PATCH' : 'POST', fields, v => ({
+      ...own(v, fields),
+      // Empty optional fields must be sent as null to clear saved values.
+      ...Object.fromEntries(['nameVi', 'unitVi', 'eyebrowEn', 'eyebrowVi', 'descriptionEn', 'descriptionVi', 'imageUrl'].map(key => [key, str(v[key]).trim() || null])),
+    }));
+  };
+  const remove = (r: Row, service: boolean) => {
+    const name = service ? serviceName(r) : rcode(r);
+    o.open({
+      title: service ? L('Delete extra service', 'Xóa dịch vụ bổ sung') : L('Delete promotion', 'Xóa ưu đãi'),
+      detail: service
+        ? L(`Permanently delete “${name}” (${rcode(r)})? It will no longer be available to guests. Services with order history cannot be deleted; deactivate them in Edit instead. This action cannot be undone.`, `Xóa vĩnh viễn “${name}” (${rcode(r)})? Dịch vụ sẽ không còn khả dụng cho khách. Dịch vụ đã có lịch sử sử dụng không thể xóa; hãy tắt hoạt động trong form chỉnh sửa. Thao tác này không thể hoàn tác.`)
+        : L(`Permanently delete promotion “${name}”? Guests will no longer be able to redeem it. Promotions with booking history cannot be deleted; deactivate them in Edit instead. This action cannot be undone.`, `Xóa vĩnh viễn mã ưu đãi “${name}”? Khách sẽ không thể sử dụng mã này. Ưu đãi đã có lịch sử đặt phòng không thể xóa; hãy tắt hoạt động trong form chỉnh sửa. Thao tác này không thể hoàn tác.`),
+      fields: [], danger: true, confirmLabel: L('Delete', 'Xóa'),
+      run: () => o.api(service ? servicePath(r) : promotionPath(r), { method: 'DELETE' }),
+    });
+  };
+  const active = (r: Row) => o.t(r.isActive ? L('Yes', 'Có') : L('No', 'Không'));
   return <Frame path="/promotions" reload={d.reload}>
     <DataState {...d}>
-      <Card title={o.t(L('Promotion codes', 'Mã ưu đãi'))} action={<Button icon="plus" onClick={() => o.action(L('Create promotion', 'Tạo ưu đãi'), '/admin/promotions', 'POST', [
-        field('code', 'Promotion code', 'Mã ưu đãi', { kind: 'promotion-code', required: false, maxLength: 32 }),
-        field('discountPercent', 'Discount (%)', 'Giảm (%)', { kind: 'number', min: 1, max: 30 }),
-        field('startsAt', 'Start (UTC+7)', 'Bắt đầu (UTC+7)', { kind: 'datetime-local' }),
-        field('endsAt', 'End (UTC+7)', 'Kết thúc (UTC+7)', { kind: 'datetime-local' }),
-        field('usageLimit', 'Usage limit', 'Giới hạn lượt dùng', { kind: 'number', min: 1, max: 2000000000 })
-      ])}>
-        {o.t(L('Add promotion', 'Thêm ưu đãi'))}
-      </Button>}>
+      <Card title={o.t(L('Promotion codes', 'Mã ưu đãi'))} action={o.manager && <Button icon="plus" onClick={() => o.action(L('Create promotion', 'Tạo ưu đãi'), '/admin/promotions', 'POST', promotionFields())}>{o.t(L('Add promotion', 'Thêm ưu đãi'))}</Button>}>
         <Table data={rows(d.data?.promotions)} columns={[
           col('code', 'Code', 'Mã'),
           col('discountPercent', 'Discount (%)', 'Giảm (%)'),
@@ -537,24 +574,24 @@ function Promotions() {
           dateTimeCol('endsAt', 'End', 'Kết thúc'),
           col('usageCount', 'Used', 'Đã dùng'),
           col('usageLimit', 'Limit', 'Giới hạn'),
-          col('isActive', 'Active', 'Hoạt động', r => o.t(r.isActive ? L('Yes', 'Có') : L('No', 'Không'))),
-          col('actions', 'Actions', 'Thao tác', r => <Act label={r.isActive ? L('Deactivate', 'Tắt') : L('Activate', 'Bật')} onClick={() => o.action(L('Change promotion status', 'Đổi trạng thái ưu đãi'), `/admin/promotions/${pathId(r.code)}/active`, 'PATCH', [], () => ({ isActive: !r.isActive }))} />)
+          col('isActive', 'Active', 'Hoạt động', active),
+          ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <RowActions>
+            <Act label={L('Edit', 'Sửa')} onClick={() => o.action(L('Edit promotion', 'Chỉnh sửa ưu đãi'), promotionPath(r), 'PATCH', promotionFields(r), undefined, L(`Promotion code: ${rcode(r)} (cannot be changed).`, `Mã ưu đãi: ${rcode(r)} (không thể thay đổi).`))} />
+            <Act danger label={L('Delete', 'Xóa')} onClick={() => remove(r, false)} />
+          </RowActions>)] : []),
         ]} />
       </Card>
-      <Card title={o.t(L('Extra services', 'Dịch vụ bổ sung'))} action={<Button icon="plus" onClick={() => o.action(L('Create extra service', 'Tạo dịch vụ'), '/admin/promotions/services', 'POST', [
-        field('name', 'Service name', 'Tên dịch vụ', { maxLength: 120 }),
-        field('unit', 'Unit', 'Đơn vị', { maxLength: 40 }),
-        { ...amountField, key: 'priceVnd', min: 0 }
-      ])}>
-        {o.t(L('Add service', 'Thêm dịch vụ'))}
-      </Button>}>
+      <Card title={o.t(L('Extra services', 'Dịch vụ bổ sung'))} action={o.manager && <Button icon="plus" onClick={() => saveService()}>{o.t(L('Add service', 'Thêm dịch vụ'))}</Button>}>
         <Table data={rows(d.data?.extraServices)} columns={[
           col('code', 'Code', 'Mã'),
-          col('name', 'Name', 'Tên'),
-          col('unit', 'Unit', 'Đơn vị'),
+          col('name', 'Name', 'Tên', serviceName),
+          col('unit', 'Unit', 'Đơn vị', serviceUnit),
           cashCol('priceVnd', 'Price', 'Giá'),
-          col('isActive', 'Active', 'Hoạt động', r => o.t(r.isActive ? L('Yes', 'Có') : L('No', 'Không'))),
-          col('actions', 'Actions', 'Thao tác', r => <Act label={r.isActive ? L('Deactivate', 'Tắt') : L('Activate', 'Bật')} onClick={() => o.action(L('Change service status', 'Đổi trạng thái dịch vụ'), `/admin/promotions/services/${pathId(r.code)}/active`, 'PATCH', [], () => ({ isActive: !r.isActive }))} />)
+          col('isActive', 'Active', 'Hoạt động', active),
+          ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <RowActions>
+            <Act label={L('Edit', 'Sửa')} onClick={() => saveService(r)} />
+            <Act danger label={L('Delete', 'Xóa')} onClick={() => remove(r, true)} />
+          </RowActions>)] : []),
         ]} />
       </Card>
     </DataState>
