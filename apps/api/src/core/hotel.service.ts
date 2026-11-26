@@ -3,8 +3,10 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { SearchDatesDto, SetDailyRateDto, SetRoomTypeDto, PatchRoomTypeDto, PatchPhysicalRoomDto } from './contracts';
-import { day, hotelToday, isUnique, nights } from './util';
+import { day, hotelToday, isUnique, nights, assertVnd, isSerializationFailure } from './util';
 import { CreateMaintenanceBlockDto, CreatePhysicalRoomDto, UpdateHotelDto, UpdateHousekeepingDto } from '../modules/admin/dto/admin-contract.dto';
+import { defaultPolicy, resolveNight, planAmount, type Policy, type PlanCode } from './pricing-rules';
+import { WeekendPricingDto, SpecialRateDto, RatePolicyDto } from './pricing.dto';
 type Db = Prisma.TransactionClient;
 const ACTIVE = ['CONFIRMED', 'CHECKED_IN'] as const;
 @Injectable()
@@ -30,6 +32,9 @@ export class HotelService {
   async createRoomType(dto: SetRoomTypeDto) {
     if (dto.isPublished && dto.baseRateVnd < 1)
       throw new BadRequestException('Positive base rate required to publish.');
+    assertVnd(dto.baseRateVnd);
+    const weekend = await this.weekend();
+    assertVnd(dto.baseRateVnd + (weekend.enabled ? weekend.surchargeVnd : 0));
     const { code, ...data } = dto;
     return createWithCode({
       explicit: code, base: normalizeCatalogCode(dto.nameEn, 'room'), separator: '-',
@@ -105,26 +110,138 @@ export class HotelService {
     await this.roomType(code);
     if (amountVnd < 1)
       throw new BadRequestException('Base rate must be positive.');
-    const updated = await this.db.roomType.update({ where: { code }, data: { baseRateVnd: amountVnd } });
-    await this.db.auditLog.create({ data: { actorId, operation: 'SET_BASE_RATE', entity: 'RoomType', entityId: updated.id, detail: { code, amountVnd } } });
-    return updated;
+    assertVnd(amountVnd);
+    return this.pricingWrite(async tx => {
+      const weekend = await this.weekend(tx);
+      assertVnd(amountVnd + (weekend.enabled ? weekend.surchargeVnd : 0));
+      const updated = await tx.roomType.update({ where: { code }, data: { baseRateVnd: amountVnd } });
+      await tx.auditLog.create({ data: { actorId, operation: 'SET_BASE_RATE', entity: 'RoomType', entityId: updated.id, detail: { code, amountVnd } } });
+      return updated;
+    });
   }
   async setDailyRate(code: string, dto: SetDailyRateDto, actorId: string) {
     const type = await this.roomType(code);
     day(dto.date);
+    if (dto.date < hotelToday()) throw new BadRequestException('Cannot change past rates.');
+    assertVnd(dto.amountVnd);
     if (dto.amountVnd < 1)
       throw new BadRequestException('Daily rate must be positive.');
-    const updated = await this.db.dailyRate.upsert({
-      where: { roomTypeId_date: { roomTypeId: type.id, date: day(dto.date) } },
-      create: { roomTypeId: type.id, date: day(dto.date), amountVnd: dto.amountVnd },
-      update: { amountVnd: dto.amountVnd },
+    return this.pricingWrite(async tx => {
+      const existing = await tx.dailyRate.findUnique({ where: { roomTypeId_date: { roomTypeId: type.id, date: day(dto.date) } } });
+      if (existing?.periodId) throw new ConflictException('Edit the special rate period instead.');
+      const updated = await tx.dailyRate.upsert({
+        where: { roomTypeId_date: { roomTypeId: type.id, date: day(dto.date) } },
+        create: { roomTypeId: type.id, date: day(dto.date), amountVnd: dto.amountVnd },
+        update: { amountVnd: dto.amountVnd },
+      });
+      await tx.auditLog.create({ data: { actorId, operation: 'SET_DAILY_RATE', entity: 'DailyRate', entityId: updated.id, detail: { code, date: dto.date, amountVnd: dto.amountVnd } } });
+      return updated;
     });
-    await this.db.auditLog.create({ data: { actorId, operation: 'SET_DAILY_RATE', entity: 'DailyRate', entityId: updated.id, detail: { code, date: dto.date, amountVnd: dto.amountVnd } } });
-    return updated;
+  }
+  private async pricingWrite<T>(work: (tx: Db) => Promise<T>): Promise<T> {
+    try {
+      return await this.db.$transaction(async tx => {
+        await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('hotel-pricing'))`;
+        return work(tx);
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 20_000 });
+    } catch (error) {
+      if (isUnique(error) || isSerializationFailure(error)) throw new ConflictException('Pricing changed or dates overlap. Refresh and retry.');
+      throw error;
+    }
+  }
+  async weekend(client: Db = this.db) {
+    const settings = await client.hotelSettings.findUnique({ where: { id: 'dylan-grand-hotel' } });
+    return { enabled: settings?.weekendEnabled ?? true, surchargeVnd: settings?.weekendSurchargeVnd ?? 1000000 };
+  }
+  async ratePlans(client: Db = this.db) {
+    const plans = await client.ratePlanPolicy.findMany();
+    return (['FLEXIBLE', 'NON_REFUNDABLE'] as const).map(code => plans.find(p => p.code === code) ?? defaultPolicy(code));
+  }
+  async setWeekend(dto: WeekendPricingDto, actorId: string) {
+    return this.pricingWrite(async tx => {
+      const maximum = await tx.roomType.aggregate({ _max: { baseRateVnd: true } });
+      assertVnd((maximum._max.baseRateVnd ?? 0) + (dto.enabled ? dto.surchargeVnd : 0));
+      const data = { weekendEnabled: dto.enabled, weekendSurchargeVnd: dto.surchargeVnd };
+      await tx.hotelSettings.upsert({ where: { id: 'dylan-grand-hotel' }, create: { id: 'dylan-grand-hotel', ...data }, update: data });
+      await tx.auditLog.create({ data: { actorId, operation: 'SET_WEEKEND_RATE', entity: 'HotelSettings', entityId: 'dylan-grand-hotel', detail: { ...dto } } });
+      return dto;
+    });
+  }
+  async setPolicy(code: string, dto: RatePolicyDto, actorId: string) {
+    if (code !== 'FLEXIBLE' && code !== 'NON_REFUNDABLE') throw new BadRequestException('Unknown rate plan.');
+    if (code === 'FLEXIBLE' && !dto.active) throw new BadRequestException('Flexible must remain active.');
+    if (code === 'NON_REFUNDABLE' && (dto.freeCancellationHours != null || dto.lateFee !== 'FULL' || dto.noShowFee !== 'FULL')) throw new BadRequestException('Non-refundable requires full cancellation and no-show fees.');
+    return this.pricingWrite(async tx => {
+      const data = { ...dto, freeCancellationHours: dto.freeCancellationHours ?? null };
+      const result = await tx.ratePlanPolicy.upsert({ where: { code }, create: { code, ...data }, update: data });
+      await tx.auditLog.create({ data: { actorId, operation: 'SET_RATE_POLICY', entity: 'RatePlanPolicy', entityId: code, detail: data } });
+      return result;
+    });
+  }
+  async specialRates() {
+    return this.db.specialRatePeriod.findMany({ orderBy: { startDate: 'asc' }, include: { dailyRates: { distinct: ['roomTypeId'], select: { roomType: { select: { code: true, nameEn: true, nameVi: true } } } } } });
+  }
+  async saveSpecial(dto: SpecialRateDto, actorId: string, id?: string) {
+    const start = day(dto.startDate), end = day(dto.endDate);
+    const count = (end.valueOf() - start.valueOf()) / 86400000 + 1;
+    if (dto.startDate < hotelToday() || count < 1 || count > 366) throw new BadRequestException('Select 1–366 days from today onwards.');
+    return this.pricingWrite(async tx => {
+      const existing = id ? await tx.specialRatePeriod.findUnique({ where: { id } }) : null;
+      if (id && !existing) throw new NotFoundException('Special rate not found.');
+      if (existing && existing.startDate < day(hotelToday())) throw new ConflictException('Past special rates cannot be edited.');
+      const types = await tx.roomType.findMany({ where: dto.roomTypeCode === '*' ? (id ? { dailyRates: { some: { periodId: id } } } : {}) : { code: dto.roomTypeCode }, select: { id: true } });
+      if (!types.length) throw new NotFoundException('Room type not found.');
+      const overlap = await tx.dailyRate.findFirst({ where: { roomTypeId: { in: types.map(t => t.id) }, date: { gte: start, lte: end }, ...(id ? { OR: [{ periodId: null }, { periodId: { not: id } }] } : {}) } });
+      if (overlap) throw new ConflictException('Special rate overlaps an existing daily or period rate.');
+      const data = { name: dto.name.trim(), startDate: start, endDate: end, amountVnd: dto.amountVnd };
+      const period = id ? await tx.specialRatePeriod.update({ where: { id }, data }) : await tx.specialRatePeriod.create({ data });
+      if (id) await tx.dailyRate.deleteMany({ where: { periodId: id } });
+      await tx.dailyRate.createMany({ data: types.flatMap(t => Array.from({ length: count }, (_, i) => ({ roomTypeId: t.id, date: new Date(start.valueOf() + i * 86400000), amountVnd: dto.amountVnd, periodId: period.id }))) });
+      await tx.auditLog.create({ data: { actorId, operation: id ? 'EDIT_SPECIAL_RATE' : 'CREATE_SPECIAL_RATE', entity: 'SpecialRatePeriod', entityId: period.id, detail: { ...dto } } });
+      return period;
+    });
+  }
+  async deleteSpecial(id: string, actorId: string) {
+    return this.pricingWrite(async tx => {
+      const period = await tx.specialRatePeriod.findUnique({ where: { id } });
+      if (!period) throw new NotFoundException('Special rate not found.');
+      if (period.startDate < day(hotelToday())) throw new ConflictException('Past special rates cannot be deleted.');
+      await tx.dailyRate.deleteMany({ where: { periodId: id } });
+      await tx.specialRatePeriod.delete({ where: { id } });
+      await tx.auditLog.create({ data: { actorId, operation: 'DELETE_SPECIAL_RATE', entity: 'SpecialRatePeriod', entityId: id } });
+      return { id };
+    });
+  }
+  async deleteDaily(code: string, value: string, actorId: string) {
+    const date = day(value);
+    if (value < hotelToday()) throw new BadRequestException('Cannot delete past rates.');
+    return this.pricingWrite(async tx => {
+      const type = await tx.roomType.findUnique({ where: { code } });
+      if (!type) throw new NotFoundException('Room type not found.');
+      const rate = await tx.dailyRate.findUnique({ where: { roomTypeId_date: { roomTypeId: type.id, date } } });
+      if (!rate || rate.periodId) throw new ConflictException('Only standalone daily rates can be deleted here.');
+      await tx.dailyRate.delete({ where: { id: rate.id } });
+      await tx.auditLog.create({ data: { actorId, operation: 'DELETE_DAILY_RATE', entity: 'DailyRate', entityId: rate.id } });
+      return { id: rate.id };
+    });
   }
   async pricing() {
-    const [roomTypes, dailyRates] = await Promise.all([this.roomTypes(), this.db.dailyRate.findMany({ include: { roomType: { select: { code: true } } }, orderBy: { date: 'asc' } })]);
-    return { plans: [{ code: 'FLEXIBLE', cancellation: 'Free until 48h before hotel-local check-in; otherwise one night' }, { code: 'NON_REFUNDABLE', cancellation: 'Full booking charge' }], roomTypes, dailyRates };
+    const [roomTypes, dailyRates, weekend, specialRates, plans] = await Promise.all([this.roomTypes(), this.db.dailyRate.findMany({ where: { periodId: null }, include: { roomType: { select: { code: true } } }, orderBy: { date: 'asc' } }), this.weekend(), this.specialRates(), this.ratePlans()]);
+    return { roomTypes, dailyRates, weekend, specialRates, plans };
+  }
+  async rateCalendar(code: string, month: string) {
+    if (typeof code !== 'string' || !code) throw new BadRequestException('Room type code required.');
+    if (!/^\d{4}-\d{2}$/.test(month)) throw new BadRequestException('Month must be YYYY-MM.');
+    const first = day(`${month}-01`);
+    const end = new Date(first); end.setUTCMonth(end.getUTCMonth() + 1);
+    const type = await this.roomType(code);
+    const [weekend, daily, plans] = await Promise.all([this.weekend(), this.db.dailyRate.findMany({ where: { roomTypeId: type.id, date: { gte: first, lt: end } }, include: { period: { select: { name: true } } } }), this.ratePlans()]);
+    const overrides = new Map(daily.map(r => [r.date.toISOString().slice(0, 10), r]));
+    return Array.from({ length: (end.valueOf() - first.valueOf()) / 86400000 }, (_, i) => {
+      const date = new Date(first.valueOf() + i * 86400000), key = date.toISOString().slice(0, 10), override = overrides.get(key);
+      const resolved = resolveNight(date, type.baseRateVnd, weekend, override?.amountVnd);
+      return { date: key, source: resolved.source, amountVnd: resolved.raw, baseRateVnd: type.baseRateVnd, weekendSurchargeVnd: weekend.enabled && [0, 6].includes(date.getUTCDay()) ? weekend.surchargeVnd : 0, specialRateVnd: override?.amountVnd ?? null, flexibleVnd: planAmount(resolved.raw, plans[0]), nonRefundableVnd: plans[1].active ? planAmount(resolved.raw, plans[1]) : null, name: override?.period?.name ?? null };
+    });
   }
   // Room is held for the whole stay, rather than just decrementing separate daily counters.
   // This guarantees a continuous physical assignment and avoids fragmented inventory.
@@ -159,17 +276,22 @@ export class HotelService {
     }
     return { checkIn: dto.checkIn, checkOut: dto.checkOut, roomTypes: answer };
   }
-  async quote(client: Db, roomTypeId: string, dates: Date[], plan: 'FLEXIBLE' | 'NON_REFUNDABLE') {
+  async quote(client: Db, roomTypeId: string, dates: Date[], plan: PlanCode, snapshot?: Policy) {
     const type = await client.roomType.findUnique({ where: { id: roomTypeId } });
     if (!type?.baseRateVnd || !type.isPublished)
       throw new BadRequestException('Room type not published or priced.');
-    const daily = await client.dailyRate.findMany({ where: { roomTypeId, date: { in: dates } } });
+    const [daily, weekend, plans] = await Promise.all([client.dailyRate.findMany({ where: { roomTypeId, date: { in: dates } } }), this.weekend(client), this.ratePlans(client)]);
+    const policy = snapshot ?? plans.find(p => p.code === plan) ?? defaultPolicy(plan);
+    if (!snapshot && !policy.active) throw new BadRequestException('Rate plan unavailable.');
     const overrides = new Map(daily.map((item) => [item.date.toISOString().slice(0, 10), item.amountVnd]));
     const lines = dates.map((date) => {
-      const raw = overrides.get(date.toISOString().slice(0, 10)) ?? type.baseRateVnd;
-      return { date: date.toISOString().slice(0, 10), amountVnd: plan === 'NON_REFUNDABLE' ? Math.round(raw * 0.9) : raw };
+      const { raw } = resolveNight(date, type.baseRateVnd, weekend, overrides.get(date.toISOString().slice(0, 10)));
+      assertVnd(raw);
+      return { date: date.toISOString().slice(0, 10), amountVnd: planAmount(raw, policy) };
     });
-    return { lines, totalVnd: lines.reduce((sum, line) => sum + line.amountVnd, 0) };
+    const totalVnd = lines.reduce((sum, line) => sum + line.amountVnd, 0);
+    assertVnd(totalVnd);
+    return { lines, totalVnd, policy };
   }
   async maintenance(dto: CreateMaintenanceBlockDto, actorId: string) {
     const dates = nights(dto.startDate, dto.endDate, true);

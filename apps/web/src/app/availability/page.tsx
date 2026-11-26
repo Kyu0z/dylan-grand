@@ -36,6 +36,7 @@ function AvailabilityContent() {
   const valid = checkout > checkin && checkin >= dayISO() && nights(checkin, checkout) <= 30;
   const d = useLiveData<Availability>(ready && valid ? `/availability?${new URLSearchParams({ checkIn: checkin, checkOut: checkout, adults: String(adults), children: String(children) })}` : null);
   const count = 1;
+  const sliderMax = Math.max(5500000, ...rooms.map(r => r.price), ...(d.data?.roomTypes ?? []).map(r => Math.ceil(r.totalRoomPriceVnd / Math.max(1, r.nights) / 250000) * 250000));
   const available = rooms.flatMap(r => { const a = d.data?.roomTypes.find(x => x.roomTypeCode === r.id); return a ? [{ ...r, available: a.availableRooms, price: a.totalRoomPriceVnd / a.nights, total: a.totalRoomPriceVnd }] : []; }).filter(r => r.guests >= adults + children && r.available >= count && r.price <= maxPrice && (!selected || r.id === selected) && amenities.every(a => r.amenities.some(x => x.toLowerCase().includes(a)))).sort((a, b) => sort === 'price-asc' ? a.price - b.price : sort === 'price-desc' ? b.price - a.price : a.size - b.size);
   const go = (id: RoomId) => {
     if (!valid) {
@@ -87,14 +88,14 @@ function AvailabilityContent() {
               <input id="max-price"
                 type="range"
                 min={0}
-                max={Math.max(5500000, ...rooms.map(r => r.price))}
+                max={sliderMax}
                 step={250000}
-                value={Math.min(maxPrice, Math.max(5500000, ...rooms.map(r => r.price)))}
+                value={Math.min(maxPrice, sliderMax)}
                 onChange={e => setMaxPrice(Number(e.target.value))}
                 className="w-full accent-gold"
               />
               <strong className="text-sm">
-                {money(Math.min(maxPrice, Math.max(5500000, ...rooms.map(r => r.price))))}
+                {money(Math.min(maxPrice, sliderMax))}
               </strong>
             </div>
             <fieldset className="border-t border-line pt-5">

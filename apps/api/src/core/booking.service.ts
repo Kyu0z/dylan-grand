@@ -5,6 +5,7 @@ import { CustomerBookingDto, BookingQuoteDto, AssignRoomDto, CancelBookingDto, E
 import { HotelService } from './hotel.service';
 import { bookingLookupToken, day, hotelToday, isSerializationFailure, isUnique, nights, roundMoney, sha, token, HOLD_MINUTES, assertVnd } from './util';
 
+import { bookedPolicy, feeAmount, policyFingerprint } from './pricing-rules';
 const ACTIVE = ['CONFIRMED', 'CHECKED_IN'] as const;
 const bookingInclude = { guest: true, room: { select: { number: true, cleaningStatus: true } }, roomType: { select: { code: true, nameEn: true, nameVi: true } }, payments: true, services: true, review: { select: { id: true } } } as const;
 
@@ -47,7 +48,7 @@ export class BookingService {
   private customerBooking(b: Prisma.BookingGetPayload<{ include: typeof bookingInclude; }>) {
     const due = ['CANCELLED', 'NO_SHOW', 'EXPIRED'].includes(b.status) ? b.cancelFeeVnd : b.totalVnd;
     const paid = b.payments.reduce((sum, p) => sum + (p.kind === 'PAYMENT' ? p.amountVnd : -p.amountVnd), 0);
-    return { code: b.code, checkIn: b.checkIn, checkOut: b.checkOut, adults: b.adults, children: b.children, status: b.status, ratePlan: b.ratePlan, roomType: b.roomType, guest: { name: b.guest.name, email: b.guest.email }, totalVnd: b.totalVnd, roomTotalVnd: b.roomTotalVnd, discountVnd: b.discountVnd, extraTotalVnd: b.extraTotalVnd, cancelFeeVnd: b.cancelFeeVnd, dueVnd: due, paidVnd: paid, balanceVnd: due - paid, createdAt: b.createdAt, hasReview: !!b.review };
+    return { code: b.code, checkIn: b.checkIn, checkOut: b.checkOut, adults: b.adults, children: b.children, status: b.status, ratePlan: b.ratePlan, ratePolicy: bookedPolicy(b.ratePlan, b.ratePolicySnapshot), roomType: b.roomType, guest: { name: b.guest.name, email: b.guest.email }, totalVnd: b.totalVnd, roomTotalVnd: b.roomTotalVnd, discountVnd: b.discountVnd, extraTotalVnd: b.extraTotalVnd, cancelFeeVnd: b.cancelFeeVnd, dueVnd: due, paidVnd: paid, balanceVnd: due - paid, createdAt: b.createdAt, hasReview: !!b.review };
   }
   async create(dto: CustomerBookingDto, customerId?: string, actorId?: string) {
     const dates = nights(dto.checkIn, dto.checkOut);
@@ -73,6 +74,7 @@ export class BookingService {
         if (available.length === 0) throw new ConflictException('No continuously available physical room for requested dates.');
         if (dto.guaranteeMode === 'HOLD' && dto.extras?.length) throw new BadRequestException('Extras require a confirmed reservation.');
         const quotation = await this.hotel.quote(tx, type.id, dates, plan);
+        if (dto.expectedRateKey && dto.expectedRateKey !== sha(JSON.stringify([policyFingerprint(quotation.policy), quotation.lines]))) throw new ConflictException('Rates or rate policy changed. Please refresh your quote.');
         const extras = await this.extraQuote(tx, dto.extras ?? []);
         let discountVnd = 0;
         if (dto.promotionCode) {
@@ -107,7 +109,7 @@ export class BookingService {
             roomTotalVnd: quotation.totalVnd, discountVnd, extraTotalVnd: extras.total, totalVnd,
             services: { create: extras.lines.map(line => ({ clientRequestId: sha(`booking-extra:${dto.clientRequestId}:${line.serviceId}`), ...line })) },
             promoCode: dto.promotionCode,
-            rateSnapshot: quotation.lines,
+            rateSnapshot: quotation.lines, ratePolicySnapshot: quotation.policy,
           }, include: bookingInclude
         });
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 20_000 });
@@ -159,7 +161,7 @@ export class BookingService {
     assertVnd(room.totalVnd);
     const totalVnd = room.totalVnd - discountVnd + extras.total;
     assertVnd(totalVnd);
-    return { roomTotalVnd: room.totalVnd, discountVnd, extraTotalVnd: extras.total, totalVnd, nights: dates.length, availableRooms: free.length };
+    return { roomTotalVnd: room.totalVnd, discountVnd, extraTotalVnd: extras.total, totalVnd, nights: dates.length, availableRooms: free.length, ratePolicy: room.policy, rateLines: room.lines, rateKey: sha(JSON.stringify([policyFingerprint(room.policy), room.lines])) };
   }
 
   async confirm(code: string, actorId: string) {
@@ -188,8 +190,9 @@ export class BookingService {
       const fulfilledVnd = fulfilled._sum.totalVnd ?? 0;
       const roomObligationVnd = Math.max(0, b.roomTotalVnd - b.discountVnd);
       const firstNight = (b.rateSnapshot as { amountVnd: number; }[])[0]?.amountVnd ?? b.roomTotalVnd;
-      const cutoff = new Date(b.checkIn.valueOf() + (14 - 7 - 48) * 3600_000);
-      const roomFee = b.status === 'PENDING' ? 0 : b.ratePlan === 'NON_REFUNDABLE' ? roomObligationVnd : new Date() < cutoff ? 0 : Math.min(firstNight, roomObligationVnd);
+      const policy = bookedPolicy(b.ratePlan, b.ratePolicySnapshot);
+      const cutoff = new Date(b.checkIn.valueOf() + (14 - 7 - (policy.freeCancellationHours ?? 0)) * 3600_000);
+      const roomFee = b.status === 'PENDING' ? 0 : policy.freeCancellationHours !== null && new Date() < cutoff ? 0 : feeAmount(policy.lateFee, firstNight, roomObligationVnd);
       const fee = roomFee + fulfilledVnd;
       await tx.serviceOrder.updateMany({ where: { bookingId: b.id, status: 'REQUESTED' }, data: { status: 'CANCELLED' } });
       const result = await tx.booking.updateMany({ where: { id: b.id, status: b.status }, data: { status: 'CANCELLED', cancelFeeVnd: fee } });
@@ -278,7 +281,7 @@ export class BookingService {
       const firstNight = (current.rateSnapshot as { amountVnd: number; }[])[0]?.amountVnd ?? current.roomTotalVnd;
       const fulfilled = await tx.serviceOrder.aggregate({ where: { bookingId: b.id, status: 'FULFILLED' }, _sum: { totalVnd: true } });
       const roomObligation = Math.max(0, current.roomTotalVnd - current.discountVnd);
-      const feeVnd = (current.ratePlan === 'NON_REFUNDABLE' ? roomObligation : Math.min(firstNight, roomObligation)) + (fulfilled._sum.totalVnd ?? 0);
+      const feeVnd = feeAmount(bookedPolicy(current.ratePlan, current.ratePolicySnapshot).noShowFee, firstNight, roomObligation) + (fulfilled._sum.totalVnd ?? 0);
       const changed = await tx.booking.updateMany({ where: { id: b.id, status: 'CONFIRMED' }, data: { status: 'NO_SHOW', cancelFeeVnd: feeVnd } });
       if (!changed.count) throw new ConflictException('Status already changed.');
       await tx.serviceOrder.updateMany({ where: { bookingId: b.id, status: 'REQUESTED' }, data: { status: 'CANCELLED' } });
@@ -318,7 +321,7 @@ export class BookingService {
       if (current.status !== b.status || current.roomId !== b.roomId || current.checkOut.valueOf() !== b.checkOut.valueOf()) throw new ConflictException('Booking status has changed.');
       const rooms = await this.hotel.freeRooms(tx, b.roomTypeId, b.checkOut, day(dto.checkOut), b.id);
       if (!rooms.some((room) => room.id === b.roomId)) throw new ConflictException('Assigned room is unavailable for extension.');
-      const extra = await this.hotel.quote(tx, b.roomTypeId, extraDates, b.ratePlan);
+      const extra = await this.hotel.quote(tx, b.roomTypeId, extraDates, b.ratePlan, bookedPolicy(current.ratePlan, current.ratePolicySnapshot));
       assertVnd(current.roomTotalVnd + extra.totalVnd); assertVnd(current.totalVnd + extra.totalVnd);
       const rateSnapshot = [...(current.rateSnapshot as { date: string; amountVnd: number; }[]), ...extra.lines];
       const updated = await tx.booking.update({

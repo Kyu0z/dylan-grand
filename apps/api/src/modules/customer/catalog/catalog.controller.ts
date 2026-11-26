@@ -64,6 +64,9 @@ export class CustomerCatalogController {
   @ApiTags('Customer · Hotel')
   @ApiOperation({ summary: '[DB] Public property information' })
   getHotel() { return this.hotel.hotel(); }
+  @Get('rate-plans')
+  @ApiTags('Customer · Rooms')
+  async ratePlans() { return (await this.hotel.ratePlans()).filter(p => p.active); }
   @Get('rooms')
   @ApiTags('Customer · Rooms')
   @ApiOperation({ summary: '[DB] Published room types with current base prices' })

@@ -1,6 +1,24 @@
 // Stable server messages are translated at render time, so existing toasts react
 // to language changes. Unknown future messages stay readable in their original language.
 const viMessages: Record<string, string> = {
+  "Pricing changed or dates overlap. Refresh and retry.": "Giá đã thay đổi hoặc ngày bị trùng. Tải lại và thử lại.",
+  "Cannot change past rates.": "Không thể sửa giá ngày đã qua.",
+  "Edit the special rate period instead.": "Hãy chỉnh sửa đợt giá đặc biệt tương ứng.",
+  "Unknown rate plan.": "Không tìm thấy gói giá.",
+  "Flexible must remain active.": "Gói Linh hoạt phải luôn hoạt động.",
+  "Non-refundable requires full cancellation and no-show fees.": "Gói Không hoàn tiền yêu cầu tính toàn bộ tiền phòng khi hủy hoặc không đến.",
+  "Select 1–366 days from today onwards.": "Chọn từ 1–366 ngày, bắt đầu từ hôm nay.",
+  "Special rate not found.": "Không tìm thấy đợt giá đặc biệt.",
+  "Past special rates cannot be edited.": "Không thể sửa đợt giá đã bắt đầu trong quá khứ.",
+  "Past special rates cannot be deleted.": "Không thể xóa đợt giá đã bắt đầu trong quá khứ.",
+  "Special rate overlaps an existing daily or period rate.": "Khoảng ngày trùng giá theo ngày hoặc đợt giá hiện có.",
+  "Cannot delete past rates.": "Không thể xóa giá ngày đã qua.",
+  "Only standalone daily rates can be deleted here.": "Chỉ có thể xóa giá theo ngày độc lập tại đây.",
+  "Rate plan unavailable.": "Gói giá không còn khả dụng.",
+  "Rates or rate policy changed. Please refresh your quote.": "Giá hoặc chính sách giá đã thay đổi. Vui lòng lấy lại báo giá.",
+  "Month must be YYYY-MM.": "Tháng phải đúng định dạng YYYY-MM.",
+  "Room type code required.": "Cần mã hạng phòng.",
+
   "Promotion updated successfully.": "Đã cập nhật ưu đãi.",
   "Extra service updated successfully.": "Đã cập nhật dịch vụ bổ sung.",
   "Promotion deleted successfully.": "Đã xóa ưu đãi.",

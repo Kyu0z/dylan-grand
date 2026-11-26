@@ -6,7 +6,7 @@ import { money, prettyDate, photos } from '@/lib/data';
 import { getStay, type Stay } from '@/lib/storage';
 import { getCustomerAccount, getCustomerToken } from '@/lib/customer-auth';
 import { apiRequest, ApiError } from '@/lib/api-client';
-import { useRooms, useLiveData, saveGuestAccess, type BookingRecord, type Quote, type Service } from '@/lib/live-data';
+import { useRooms, useLiveData, saveGuestAccess, type BookingRecord, type Quote, type Service, type RatePolicy } from '@/lib/live-data';
 import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
 export default function BookingPage() {
   const { locale, t } = useI18n();
@@ -29,6 +29,9 @@ export default function BookingPage() {
   } | null>(null);
   const catalog = useRooms();
   const services = useLiveData<Service[]>('/services');
+  const plans = useLiveData<RatePolicy[]>('/rate-plans');
+  const fee = (rule: string) => rule === 'FULL' ? tr('full room charge', 'toàn bộ tiền phòng') : rule === 'FIRST_NIGHT' ? tr('up to the first night', 'tối đa tiền đêm đầu') : tr('no fee', 'không tính phí');
+  const policyDescription = (p: RatePolicy) => `${tr('Room discount', 'Giảm giá phòng')}: ${p.discountPercent}%. ${p.freeCancellationHours == null ? tr('No free cancellation window.', 'Không có thời hạn miễn phí hủy.') : tr(`Free cancellation before ${p.freeCancellationHours} hours prior to check-in.`, `Miễn phí hủy trước mốc ${p.freeCancellationHours} giờ trước nhận phòng.`)} ${tr('Cancellation fee after cutoff', 'Phí hủy sau hạn')}: ${fee(p.lateFee)}. ${tr('No-show', 'Không đến')}: ${fee(p.noShowFee)}.`;
   const methods = useLiveData<{
     methods: string[];
   }>('/payments/methods');
@@ -78,7 +81,7 @@ export default function BookingPage() {
         ...Object.fromEntries(Object.entries(guest).map(([k, v]) => [k, v.trim()])),
         guaranteeMode: 'PAY_AT_HOTEL',
         acceptedTerms: true,
-        expectedTotalVnd: quote.totalVnd
+        expectedTotalVnd: quote.totalVnd, expectedRateKey: quote.rateKey
       };
       const token = getCustomerToken();
       const bytes = new TextEncoder().encode(JSON.stringify([token ?? null, body]));
@@ -188,7 +191,9 @@ export default function BookingPage() {
               {tr('Choose your rate.', 'Chọn gói giá.')}
             </h2>
             <div className="mt-7 grid gap-4">
-              {[['FLEXIBLE', tr('Flexible', 'Linh hoạt'), tr('Free cancellation until 48 hours before check-in; then up to one night.', 'Miễn phí hủy đến 48 giờ trước giờ nhận phòng; sau đó phí tối đa một đêm.')], ['NON_REFUNDABLE', tr('Non-refundable', 'Không hoàn tiền'), tr('10% lower room rate; full room charge on cancellation.', 'Giảm 10% giá phòng; tính toàn bộ tiền phòng khi hủy.')]].map(([id, name, desc]) => <label className={`flex gap-4 border p-6 ${rate === id ? 'border-gold bg-surface-alt' : 'border-line bg-paper'}`} key={id}>
+              {plans.failed && <button type="button" className="btn-outline" onClick={plans.reload}>{tr('Retry loading rate plans', 'Tải lại gói giá')}</button>}
+              {plans.loading && <p className="body-copy">{tr('Loading rate plans…', 'Đang tải gói giá…')}</p>}
+              {(plans.data ?? []).map(p => [p.code, p.code === 'FLEXIBLE' ? tr('Flexible', 'Linh hoạt') : tr('Non-refundable', 'Không hoàn tiền'), policyDescription(p)]).map(([id, name, desc]) => <label className={`flex gap-4 border p-6 ${rate === id ? 'border-gold bg-surface-alt' : 'border-line bg-paper'}`} key={id}>
                 <input type="radio" name="rate" value={id} checked={rate === id} onChange={() => setRate(id)} className="accent-gold" />
                 <span>
                   <strong className="font-display text-3xl">
@@ -275,6 +280,8 @@ export default function BookingPage() {
               <span>
                 {tr('Pay at the hotel', 'Thanh toán tại khách sạn')}
               </span>
+              <p className="body-copy">{policyDescription(quote.ratePolicy)}</p>
+              {quote.rateLines.map(line => <div className="flex flex-wrap justify-between gap-2" key={line.date}><span>{prettyDate(line.date, locale)}</span><span>{money(line.amountVnd)}</span></div>)}
               <strong>{tr('Total', 'Tổng tiền')}: {money(quote.totalVnd)}</strong>
             </div>
             <label className="flex gap-3 text-sm">
@@ -295,7 +302,7 @@ export default function BookingPage() {
             </button> : <Link className="btn-outline" href="/availability">
               {tr('BACK TO ROOMS', 'QUAY LẠI PHÒNG')}
             </Link>}
-            <button className="btn-primary" type="submit" disabled={busy || (stage === 3 && (!accepted || !methods.data?.methods.includes('PAY_AT_HOTEL')))}>
+            <button className="btn-primary" type="submit" disabled={busy || (stage === 0 && !plans.data?.some(p => p.code === rate)) || (stage === 3 && (!accepted || !methods.data?.methods.includes('PAY_AT_HOTEL')))}>
               {busy ? tr('PROCESSING…', 'ĐANG XỬ LÝ…') : stage === 3 ? tr('CONFIRM RESERVATION', 'XÁC NHẬN ĐẶT PHÒNG') : stage === 2 ? tr('GET QUOTE', 'LẤY BÁO GIÁ') : tr('CONTINUE', 'TIẾP TỤC')}
               <Arrow />
             </button>

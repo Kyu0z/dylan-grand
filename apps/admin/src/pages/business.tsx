@@ -1,10 +1,10 @@
 import { displayPickerValue, hotelNow, nextPickerValue } from '../lib/date-picker';
 import { useState, type ReactNode } from 'react';
-import { Badge, Button, Card, Metric, NativeSelect, PageHeader, SearchBox, TextInput } from '../components/ui';
+import { Badge, Button, Card, Metric, Modal, NativeSelect, PageHeader, SearchBox, TextInput } from '../components/ui';
 import { useAdminAuth } from '../lib/admin-auth';
 import { L, nav, type Localized } from '../lib/domain';
 import { useLocale } from '../lib/locale';
-import { Cash, DataState, RowActions, StatusValue, Table, col, createDeleteAction, date, field, num, obj, options, pathId, plusDays, rows, str, today, useAction, useData, type Action, type Field, type Row, type Values } from './business-ui';
+import { Cash, DataState, RowActions, StatusValue, Table, col, createDeleteAction, date, displayDate, field, num, obj, options, pathId, plusDays, rows, str, today, useAction, useData, type Action, type Field, type Row, type Values } from './business-ui';
 const rcode = (r: Row) => str(r.code);
 const text = (r: Row, key: string) => str(r[key]);
 const amountField = field('amountVnd', 'Amount (VND)', 'Số tiền (VND)', { kind: 'number', min: 1, max: 2000000000 });
@@ -12,7 +12,7 @@ const reason = field('reason', 'Reason', 'Lý do', { kind: 'textarea', maxLength
 const dateFields = () => [field('checkIn', 'Check-in', 'Nhận phòng', { kind: 'date', initial: today() }), field('checkOut', 'Check-out', 'Trả phòng', { kind: 'date', initial: plusDays(today(), 1) })];
 const statusCol = (key: string, en: string, vi: string) => col(key, en, vi, r => <StatusValue value={r[key]} />);
 const cashCol = (key: string, en: string, vi: string) => col(key, en, vi, r => <Cash value={r[key]} />);
-const dateCol = (key: string, en: string, vi: string) => col(key, en, vi, r => date(r[key]));
+const dateCol = (key: string, en: string, vi: string) => col(key, en, vi, r => key.endsWith('At') && str(r[key]) && Number.isFinite(new Date(str(r[key])).valueOf()) ? displayDate(hotelNow(new Date(str(r[key])))) : displayDate(r[key]));
 const dateTimeCol = (key: string, en: string, vi: string) => col(key, en, vi, r => {
   const instant = new Date(str(r[key]));
   return Number.isFinite(instant.valueOf()) ? displayPickerValue(hotelNow(instant), true) : '—';
@@ -105,7 +105,7 @@ function Hotel() {
           col('message', 'Message', 'Nội dung'),
           dateCol('createdAt', 'Received', 'Ngày nhận'),
           col('resolved', 'Handled', 'Đã xử lý', r => o.t(r.resolved ? L('Yes', 'Có') : L('No', 'Không'))),
-          col('actions', 'Actions', 'Thao tác', r => !r.resolved && <Act label={L('Mark handled', 'Đánh dấu đã xử lý')} onClick={() => o.action(L('Mark enquiry handled', 'Đánh dấu đã xử lý'), `/admin/hotel/inquiries/${pathId(r.id)}/resolve`, 'PATCH')} />)
+          col('actions', 'Actions', 'Thao tác', r => !r.resolved && <Act label={L('Mark handled', 'Đánh dấu đã xử lý')} onClick={() => o.action(L('Mark enquiry handled', 'Đánh dấu đã xử lý'), `/admin/hotel/inquiries/${pathId(r.id)}/resolve`, 'PATCH', [], undefined, L('Mark this guest enquiry as handled.', 'Đánh dấu liên hệ này đã được xử lý.'))} />)
         ]} />
       </Card>
     </DataState>
@@ -170,7 +170,7 @@ function Physical() {
           col('type', 'Room type', 'Hạng phòng', r => roomName(obj(r.roomType), o.vi)),
           statusCol('cleaningStatus', 'Housekeeping', 'Buồng phòng'),
           col('sellable', 'Sellable', 'Mở bán', r => o.t(r.sellable ? L('Yes', 'Có') : L('No', 'Không'))),
-          col('actions', 'Actions', 'Thao tác', r => <Act label={r.sellable ? L('Stop selling', 'Ngừng bán') : L('Enable selling', 'Mở bán')} onClick={() => o.action(L('Update room availability', 'Cập nhật mở bán'), `/admin/physical-rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ sellable: !r.sellable }), L('Existing reservations may prevent disabling this room.', 'Đặt phòng hiện tại có thể ngăn việc ngừng bán phòng.'))} />)
+          col('actions', 'Actions', 'Thao tác', r => <Act label={r.sellable ? L('Stop selling', 'Ngừng bán') : L('Enable selling', 'Mở bán')} onClick={() => o.action(L('Update room availability', 'Cập nhật mở bán'), `/admin/physical-rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ sellable: !r.sellable }), r.sellable ? L(`Stop selling room ${str(r.number)}? Existing reservations may prevent this action.`, `Ngừng bán phòng ${str(r.number)}? Đặt phòng hiện tại có thể ngăn thao tác này.`) : L(`Enable room ${str(r.number)} for new bookings?`, `Mở bán phòng ${str(r.number)} cho đặt phòng mới?`))} />)
         ]} />
       </Card>
     </DataState>
@@ -216,7 +216,7 @@ function Inventory() {
     </Card>
     <DataState {...d}>
       <Card title={o.t(L('Inventory calendar', 'Lịch tồn phòng'))}>
-        <Table data={rooms.filter(r => str(r.number).includes(search))} columns={[col('number', 'Room', 'Phòng'), ...days.map(day => col(day, day.slice(5), day.slice(5), r => cell(r, day)))]} />
+        <Table data={rooms.filter(r => str(r.number).includes(search))} columns={[col('number', 'Room', 'Phòng'), ...days.map(day => col(day, displayDate(day).slice(0, 5), displayDate(day).slice(0, 5), r => cell(r, day)))]} />
       </Card>
       <Card title={o.t(L('Maintenance blocks', 'Lịch bảo trì'))}>
         <Table data={blocks} columns={[
@@ -233,31 +233,96 @@ function Inventory() {
 }
 function Pricing() {
   const d = useData<Row>('/admin/pricing');
-  const o = useOps(d.reload);
+  const [tab, setTab] = useState('base');
+  const [month, setMonth] = useState(today().slice(0, 7));
+  const [selectedType, setSelectedType] = useState('');
+  const [calendarDetail, setCalendarDetail] = useState<Row | null>(null);
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('');
   const types = rows(d.data?.roomTypes);
-  return <Frame path="/pricing" reload={d.reload}>
+  const code = types.some(r => rcode(r) === selectedType) ? selectedType : rcode(types[0] ?? {});
+  const calendar = useData<Row[]>(tab === 'calendar' && code ? `/admin/pricing/calendar?roomTypeCode=${pathId(code)}&month=${pathId(month)}` : null);
+  const reload = () => { d.reload(); calendar.reload(); };
+  const o = useOps(reload);
+  const weekend = obj(d.data?.weekend);
+  const special = rows(d.data?.specialRates);
+  const feeOptions = [{ value: 'FIRST_NIGHT', label: L('First night', 'Đêm đầu') }, { value: 'FULL', label: L('Full room charge', 'Toàn bộ tiền phòng') }, { value: 'NONE', label: L('No fee', 'Không tính phí') }];
+  const feeLabel = (value: unknown) => o.t(feeOptions.find(x => x.value === value)?.label ?? L('Unknown', 'Không xác định'));
+  const editWeekend = () => o.action(L('Weekend pricing', 'Giá cuối tuần'), '/admin/pricing/weekend', 'PUT', [
+    field('enabled', 'Enabled · Saturday and Sunday', 'Áp dụng · Thứ Bảy và Chủ nhật', { kind: 'check', required: false, initial: Boolean(weekend.enabled) }),
+    field('surchargeVnd', 'Surcharge (VND)', 'Phụ thu (VND)', { kind: 'number', min: 0, initial: num(weekend.surchargeVnd) })
+  ], undefined, L('The surcharge applies to future weekend nights unless a special rate exists.', 'Phụ thu áp dụng cho các đêm cuối tuần trong tương lai, trừ ngày có giá đặc biệt.'));
+  const specialTypes = (r: Row) => rows(r.dailyRates).map(x => obj(x.roomType));
+  const saveSpecial = (r?: Row) => {
+    const assigned = r ? specialTypes(r) : [];
+    const fields = [
+      field('name', 'Rate name', 'Tên đợt giá', { maxLength: 120, initial: str(r?.name) }),
+      field('roomTypeCode', 'Room type', 'Hạng phòng', { kind: 'select', choices: [{ value: '*', label: L(r ? 'Keep current group / all assigned rooms' : 'All room types', r ? 'Giữ nhóm hạng phòng hiện tại' : 'Tất cả hạng phòng') }, ...typeChoices(types, o.vi)], initial: r ? assigned.length === 1 ? rcode(assigned[0]) : '*' : '' }),
+      field('startDate', 'Start date', 'Từ ngày', { kind: 'date', minDate: today(), initial: r ? date(r.startDate) : today() }),
+      field('endDate', 'End date (inclusive)', 'Đến ngày (bao gồm)', { kind: 'date', minDate: today(), initial: r ? date(r.endDate) : today() }),
+      { ...amountField, initial: r ? num(r.amountVnd) : undefined }
+    ];
+    o.open({ title: r ? L('Edit special rate', 'Sửa giá đặc biệt') : L('Create special rate', 'Tạo giá đặc biệt'), fields, inclusiveEnd: true, pricingPreview: true, detail: L('Set a nightly price for every selected date. Special rates replace base and weekend prices.', 'Đặt giá mỗi đêm cho toàn bộ khoảng ngày. Giá đặc biệt thay thế giá cơ bản và cuối tuần.'), run: v => o.api(r ? `/admin/pricing/special-rates/${pathId(r.id)}` : '/admin/pricing/special-rates', { method: r ? 'PATCH' : 'POST', body: own(v, fields) }) });
+  };
+  const editPlan = (r: Row) => {
+    const flexible = r.code === 'FLEXIBLE';
+    const fields = [field('discountPercent', 'Room discount (%)', 'Giảm giá phòng (%)', { kind: 'number', min: 0, max: 99, initial: num(r.discountPercent) }), ...(flexible ? [field('freeCancellationHours', 'Free cancellation before check-in (hours)', 'Miễn phí hủy trước nhận phòng (giờ)', { kind: 'number', min: 0, max: 8760, required: false, initial: r.freeCancellationHours == null ? '' : num(r.freeCancellationHours) }), field('lateFee', 'Late cancellation fee', 'Phí hủy muộn', { kind: 'select', choices: feeOptions, initial: str(r.lateFee) }), field('noShowFee', 'No-show fee', 'Phí không đến', { kind: 'select', choices: feeOptions, initial: str(r.noShowFee) })] : [field('active', 'Active', 'Hoạt động', { kind: 'check', required: false, initial: Boolean(r.active) })])];
+    o.action(L('Edit rate plan', 'Sửa gói giá'), `/admin/pricing/rate-plans/${pathId(r.code)}`, 'PATCH', fields, v => ({ discountPercent: Number(v.discountPercent), freeCancellationHours: flexible && v.freeCancellationHours !== '' ? Number(v.freeCancellationHours) : null, lateFee: flexible ? v.lateFee : 'FULL', noShowFee: flexible ? v.noShowFee : 'FULL', active: flexible || Boolean(v.active) }), L('Changes apply to new bookings only. Leave cancellation hours blank to disable the free-cancellation window.', 'Chỉ áp dụng cho đặt phòng mới. Để trống số giờ nếu không có thời hạn miễn phí hủy.'));
+  };
+  const dayRate = (r: Row) => {
+    const room = str(obj(r.roomType).code);
+    o.action(L('Edit daily rate', 'Sửa giá theo ngày'), `/admin/pricing/room-types/${pathId(room)}/daily-rates`, 'POST', [{ ...amountField, initial: num(r.amountVnd) }], v => ({ date: date(r.date), amountVnd: Number(v.amountVnd) }), L(`Update the nightly price for ${displayDate(r.date)}.`, `Cập nhật giá đêm ${displayDate(r.date)}.`));
+  };
+  const shiftMonth = (delta: number) => {
+    const value = new Date(`${month}-01T00:00:00Z`);
+    value.setUTCMonth(value.getUTCMonth() + delta);
+    setMonth(value.toISOString().slice(0, 7));
+  };
+  const calendarDays = rows(calendar.data);
+  const firstDay = (new Date(`${month}-01T00:00:00Z`).getUTCDay() + 6) % 7;
+  return <Frame path="/pricing" reload={reload}>
+    <div className="compact-tabs" aria-label={o.t(L('Pricing sections', 'Các mục giá'))}>
+      {[['base', 'Base rates', 'Giá cơ bản'], ['special', 'Special rates', 'Giá đặc biệt'], ['plans', 'Rate plans', 'Gói giá'], ['calendar', 'Rate calendar', 'Lịch giá']].map(([key, en, vi]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{o.t(L(en, vi))}</button>)}
+    </div>
     <DataState {...d}>
-      <Card title={o.t(L('Base rates', 'Giá cơ bản'))}>
-        <Table data={types} columns={[
-          col('code', 'Code', 'Mã'),
-          col('name', 'Room type', 'Hạng phòng', r => roomName(r, o.vi)),
-          cashCol('baseRateVnd', 'Rate / night', 'Giá / đêm'),
-          col('actions', 'Actions', 'Thao tác', r => <RowActions>
-            <Act label={L('Base rate', 'Giá cơ bản')} onClick={() => o.action(L('Set base rate', 'Đặt giá cơ bản'), `/admin/pricing/room-types/${pathId(r.code)}/base-rate`, 'PUT', [{ ...amountField, initial: num(r.baseRateVnd) }])} />
-            <Act label={L('Daily rate', 'Giá theo ngày')} onClick={() => o.action(L('Set daily rate', 'Đặt giá theo ngày'), `/admin/pricing/room-types/${pathId(r.code)}/daily-rates`, 'POST', [field('date', 'Date', 'Ngày', { kind: 'date', initial: today() }), { ...amountField, initial: num(r.baseRateVnd) }])} />
-          </RowActions>)
-        ]} />
-      </Card>
-      <Card title={o.t(L('Daily overrides', 'Giá theo ngày'))}>
-        <Table data={rows(d.data?.dailyRates)} columns={[col('roomType', 'Room type', 'Hạng phòng', r => str(obj(r.roomType).code)), dateCol('date', 'Date', 'Ngày'), cashCol('amountVnd', 'Rate', 'Giá')]} />
-      </Card>
-      <Card title={o.t(L('Rate policies', 'Chính sách giá'))}>
-        <p>
-          {o.t(L('Flexible: free cancellation until 48 hours before 14:00 hotel-local check-in; then one night. Non-refundable: 10% lower rate, full room obligation on cancellation.', 'Linh hoạt: miễn phí hủy đến 48 giờ trước 14:00 ngày nhận phòng; sau đó tính một đêm. Không hoàn tiền: giảm 10% giá phòng, tính toàn bộ tiền phòng khi hủy.'))}
-        </p>
-      </Card>
-    </DataState>
-    {o.dialog}
+      {tab === 'base' && <>
+        <Card title={o.t(L('Weekend pricing', 'Giá cuối tuần'))} action={<Act label={L('Edit settings', 'Chỉnh sửa')} onClick={editWeekend} />}>
+          <div className="pricing-summary"><div><span>{o.t(L('Applicable days', 'Ngày áp dụng'))}</span><strong>{o.t(L('Saturday · Sunday', 'Thứ Bảy · Chủ nhật'))}</strong></div><div><span>{o.t(L('Surcharge / night', 'Phụ thu / đêm'))}</span><strong><Cash value={weekend.surchargeVnd} /></strong></div><div><span>{o.t(L('Status', 'Trạng thái'))}</span><strong>{o.t(weekend.enabled ? L('Enabled', 'Đang áp dụng') : L('Disabled', 'Đã tắt'))}</strong></div></div>
+          <p className="pricing-note">{o.t(L('Special rates override both base rates and weekend surcharges.', 'Giá đặc biệt ưu tiên hơn giá cơ bản và phụ thu cuối tuần.'))}</p>
+        </Card>
+        <Card title={o.t(L('Room base rates', 'Giá cơ bản từng hạng phòng'))}><Table data={types} columns={[
+          col('code', 'Code', 'Mã'), col('name', 'Room type', 'Hạng phòng', r => roomName(r, o.vi)), cashCol('baseRateVnd', 'Weekday / night', 'Ngày thường / đêm'), col('weekend', 'Weekend / night', 'Cuối tuần / đêm', r => <Cash value={num(r.baseRateVnd) + (weekend.enabled ? num(weekend.surchargeVnd) : 0)} />), col('actions', 'Actions', 'Thao tác', r => <Act label={L('Edit', 'Chỉnh sửa')} onClick={() => o.action(L('Set base rate', 'Đặt giá cơ bản'), `/admin/pricing/room-types/${pathId(r.code)}/base-rate`, 'PUT', [{ ...amountField, initial: num(r.baseRateVnd) }], undefined, L('Update the future base price without changing existing reservations.', 'Cập nhật giá cơ bản, không đổi giá booking đã tạo.'))} />)
+        ]} /></Card>
+      </>}
+      {tab === 'special' && <>
+        <Card title={o.t(L('Special rate periods', 'Đợt giá đặc biệt'))} action={<Button icon="plus" disabled={!types.length} onClick={() => saveSpecial()}>{o.t(L('Add special rate', 'Thêm giá đặc biệt'))}</Button>}>
+          <div className="table-toolbar"><SearchBox value={search} onChange={setSearch} placeholder={o.t(L('Search special rates', 'Tìm đợt giá'))} /><NativeSelect value={filterType} choices={[{ value: '', label: o.t(L('All room types', 'Tất cả hạng phòng')) }, ...typeChoices(types, o.vi)]} onChange={e => setFilterType(e.target.value)} /></div>
+          <Table data={special.filter(r => str(r.name).toLowerCase().includes(search.toLowerCase()) && (!filterType || specialTypes(r).some(t => t.code === filterType)))} columns={[col('name', 'Rate name', 'Tên đợt giá'), col('rooms', 'Room types', 'Hạng phòng', r => specialTypes(r).map(t => roomName(t, o.vi)).join(', ')), dateCol('startDate', 'Start', 'Bắt đầu'), dateCol('endDate', 'End (inclusive)', 'Kết thúc'), cashCol('amountVnd', 'Price / night', 'Giá / đêm'), col('actions', 'Actions', 'Thao tác', r => date(r.startDate) >= today() ? <RowActions><Act label={L('Edit', 'Sửa')} onClick={() => saveSpecial(r)} /><Act danger label={L('Delete', 'Xóa')} onClick={() => o.open(createDeleteAction({ title: L('Delete special rate', 'Xóa giá đặc biệt'), target: str(r.name), run: () => o.api(`/admin/pricing/special-rates/${pathId(r.id)}`, { method: 'DELETE' }) }))} /></RowActions> : '—')]} />
+        </Card>
+        <Card title={o.t(L('Existing daily overrides', 'Giá theo ngày đã thiết lập'))}>
+          <Table data={rows(d.data?.dailyRates)} columns={[col('roomType', 'Room type', 'Hạng phòng', r => str(obj(r.roomType).code)), dateCol('date', 'Date', 'Ngày'), cashCol('amountVnd', 'Rate', 'Giá'), col('actions', 'Actions', 'Thao tác', r => date(r.date) >= today() ? <RowActions><Act label={L('Edit', 'Sửa')} onClick={() => dayRate(r)} /><Act danger label={L('Delete', 'Xóa')} onClick={() => o.open(createDeleteAction({ title: L('Delete daily rate', 'Xóa giá theo ngày'), target: displayDate(r.date), run: () => o.api(`/admin/pricing/room-types/${pathId(obj(r.roomType).code)}/daily-rates/${pathId(date(r.date))}`, { method: 'DELETE' }) }))} /></RowActions> : '—')]} />
+        </Card>
+      </>}
+      {tab === 'plans' && <div className="pricing-plan-grid">{rows(d.data?.plans).map(r => <Card key={rcode(r)} title={o.t(L(r.code === 'FLEXIBLE' ? 'Flexible' : 'Non-refundable', r.code === 'FLEXIBLE' ? 'Linh hoạt' : 'Không hoàn tiền'))} action={<Act label={L('Edit policy', 'Sửa chính sách')} onClick={() => editPlan(r)} />}>
+        <div className="pricing-plan-discount">{num(r.discountPercent)}%</div><p className="pricing-note">{o.t(L('Room rate discount', 'Giảm giá phòng'))}</p>
+        <div className="pricing-policy-list"><div><span>{o.t(L('Free cancellation', 'Miễn phí hủy'))}</span><strong>{r.freeCancellationHours == null ? o.t(L('Not available', 'Không áp dụng')) : `${r.freeCancellationHours} ${o.t(L('hours before check-in', 'giờ trước nhận phòng'))}`}</strong></div><div><span>{o.t(L('Late cancellation', 'Hủy muộn'))}</span><strong>{feeLabel(r.lateFee)}</strong></div><div><span>{o.t(L('No-show fee', 'Phí không đến'))}</span><strong>{feeLabel(r.noShowFee)}</strong></div><div><span>{o.t(L('Status', 'Trạng thái'))}</span><strong>{o.t(r.active ? L('Active', 'Hoạt động') : L('Inactive', 'Đã tắt'))}</strong></div></div>
+      </Card>)}</div>}
+      {tab === 'calendar' && <Card title={o.t(L('Rate calendar', 'Lịch giá'))}>
+        <div className="pricing-calendar-toolbar"><div className="live-actions"><Button variant="secondary" onClick={() => shiftMonth(-1)}>←</Button><strong>{month.split('-').reverse().join('/')}</strong><Button variant="secondary" onClick={() => shiftMonth(1)}>→</Button></div><NativeSelect value={code} choices={typeChoices(types, o.vi)} onChange={e => setSelectedType(e.target.value)} /></div>
+        <p className="pricing-note">{o.t(L('Flexible nightly price preview, not historical booking revenue.', 'Xem trước giá Linh hoạt mỗi đêm, không phải doanh thu booking lịch sử.'))}</p>
+        <div className="pricing-legend">{[['BASE', 'Base', 'Cơ bản'], ['WEEKEND', 'Weekend', 'Cuối tuần'], ['SPECIAL', 'Special', 'Đặc biệt']].map(([key, en, vi]) => <span key={key} className={`pricing-cell-${key.toLowerCase()}`}>{o.t(L(en, vi))}</span>)}</div>
+        {code ? <DataState {...calendar}><div className="pricing-calendar-scroll"><div className="pricing-calendar">
+          {(o.vi ? ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'] : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']).map(day => <span key={day} className="pricing-weekday">{day}</span>)}
+          {Array.from({ length: firstDay }, (_, i) => <div key={`empty-${i}`} />)}
+          {calendarDays.map(r => <button type="button" className={`pricing-day pricing-cell-${str(r.source).toLowerCase()}`} key={str(r.date)} onClick={() => setCalendarDetail(r)}><span>{date(r.date).slice(-2)}</span><strong><Cash value={r.flexibleVnd} /></strong></button>)}
+        </div></div></DataState> : <p>{o.t(L('No room types.', 'Chưa có hạng phòng.'))}</p>}
+      </Card>}
+    </DataState>{o.dialog}
+    {calendarDetail && <Modal title={o.t(L('Nightly rate', 'Giá mỗi đêm'))} onClose={() => setCalendarDetail(null)} footer={<Button onClick={() => setCalendarDetail(null)}>{o.t(L('Close', 'Đóng'))}</Button>}>
+      <div className="pricing-policy-list"><p className="action-description">{displayDate(calendarDetail.date)} · {roomName(types.find(r => rcode(r) === code) ?? {}, o.vi)}</p>
+        {[[L('Base rate', 'Giá cơ bản'), 'baseRateVnd'], [L('Weekend surcharge (if no special rate)', 'Phụ thu cuối tuần (nếu không có giá đặc biệt)'), 'weekendSurchargeVnd'], [L('Special rate', 'Giá đặc biệt'), 'specialRateVnd'], [L('Applied rate before discount', 'Giá áp dụng trước giảm'), 'amountVnd'], [L('Flexible', 'Linh hoạt'), 'flexibleVnd'], [L('Non-refundable', 'Không hoàn tiền'), 'nonRefundableVnd']].map(([label, key]) => <div key={String(key)}><span>{o.t(label as Localized)}</span><strong>{calendarDetail[String(key)] == null ? '—' : <Cash value={calendarDetail[String(key)]} />}</strong></div>)}
+        {str(calendarDetail.name) && <p className="pricing-note">{str(calendarDetail.name)}</p>}</div>
+    </Modal>}
   </Frame>;
 }
 const bookingCols = [
@@ -273,6 +338,7 @@ const bookingCols = [
 function Reservations() {
   const d = useData<Row[]>('/admin/reservations');
   const types = useData<Row[]>('/rooms');
+  const plans = useData<Row[]>('/rate-plans');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [detail, setDetail] = useState('');
@@ -290,13 +356,13 @@ function Reservations() {
     field('guestPhone', 'Phone', 'Điện thoại', { required: false, maxLength: 32 }),
     ...dateFields(),
     field('specialRequests', 'Special requests', 'Yêu cầu đặc biệt', { required: false, kind: 'textarea', maxLength: 500 }),
-    field('ratePlan', 'Rate plan', 'Gói giá', { kind: 'select', initial: 'FLEXIBLE', choices: options(['FLEXIBLE', 'NON_REFUNDABLE']) }),
+    field('ratePlan', 'Rate plan', 'Gói giá', { kind: 'select', initial: 'FLEXIBLE', choices: options(rows(plans.data).map(r => rcode(r))) }),
     field('guaranteeMode', 'Reservation mode', 'Hình thức đặt', { kind: 'select', initial: 'PAY_AT_HOTEL', choices: [{ value: 'PAY_AT_HOTEL', label: L('Confirmed – pay at hotel', 'Xác nhận – trả tại khách sạn') }, { value: 'HOLD', label: L('15-minute hold', 'Giữ chỗ 15 phút') }] }),
     field('promotionCode', 'Promotion code', 'Mã ưu đãi', { required: false }),
     field('acceptedTerms', 'Guest agreed to the booking terms', 'Khách đã đồng ý điều khoản', { kind: 'check' })
   ];
   const create = () => o.open({
-    title: L('Create reservation', 'Tạo đặt phòng'), fields: createFields, run: async (v, id) => {
+    title: L('Create reservation', 'Tạo đặt phòng'), fields: createFields, detail: L('Create a reservation using current room availability and rate policies. Confirm the selected terms with the guest.', 'Tạo đặt phòng theo tồn phòng và gói giá hiện tại. Xác nhận điều khoản đã chọn với khách.'), run: async (v, id) => {
       const payload = own(v, createFields);
       if (payload.promotionCode)
         payload.promotionCode = str(payload.promotionCode).trim().toUpperCase();
@@ -308,7 +374,7 @@ function Reservations() {
     {r.status === 'PENDING' && <Act label={L('Confirm hold', 'Xác nhận giữ chỗ')} onClick={() => o.action(L('Confirm reservation', 'Xác nhận đặt phòng'), `/admin/reservations/${pathId(r.code)}/confirm`, 'POST', [], undefined, L('Confirm only after verifying the guarantee.', 'Chỉ xác nhận sau khi kiểm tra bảo đảm.'))} />}
     {['PENDING', 'CONFIRMED'].includes(str(r.status)) && <Act danger label={L('Cancel', 'Hủy')} onClick={() => o.action(L('Cancel reservation', 'Hủy đặt phòng'), `/admin/reservations/${pathId(r.code)}/cancel`, 'POST', [reason], undefined, L('Cancellation fees are calculated by the server. Refunds are separate.', 'Phí hủy do máy chủ tính. Hoàn tiền là giao dịch riêng.'), true)} />}
   </RowActions>;
-  return <Frame path="/reservations" reload={d.reload} action={<Button icon="plus" disabled={!types.data?.length} onClick={create}>
+  return <Frame path="/reservations" reload={d.reload} action={<Button icon="plus" disabled={!types.data?.length || !plans.data?.length} onClick={create}>
     {o.t(L('New reservation', 'Tạo đặt phòng'))}
   </Button>}>
     <DataState {...d}>
@@ -367,10 +433,10 @@ function FrontDesk() {
         {[['arrivals', 'Arrivals / overdue', 'Khách đến / quá hạn'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures / overdue', 'Khách đi / quá hạn']].map(([key, en, vi]) => <Metric key={key} label={o.t(L(en, vi))} value={rows(d.data?.[key]).length} icon="key" />)}
       </div>
       <Card>
-        <div className="table-toolbar">
-          {[['arrivals', 'Arrivals', 'Khách đến'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures', 'Khách đi']].map(([key, en, vi]) => <Button key={key} variant={tab === key ? 'primary' : 'secondary'} onClick={() => setTab(key)}>
+        <div className="compact-tabs front-desk-tabs">
+          {[['arrivals', 'Arrivals', 'Khách đến'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures', 'Khách đi']].map(([key, en, vi]) => <button type="button" key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>
             {o.t(L(en, vi))}
-          </Button>)}
+          </button>)}
         </div>
         <Table data={rows(d.data?.[tab])} columns={[...bookingCols, col('actions', 'Actions', 'Thao tác', act)]} />
       </Card>
@@ -469,7 +535,7 @@ function Housekeeping() {
           col('floor', 'Floor', 'Tầng'),
           statusCol('cleaningStatus', 'Status', 'Trạng thái'),
           col('actions', 'Actions', 'Thao tác', r => <RowActions>
-            {(r.cleaningStatus === 'DIRTY' ? ['CLEAN'] : r.cleaningStatus === 'CLEAN' ? ['DIRTY', 'INSPECTED'] : ['DIRTY']).map(s => <Act key={s} label={s === 'CLEAN' ? L('Mark clean', 'Đã dọn') : s === 'INSPECTED' ? L('Inspect', 'Đã kiểm tra') : L('Mark dirty', 'Cần dọn')} onClick={() => o.action(L('Update housekeeping', 'Cập nhật buồng phòng'), `/admin/housekeeping/rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ status: s }))} />)}
+            {(r.cleaningStatus === 'DIRTY' ? ['CLEAN'] : r.cleaningStatus === 'CLEAN' ? ['DIRTY', 'INSPECTED'] : ['DIRTY']).map(s => <Act key={s} label={s === 'CLEAN' ? L('Mark clean', 'Đã dọn') : s === 'INSPECTED' ? L('Inspect', 'Đã kiểm tra') : L('Mark dirty', 'Cần dọn')} onClick={() => o.action(L('Update housekeeping', 'Cập nhật buồng phòng'), `/admin/housekeeping/rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ status: s }), L(`Mark room ${str(r.number)} as ${s.toLowerCase()}?`, `Xác nhận phòng ${str(r.number)} ${s === 'CLEAN' ? 'đã dọn' : s === 'INSPECTED' ? 'đã kiểm tra' : 'cần dọn'}?`))} />)}
           </RowActions>)
         ]} />
       </Card>

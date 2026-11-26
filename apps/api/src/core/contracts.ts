@@ -279,6 +279,10 @@ export class BookingQuoteDto extends SearchDatesDto {
   extras?: BookingExtraDto[];
 }
 export class CustomerBookingDto extends SearchDatesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(/^[a-f0-9]{64}$/)
+  expectedRateKey?: string;
   @ApiPropertyOptional({ type: [BookingExtraDto] })
   @IsOptional()
   @IsArray()

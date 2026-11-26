@@ -90,7 +90,11 @@ export type BookingRecord = {
   lookupToken?: string;
   hasReview?: boolean;
 };
+export type RatePolicy = { code: string; discountPercent: number; freeCancellationHours: number | null; lateFee: string; noShowFee: string; active: boolean; };
 export type Quote = {
+  ratePolicy: RatePolicy;
+  rateLines: { date: string; amountVnd: number; }[];
+  rateKey: string;
   roomTotalVnd: number;
   discountVnd: number;
   extraTotalVnd: number;
@@ -198,14 +202,14 @@ type WishlistContextValue = {
   failed: boolean;
 };
 
-const WishlistContext = createContext<(WishlistContextValue & { ensure: () => void }) | null>(null);
+const WishlistContext = createContext<(WishlistContextValue & { ensure: () => void; }) | null>(null);
 
 // Deduplicate overlapping GETs (including React development Strict Mode).
-const pendingWishlist = new Map<string, Promise<{ codes: string[] }>>();
+const pendingWishlist = new Map<string, Promise<{ codes: string[]; }>>();
 function fetchWishlist(token: string) {
   const pending = pendingWishlist.get(token);
   if (pending) return pending;
-  const request = apiRequest<{ codes: string[] }>('/me/wishlist', {
+  const request = apiRequest<{ codes: string[]; }>('/me/wishlist', {
     token,
     notifications: 'none',
   }).then(({ data }) => data).finally(() => pendingWishlist.delete(token));
@@ -213,7 +217,7 @@ function fetchWishlist(token: string) {
   return request;
 }
 
-export function WishlistProvider({ children }: { children: ReactNode }) {
+export function WishlistProvider({ children }: { children: ReactNode; }) {
   const [token, setToken] = useState<string | undefined>();
   const [guest, setGuest] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -282,7 +286,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     setBusyToken(token);
     try {
       // The existing PUT returns the complete updated wishlist; no follow-up GET is needed.
-      const { data } = await apiRequest<{ codes: string[] }>(`/me/wishlist/${encodeURIComponent(code)}`, {
+      const { data } = await apiRequest<{ codes: string[]; }>(`/me/wishlist/${encodeURIComponent(code)}`, {
         method: 'PUT',
         body: { saved: !codes.includes(code) },
         token,

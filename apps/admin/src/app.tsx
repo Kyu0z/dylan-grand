@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminShell, useAdminPath } from './components/shell';
 import { Button, Card, Icon, Metric, PageHeader } from './components/ui';
 import { AdminAuthProvider, canAccess, useAdminAuth } from './lib/admin-auth';
-import { L, nav } from './lib/domain';
+import { L, nav, formatDate } from './lib/domain';
 import { LocaleProvider, useLocale } from './lib/locale';
 import { AuthPage, publicPaths } from './pages/auth';
 import { StaffPage } from './pages/staff';
@@ -36,7 +36,7 @@ function Dashboard() {
   return <div className="page-stack">
     <PageHeader
       title={t(L('Overview', 'Tổng quan'))}
-      description={data?.date}
+      description={data ? formatDate(data.date, 'en') : undefined}
       action={<Button variant="secondary" onClick={() => setAttempt(x => x + 1)}>
         {t(L('Refresh', 'Tải lại'))}
       </Button>}

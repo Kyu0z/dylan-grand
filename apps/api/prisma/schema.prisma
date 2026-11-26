@@ -64,6 +64,8 @@ model HotelSettings {
   address       String?  @db.VarChar(300)
   descriptionEn String?  @db.VarChar(2000)
   descriptionVi String?  @db.VarChar(2000)
+  weekendEnabled      Boolean @default(true)
+  weekendSurchargeVnd Int     @default(1000000)
   checkInTime   String   @default("14:00") @db.VarChar(5)
   checkOutTime  String   @default("12:00") @db.VarChar(5)
   updatedAt     DateTime @updatedAt
@@ -144,8 +146,29 @@ model DailyRate {
   roomTypeId String
   roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Restrict)
   date       DateTime @db.Date
+  periodId   String?
+  period     SpecialRatePeriod? @relation(fields: [periodId], references: [id], onDelete: Restrict)
   amountVnd  Int
   @@unique([roomTypeId, date])
+  @@index([periodId])
+}
+
+model SpecialRatePeriod {
+  id         String      @id @default(cuid())
+  name       String      @db.VarChar(120)
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  amountVnd  Int
+  dailyRates DailyRate[]
+}
+
+model RatePlanPolicy {
+  code                  RatePlan @id
+  discountPercent       Int
+  freeCancellationHours Int?
+  lateFee               String   @db.VarChar(20)
+  noShowFee             String   @db.VarChar(20)
+  active                Boolean  @default(true)
 }
 
 model MaintenanceBlock {
@@ -189,6 +212,7 @@ model Booking {
   cancelFeeVnd     Int             @default(0)
   promoCode        String?         @db.VarChar(32)
   rateSnapshot     Json
+  ratePolicySnapshot Json?
   checkedInAt      DateTime?
   checkedOutAt     DateTime?
   payments         PaymentTransaction[]

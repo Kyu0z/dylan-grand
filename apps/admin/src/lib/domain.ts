@@ -20,10 +20,10 @@ export const nav: NavEntry[] = [
 ];
 export const L = (en: string, vi: string): Localized => ({ en, vi });
 export const formatMoney = (value: number, lang: Language) => new Intl.NumberFormat(lang === 'vi' ? 'vi-VN' : 'en-US', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
-export const formatDate = (date: string, lang: Language) => {
+export const formatDate = (date: string, _lang: Language) => {
   if (!date) return '—';
   const parsed = new Date(`${date.slice(0, 10)}T12:00:00`);
-  return Number.isNaN(parsed.valueOf()) ? date : new Intl.DateTimeFormat(lang === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
+  return Number.isNaN(parsed.valueOf()) ? '—' : date.slice(0, 10).split('-').reverse().join('/');
 };
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 

@@ -37,7 +37,7 @@ type DateFieldProps = BaseControlProps & {
   required?: boolean;
 };
 
-function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'left' | 'right' }) {
+function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'left' | 'right'; }) {
   const transform = direction === 'left' ? 'rotate(90 12 12)' : direction === 'right' ? 'rotate(-90 12 12)' : undefined;
 
   return (
@@ -241,7 +241,7 @@ export function DateField({
 
   const monthTitle = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' }).format(visibleMonth);
   const selectedLabel = value
-    ? new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(fromISO(value))
+    ? value.split('-').reverse().join('/')
     : 'Select date';
 
   const days = useMemo(() => {

@@ -12,6 +12,7 @@ export const rows = (v: unknown): Row[] => Array.isArray(v) ? v.map(obj) : [];
 export const str = (v: unknown): string => typeof v === 'string' || typeof v === 'number' ? String(v) : '';
 export const num = (v: unknown): number => typeof v === 'number' ? v : Number(v || 0);
 export const date = (v: unknown) => str(v).slice(0, 10);
+export const displayDate = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(date(v)) ? date(v).split('-').reverse().join('/') : '—';
 export const pathId = (v: unknown) => encodeURIComponent(str(v));
 export const today = () => hotelNow().slice(0, 10);
 export function plusDays(d: string, n: number) {
@@ -135,6 +136,7 @@ export type Field = {
   initial?: string | number | boolean;
   required?: boolean;
   min?: number;
+  minDate?: string;
   max?: number;
   maxLength?: number;
   choices?: {
@@ -150,6 +152,8 @@ export type Action = {
   fields: Field[];
   run: (v: Values, requestId: string) => Promise<unknown>;
   detail?: Localized;
+  inclusiveEnd?: boolean;
+  pricingPreview?: boolean;
   deleteTarget?: Localized | string;
   danger?: boolean;
   confirmLabel?: Localized;
@@ -214,10 +218,14 @@ function ActionDialog({ action, onClose, onDone }: {
       }
     }
     for (const [start, end] of [['startDate', 'endDate'], ['checkIn', 'checkOut'], ['startsAt', 'endsAt']]) {
-      if (values[start] && values[end] && str(values[end]) <= str(values[start])) {
+      if (values[start] && values[end] && (action.inclusiveEnd && start === 'startDate' ? str(values[end]) < str(values[start]) : str(values[end]) <= str(values[start]))) {
         notify(t(L('The end date and time must be after the start.', 'Ngày giờ kết thúc phải sau ngày giờ bắt đầu.')), true);
         return;
       }
+    }
+    if (action.pricingPreview && (str(values.startDate) < today() || (Date.parse(str(values.endDate)) - Date.parse(str(values.startDate))) / 86400000 >= 366)) {
+      notify(t(L('Select 1–366 days from today onwards.', 'Chọn từ 1–366 ngày, bắt đầu từ hôm nay.')), true);
+      return;
     }
     const payload = JSON.stringify(values);
     if (lastPayload.current !== payload) {
@@ -298,7 +306,7 @@ function ActionDialog({ action, onClose, onDone }: {
     return (f.kind === 'images' || f.kind === 'service-image') ? (<ImageUpload multiple={f.kind === 'images'} key={f.key} label={label} images={str(value).split('\n').filter(Boolean)} busy={busy} onFiles={files => upload(f.key, files)} onImagesChange={images => change(f.key, images.join('\n'))} onInvalid={message => notify(message, true)} />) : f.kind === 'check' ? <label className="live-check" key={f.key}>
       <input type="checkbox" checked={Boolean(value)} onChange={e => change(f.key, e.target.checked)} />
       {label}
-    </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={dateMinimum ?? f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
+    </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={dateMinimum ?? f.minDate ?? f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
   };
   const pairs: Record<string, string> = { startDate: 'endDate', checkIn: 'checkOut', startsAt: 'endsAt' };
   const renderedFields: ReactNode[] = [];
@@ -306,22 +314,23 @@ function ActionDialog({ action, onClose, onDone }: {
     const f = action.fields[i];
     const next = action.fields[i + 1];
     if (next && pairs[f.key] === next.key && f.kind === next.kind && (f.kind === 'date' || f.kind === 'datetime-local')) {
-      renderedFields.push(<div key={f.key} className="picker-pair"><div className="picker-pair-grid">{renderField(f)}{renderField(next, nextPickerValue(str(values[f.key]), f.kind === 'datetime-local'))}</div></div>);
+      renderedFields.push(<div key={f.key} className="picker-pair"><div className="picker-pair-grid">{renderField(f)}{renderField(next, action.inclusiveEnd && f.key === 'startDate' ? str(values[f.key]) : nextPickerValue(str(values[f.key]), f.kind === 'datetime-local'))}</div></div>);
       i++;
     }
     else
       renderedFields.push(renderField(f));
   }
-  return <Modal title={t(action.title)} width={action.confirmLabel ? "md" : "lg"} onClose={() => {
+  return <Modal title={t(action.title)} width={action.confirmLabel || action.fields.length === 0 ? "md" : "lg"} onClose={() => {
     if (!lock.current)
       onClose();
   }}>
     <form className="live-form" onSubmit={submit}>
       {action.deleteTarget !== undefined && <DeleteConfirmation target={action.deleteTarget} />}
-      {action.detail && <p>
-        {t(action.detail)}
+      {action.deleteTarget === undefined && (action.detail || action.fields.length === 0) && <p className="action-description">
+        {t(action.detail ?? L(`Confirm: ${action.title.en.toLowerCase()}.`, `Xác nhận: ${action.title.vi.toLowerCase()}.`))}
       </p>}
       {renderedFields}
+      {action.pricingPreview && <div className="pricing-preview"><strong>{t(L('Rate preview', 'Xem trước giá'))}</strong><span>{t(L('Applicable days', 'Số ngày áp dụng'))}: {Math.max(0, Math.floor((Date.parse(str(values.endDate)) - Date.parse(str(values.startDate))) / 86400000) + 1) || 0}</span><span>{t(L('Nightly rate', 'Giá mỗi đêm'))}: <Cash value={values.amountVnd} /></span></div>}
       <div className="live-actions">
         <Button type="button" variant="secondary" disabled={busy || generating} onClick={onClose}>
           {t(L('Cancel', 'Hủy'))}

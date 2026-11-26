@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useI18n } from '@/components/language-provider';
 import { SelectField } from '@/components/form-controls';
 import { Photo, PageIntro, Eyebrow, SectionTitle, Arrow } from '@/components/ui';
-import { photos, money, prettyDate } from '@/lib/data';
+import { photos, money, prettyDate, dayISO } from '@/lib/data';
 import { apiRequest } from '@/lib/api-client';
 import { useLiveData, useRooms, useWishlist, type Service, type Review } from '@/lib/live-data';
 export default function ExperiencesPage() {
@@ -110,7 +110,7 @@ export default function ExperiencesPage() {
               {r.comment}
             </p>
             <p className="text-xs text-muted mt-3">
-              {prettyDate(r.createdAt.slice(0, 10), locale)}
+              {prettyDate(dayISO(new Date(r.createdAt)), locale)}
             </p>
             {r.response && <div className="mt-4 border-t border-line pt-4">
               <strong>

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { BookingService } = require('../dist/core/booking.service.js');
 const { HotelService } = require('../dist/core/hotel.service.js');
 const { FinanceService } = require('../dist/core/finance.service.js');
+const { defaultPolicy, policyFingerprint } = require('../dist/core/pricing-rules.js');
 const { hotelToday, day, sha } = require('../dist/core/util.js');
 
 function offset(n) {
@@ -17,7 +18,7 @@ function quoteFixture(overrides = {}) {
     promotion: { findUnique: async () => ({ id: 'p1', isActive: true, usageCount: 0, usageLimit: 10, startsAt: new Date(Date.now() - 60000), endsAt: new Date(Date.now() + 60000), discountPercent: 10, ...overrides.promo }) },
     ...overrides.db,
   };
-  const hotel = { freeRooms: async () => overrides.free ?? [{ id: 'r1' }], quote: async () => ({ totalVnd: 2000000, lines: [{ date: offset(1), amountVnd: 1000000 }, { date: offset(2), amountVnd: 1000000 }] }) };
+  const hotel = { freeRooms: async () => overrides.free ?? [{ id: 'r1' }], quote: async () => ({ policy: defaultPolicy('FLEXIBLE'), totalVnd: 2000000, lines: [{ date: offset(1), amountVnd: 1000000 }, { date: offset(2), amountVnd: 1000000 }] }) };
   const service = new BookingService(db, hotel);
   const dto = { roomTypeCode: 'deluxe', checkIn: offset(1), checkOut: offset(3), adults: 2, children: 1, ratePlan: 'FLEXIBLE', promotionCode: 'WELCOME10', extras: [{ serviceCode: 'BREAKFAST', quantity: 2 }] };
   return { db, hotel, service, dto };
@@ -25,7 +26,9 @@ function quoteFixture(overrides = {}) {
 
 test('server quote calculates room, promotion and extra service totals', async () => {
   const { service, dto } = quoteFixture();
-  assert.deepEqual(await service.quoteBooking(dto), { roomTotalVnd: 2000000, discountVnd: 200000, extraTotalVnd: 200000, totalVnd: 2000000, nights: 2, availableRooms: 1 });
+  const policy = defaultPolicy('FLEXIBLE');
+  const lines = [{ date: offset(1), amountVnd: 1000000 }, { date: offset(2), amountVnd: 1000000 }];
+  assert.deepEqual(await service.quoteBooking(dto), { ratePolicy: policy, rateLines: lines, rateKey: sha(JSON.stringify([policyFingerprint(policy), lines])), roomTotalVnd: 2000000, discountVnd: 200000, extraTotalVnd: 200000, totalVnd: 2000000, nights: 2, availableRooms: 1 });
 });
 
 test('children count toward maximum room capacity', async () => {
@@ -64,6 +67,17 @@ test('changed quote is rejected before reservation or guest creation', async () 
   db.$queryRaw = async () => [];
   db.promotion.update = async () => {};
   await assert.rejects(service.create({ ...dto, guestName: 'Guest', guestEmail: 'guest@example.test', acceptedTerms: true, clientRequestId: 'test-request-001', expectedTotalVnd: 1 }), /Price changed/);
+  assert.equal(created, false);
+});
+
+test('changed nightly rates or policy are rejected even when expected total matches', async () => {
+  process.env.JWT_ACCESS_SECRET ||= 'test-only-secret-not-a-production-credential';
+  const { db, service, dto } = quoteFixture();
+  let created = false;
+  db.booking = { findUnique: async () => null, create: async () => { created = true; } };
+  db.$transaction = async fn => fn(db);
+  db.$queryRaw = async () => [];
+  await assert.rejects(service.create({ ...dto, guestName: 'Guest', guestEmail: 'guest@example.test', acceptedTerms: true, clientRequestId: 'test-request-002', expectedTotalVnd: 2000000, expectedRateKey: '0'.repeat(64) }), /Rates or rate policy changed/);
   assert.equal(created, false);
 });
 
