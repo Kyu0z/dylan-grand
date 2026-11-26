@@ -5,55 +5,41 @@ import { DateField, SelectField } from '@/components/form-controls';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { photos, rooms, addDays, dayISO } from '@/lib/data';
+import { photos, roomArtwork, addDays, dayISO } from '@/lib/data';
+import { useRooms, useLiveData, type Hotel } from '@/lib/live-data';
 import { saveStay } from '@/lib/storage';
 import { Arrow, Eyebrow, Photo, RoomShowcase, SectionTitle } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 
 const collectionPhotos = [
   {
-    src: photos.hero,
+    src: photos.facade,
     alt: 'English boutique hotel exterior',
-    className: 'aspect-[4/5] lg:col-span-5 lg:row-span-2 lg:h-full'
+    className: 'aspect-[4/3] md:col-span-2 md:row-span-2 md:aspect-auto md:h-full'
   },
   {
-    src: photos.lobby,
+    src: photos.interior,
     alt: 'Refined hotel lounge',
-    className: 'aspect-[16/10] sm:col-span-2'
+    className: 'aspect-[4/3]'
   },
   {
-    src: rooms[1].images[0],
+    src: roomArtwork[1].images[0],
     alt: 'Garden-facing guest room',
-    className: 'aspect-[4/5]'
+    className: 'aspect-[4/3]'
   },
   {
-    src: photos.dining,
+    src: photos.editorialDining,
     alt: 'Elegant breakfast room',
-    className: 'aspect-[4/5]'
-  }
+    className: 'aspect-[4/3]'
+  },
+  { src: photos.garden, alt: 'Hotel garden', className: 'aspect-[4/3]' }
 ];
 
 const amenities: { icon: IconName; title: string; copy: string }[] = [
-  {
-    icon: 'sparkle',
-    title: 'Attentive Service',
-    copy: 'Warm, intuitive hosting and thoughtful touches that make every arrival feel personal.'
-  },
-  {
-    icon: 'dining',
-    title: 'Seasonal Dining',
-    copy: 'Slow breakfasts, elegant suppers and a quietly sociable setting from morning through evening.'
-  },
-  {
-    icon: 'wellness',
-    title: 'Wellness & Spa',
-    copy: 'Restorative treatments and calm interiors designed to help you settle into a gentler rhythm.'
-  },
-  {
-    icon: 'pool',
-    title: 'Outdoor Pool Terrace',
-    copy: 'An unhurried space for sunlit afternoons, evening swims and beautifully easy downtime.'
-  }
+  { icon: 'pool', title: 'Rooftop Pool', copy: 'A pause above the rhythm of the city, from golden hour to twilight.' },
+  { icon: 'dining', title: 'Thoughtful Dining', copy: 'Seasonal flavours and intimate spaces to savour every moment.' },
+  { icon: 'wellness', title: 'Wellness Rituals', copy: 'Restore your rhythm with considered therapies and tranquil surroundings.' },
+  { icon: 'bed', title: 'Seamless Comfort', copy: 'Thoughtful essentials for moments of discovery and days of rest.' }
 ];
 
 const journalEntries = [
@@ -73,7 +59,7 @@ const journalEntries = [
     img: photos.coast,
     tag: 'DAY EXCURSIONS',
     name: 'Where to wander beyond the hotel',
-    copy: 'From coastal viewpoints to heritage towns, discover a softer side of England close by.'
+    copy: 'From peaceful gardens to heritage towns, discover a gentler side of England.'
   }
 ];
 
@@ -86,7 +72,7 @@ const faqs = [
   {
     question: 'Do you provide parking or private transfers?',
     answer:
-      'Complimentary on-site parking is available for staying guests, and private transfer arrangements can be requested before arrival.'
+      'Please contact the hotel before arrival to confirm parking availability or request private transfer arrangements.'
   },
   {
     question: 'Can you help with dining reservations and local experiences?',
@@ -101,7 +87,9 @@ const faqs = [
 ];
 
 export default function HomePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { rooms, loading, failed, reload } = useRooms();
+  const hotel = useLiveData<Hotel>('/hotel');
   const router = useRouter();
   const [checkin, setCheckin] = useState(addDays(dayISO(), 14));
   const [checkout, setCheckout] = useState(addDays(dayISO(), 17));
@@ -115,14 +103,14 @@ export default function HomePage() {
       setError('Check-out must be after check-in.');
       return;
     }
-    saveStay({ checkin, checkout, adults });
+    saveStay({ checkin, checkout, adults, count: 1, children: 0 });
     router.push('/availability');
   };
 
   return (
     <>
       <section className="grid min-h-[680px] lg:grid-cols-[44%_56%] 2xl:min-h-[760px]">
-        <div className="flex flex-col justify-center bg-surface-2 px-7 py-18 text-ink sm:px-14 lg:px-[max(7vw,72px)] 2xl:px-[max(8vw,112px)]">
+        <div className="flex flex-col justify-center min-w-0 bg-forest px-7 py-18 text-surface sm:px-14 lg:px-[clamp(3rem,5vw,7rem)]">
           <Eyebrow>
             <T>{'A BOUTIQUE ESCAPE IN SOUTHERN ENGLAND'}</T>
           </Eyebrow>
@@ -135,17 +123,17 @@ export default function HomePage() {
             <br />
             <T>{'home.'}</T>
           </h1>
-          <p className="hero-copy mt-8 max-w-[32rem] animate-in animate-delay text-pretty">
+          <p className="mt-8 max-w-[32rem] text-sm leading-8 text-surface/75 animate-in animate-delay text-pretty">
             <T>{'Graceful interiors, restful mornings and a quietly personal welcome. A slower, more considered rhythm for your stay in England.'}</T>
           </p>
-          <Link href="/rooms" className="line-link mt-12 w-fit text-ink">
+          <Link href="/rooms" className="line-link mt-12 w-fit text-surface">
             <T>{'DISCOVER OUR ROOMS'}</T> <Arrow />
           </Link>
           <span className="mt-16 text-[10px] tracking-[.2em] text-gold uppercase">
             <T>{'01 / 04 — THE DYLAN EXPERIENCE'}</T>
           </span>
         </div>
-        <Photo src={photos.hero} alt={t('Luxury hotel exterior with palm trees')} className="min-h-[440px] lg:min-h-[680px] 2xl:min-h-[760px]" priority />
+        <Photo src={photos.editorialHero} alt={t('Hotel architecture')} className="min-h-[440px] lg:min-h-[680px] 2xl:min-h-[760px]" priority />
       </section>
 
       <section className="relative z-10 -mt-3 bg-surface pb-8 pt-6">
@@ -190,7 +178,7 @@ export default function HomePage() {
         </div>
         <div className="max-w-[540px]">
           <p className="body-copy text-[16px]">
-            <T>{'Dylan Grand Hotel is imagined as a quietly elegant retreat, where English charm, tactile interiors and contemporary comfort feel perfectly in step.'}</T>
+            {(locale === 'vi' ? hotel.data?.descriptionVi : hotel.data?.descriptionEn) || t('Dylan Grand Hotel is imagined as a quietly elegant retreat, where English charm, tactile interiors and contemporary comfort feel perfectly in step.')}
           </p>
           <p className="body-copy mt-5">
             <T>{'From leisurely breakfasts to softly lit evenings, every detail is composed to feel intuitive, restful and deeply personal.'}</T>
@@ -213,17 +201,25 @@ export default function HomePage() {
               </Link>
             }
           />
-          <RoomShowcase items={rooms} />
+          {loading ? (
+            <p className="body-copy" role="status">{t('Loading rooms…')}</p>
+          ) : failed ? (
+            <button type="button" className="btn-outline" onClick={reload}>{t('Unable to load rooms. Retry')}</button>
+          ) : rooms.length ? (
+            <RoomShowcase items={rooms} />
+          ) : (
+            <p className="body-copy">{t('No published rooms.')}</p>
+          )}
         </div>
       </section>
 
       <section className="grid min-h-[540px] lg:grid-cols-2">
-        <Photo src={photos.experience} alt={t('Relaxing hotel poolside setting')} className="min-h-[390px]" />
+        <Photo src={photos.editorialExperience} alt={t('Relaxing hotel poolside setting')} className="min-h-[390px]" />
         <div className="flex flex-col justify-center bg-forest p-9 text-surface md:p-16 lg:p-24 2xl:px-28">
           <Eyebrow light>
             <T>{'03 / EXPERIENCES'}</T>
           </Eyebrow>
-          <h2 className="display mt-9 text-[clamp(3.5rem,5vw,6.3rem)] text-balance">
+          <h2 className="display mt-9 section-heading text-balance">
             <T>{'Moments shaped by place.'}</T>
             <br />
             <em>
@@ -241,7 +237,7 @@ export default function HomePage() {
 
       <section id="gallery" className="container-site section-pad">
         <SectionTitle index={t('04 / THE COLLECTION')} title={t('A portrait of')} italic={t('place.')} />
-        <div className="grid gap-5 lg:grid-cols-12 lg:items-stretch">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:grid-rows-2">
           {collectionPhotos.map((photo) => (
             <Photo key={`${photo.src}-${photo.alt}`} src={photo.src} alt={t(photo.alt)} className={photo.className} />
           ))}
@@ -271,7 +267,7 @@ export default function HomePage() {
             <Eyebrow light>
               <T>{'06 / EXCLUSIVE OFFER'}</T>
             </Eyebrow>
-            <h2 className="display mt-6 text-[clamp(3.2rem,5vw,5.5rem)] text-balance">
+            <h2 className="display mt-6 section-heading text-balance">
               <T>{'Longer stays,'}</T> <em><T>{'gently rewarded.'}</T></em>
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-8 text-surface/70">
