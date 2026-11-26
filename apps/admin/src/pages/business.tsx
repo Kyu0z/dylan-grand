@@ -282,13 +282,13 @@ function Reservations() {
     selected.reload();
   });
   const createFields = [
-    ...dateFields(),
     field('roomTypeCode', 'Room type', 'Hạng phòng', { kind: 'select', choices: typeChoices(rows(types.data), o.vi) }),
     field('adults', 'Adults', 'Người lớn', { kind: 'number', min: 1, max: 20, initial: 2 }),
     field('children', 'Children', 'Trẻ em', { kind: 'number', min: 0, max: 20, initial: 0 }),
     field('guestName', 'Guest name', 'Tên khách', { maxLength: 120 }),
     field('guestEmail', 'Email', 'Email', { kind: 'email' }),
     field('guestPhone', 'Phone', 'Điện thoại', { required: false, maxLength: 32 }),
+    ...dateFields(),
     field('specialRequests', 'Special requests', 'Yêu cầu đặc biệt', { required: false, kind: 'textarea', maxLength: 500 }),
     field('ratePlan', 'Rate plan', 'Gói giá', { kind: 'select', initial: 'FLEXIBLE', choices: options(['FLEXIBLE', 'NON_REFUNDABLE']) }),
     field('guaranteeMode', 'Reservation mode', 'Hình thức đặt', { kind: 'select', initial: 'PAY_AT_HOTEL', choices: [{ value: 'PAY_AT_HOTEL', label: L('Confirmed – pay at hotel', 'Xác nhận – trả tại khách sạn') }, { value: 'HOLD', label: L('15-minute hold', 'Giữ chỗ 15 phút') }] }),

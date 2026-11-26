@@ -2,6 +2,7 @@ import { calendarCells, calendarIso, displayPickerValue, hotelNow, parseCalendar
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageUpload } from './image-upload';
+import { PickerFooter } from './picker-footer';
 import { IMAGE_ACCEPT, readImageFile } from '../lib/image-upload';
 import { useLocale } from '../lib/locale';
 import { L, formatMoney, type Language } from '../lib/domain';
@@ -476,11 +477,28 @@ export function DateField({ label, placeholder, className = '', value, onChange,
         <div className="picker-presets">{['08:00', '12:00', '14:00', '18:00'].map(preset => <Button key={preset} type="button" variant="secondary" aria-pressed={time === preset} onClick={() => setTime(preset)}>{preset}</Button>)}</div>
         <div className="picker-summary">{displayPickerValue(candidate, true)}</div>
       </div>}
-      <div className="popover-footer picker-footer">
-        <button type="button" className="popover-link" onClick={() => commit('')}>{t(L('Clear', 'Xóa'))}</button>
-        <button type="button" className="popover-link strong" disabled={!dayAllowed(hotelDate)} onClick={selectToday}>{t(L('Today', 'Hôm nay'))}</button>
-        {withTime && <><Button type="button" variant="secondary" onClick={close}>{t(L('Cancel', 'Hủy'))}</Button><Button type="button" disabled={!canApply} onClick={() => commit(candidate)}>{t(L('Apply', 'Áp dụng'))}</Button></>}
-      </div>
+      <PickerFooter
+        shortcuts={(
+          <>
+            <button type="button" className="popover-link" onClick={() => commit('')}>
+              {t(L('Clear', 'Xóa'))}
+            </button>
+            <button type="button" className="popover-link strong" disabled={!dayAllowed(hotelDate)} onClick={selectToday}>
+              {t(L('Today', 'Hôm nay'))}
+            </button>
+          </>
+        )}
+        actions={withTime ? (
+          <>
+            <Button type="button" variant="secondary" onClick={close}>
+              {t(L('Cancel', 'Hủy'))}
+            </Button>
+            <Button type="button" disabled={!canApply} onClick={() => commit(candidate)}>
+              {t(L('Apply', 'Áp dụng'))}
+            </Button>
+          </>
+        ) : undefined}
+      />
     </div>, host)}
   </div>;
 }

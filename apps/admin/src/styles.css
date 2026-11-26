@@ -3762,9 +3762,31 @@ body,
   pointer-events: none;
 }
 
-.picker-overlay .popover-footer {
+.picker-overlay .picker-footer {
+  justify-content: space-between;
   flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.picker-footer-shortcuts,
+.picker-footer-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
   gap: 8px;
+}
+
+.picker-footer-actions {
+  margin-inline-start: auto;
+}
+
+.picker-footer .popover-link {
+  padding: 6px 4px;
+}
+
+.picker-footer .popover-link,
+.picker-footer .btn {
+  white-space: nowrap;
 }
 
 .picker-time {
