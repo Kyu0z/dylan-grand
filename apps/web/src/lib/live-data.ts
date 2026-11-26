@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useI18n } from '@/components/language-provider';
 import { apiRequest } from './api-client';
 import { roomArtwork as artwork, photos, type Room } from './data';
@@ -184,14 +184,51 @@ export function saveGuestAccess(access: BookingAccess) {
 }
 import { getCustomerToken } from './customer-auth';
 import { getWishlist, toggleWishlist } from './storage';
-export function useWishlist() {
+type WishlistState = {
+  token: string;
+  codes: string[];
+  loading: boolean;
+  failed: boolean;
+};
+
+type WishlistContextValue = {
+  codes: string[];
+  toggle: (code: string) => Promise<void>;
+  loading: boolean;
+  failed: boolean;
+};
+
+const WishlistContext = createContext<(WishlistContextValue & { ensure: () => void }) | null>(null);
+
+// Deduplicate overlapping GETs (including React development Strict Mode).
+const pendingWishlist = new Map<string, Promise<{ codes: string[] }>>();
+function fetchWishlist(token: string) {
+  const pending = pendingWishlist.get(token);
+  if (pending) return pending;
+  const request = apiRequest<{ codes: string[] }>('/me/wishlist', {
+    token,
+    notifications: 'none',
+  }).then(({ data }) => data).finally(() => pendingWishlist.delete(token));
+  pendingWishlist.set(token, request);
+  return request;
+}
+
+export function WishlistProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | undefined>();
   const [guest, setGuest] = useState<string[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const ensure = useCallback(() => setRequested(true), []);
+  const [revision, setRevision] = useState(0);
+  const [remote, setRemote] = useState<WishlistState | null>(null);
+  const [busyToken, setBusyToken] = useState<string | null>(null);
+  const mutationLock = useRef<string | null>(null);
+
   useEffect(() => {
     const sync = () => {
       setToken(getCustomerToken());
-      setGuest(getWishlist());
+      const next = getWishlist();
+      setGuest(previous => previous.length === next.length && previous.every((code, i) => code === next[i]) ? previous : next);
       setInitialized(true);
     };
     sync();
@@ -202,26 +239,71 @@ export function useWishlist() {
       window.removeEventListener('storage', sync);
     };
   }, []);
-  const d = useLiveData<{
-    codes: string[];
-  }>(token ? '/me/wishlist' : null, token);
-  const codes = token ? (d.data?.codes ?? []) : guest;
+
   useEffect(() => {
-    if (!token)
-      return;
-    const sync = () => d.reload();
-    window.addEventListener('dgh-wishlist', sync);
-    return () => window.removeEventListener('dgh-wishlist', sync);
-  }, [token, d.reload]);
-  async function toggle(code: string) {
-    if (!initialized)
-      return;
-    if (!token) {
-      toggleWishlist(code);
+    let active = true;
+    if (!token || !requested) {
+      setRemote(null);
       return;
     }
-    await apiRequest(`/me/wishlist/${encodeURIComponent(code)}`, { method: 'PUT', body: { saved: !codes.includes(code) }, token });
-    window.dispatchEvent(new Event('dgh-wishlist'));
-  }
-  return { codes, toggle, loading: !initialized || Boolean(token && d.loading), failed: Boolean(token && d.failed) };
+    setRemote({ token, codes: [], loading: true, failed: false });
+    fetchWishlist(token).then(({ codes }) => {
+      if (active && getCustomerToken() === token) {
+        setRemote({ token, codes, loading: false, failed: false });
+      }
+    }).catch(() => {
+      if (active && getCustomerToken() === token) {
+        setRemote({ token, codes: [], loading: false, failed: true });
+      }
+    });
+    return () => { active = false; };
+  }, [token, requested, revision]);
+
+  const current = remote?.token === token ? remote : null;
+  const codes = token ? (current?.codes ?? []) : guest;
+  const loading = !initialized || Boolean(token && (!current || current.loading || busyToken === token));
+  const failed = Boolean(token && current?.failed);
+
+  useEffect(() => {
+    if (!failed) return;
+    const retry = () => setRevision(value => value + 1);
+    window.addEventListener('focus', retry);
+    return () => window.removeEventListener('focus', retry);
+  }, [failed]);
+
+  const toggle = useCallback(async (code: string) => {
+    if (!initialized || getCustomerToken() !== token) return;
+    if (!token) {
+      setGuest(toggleWishlist(code));
+      return;
+    }
+    if (loading || failed || mutationLock.current === token) return;
+    mutationLock.current = token;
+    setBusyToken(token);
+    try {
+      // The existing PUT returns the complete updated wishlist; no follow-up GET is needed.
+      const { data } = await apiRequest<{ codes: string[] }>(`/me/wishlist/${encodeURIComponent(code)}`, {
+        method: 'PUT',
+        body: { saved: !codes.includes(code) },
+        token,
+      });
+      if (getCustomerToken() === token) {
+        setRemote({ token, codes: data.codes, loading: false, failed: false });
+      }
+    } finally {
+      if (mutationLock.current === token) mutationLock.current = null;
+      setBusyToken(value => value === token ? null : value);
+    }
+  }, [initialized, token, loading, failed, codes]);
+
+  const value = useMemo(() => ({ codes, toggle, loading, failed, ensure }), [codes, toggle, loading, failed, ensure]);
+  return createElement(WishlistContext.Provider, { value }, children);
+}
+
+export function useWishlist() {
+  const context = useContext(WishlistContext);
+  const ensure = context?.ensure;
+  useEffect(() => { ensure?.(); }, [ensure]);
+  if (!context) throw new Error('useWishlist must be used within WishlistProvider.');
+  return context;
 }

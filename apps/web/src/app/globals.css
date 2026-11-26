@@ -894,3 +894,37 @@ html[lang='vi'] .hero-title {
     max-width: 1640px;
   }
 }
+
+/* Homepage room carousel: one-card steps, with edge buffers for seamless wrapping. */
+.room-showcase {
+  --room-gap: 2rem;
+  --room-step: calc((100% + var(--room-gap)) / var(--room-capacity));
+}
+.room-showcase-viewport {
+  overflow: hidden;
+  min-width: 0;
+}
+.room-showcase-track {
+  display: flex;
+  align-items: stretch;
+  gap: var(--room-gap);
+  width: 100%;
+  transform: translate3d(calc(-1 * var(--room-offset) * var(--room-step)), 0, 0);
+}
+.room-showcase-track[data-sliding='true'] {
+  transition: transform var(--room-duration) cubic-bezier(.22, 1, .36, 1);
+  will-change: transform;
+}
+.room-showcase-card {
+  flex: 0 0 calc(var(--room-step) - var(--room-gap));
+  min-width: 0;
+}
+.room-showcase .carousel-nav[aria-disabled='true'] {
+  cursor: default;
+}
+@media (max-width: 767px) {
+  .room-showcase { --room-gap: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-showcase-track[data-sliding='true'] { transition: none; }
+}

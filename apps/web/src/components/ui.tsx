@@ -1,6 +1,6 @@
 'use client';
 import { T, useI18n } from '@/components/language-provider';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useRef, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { useRooms, useWishlist } from '@/lib/live-data';
@@ -22,35 +22,18 @@ export function Photo({ src, alt, className = '', priority = false }: { src: str
     <img className="photo-img" src={src} alt={t(alt)} loading={priority ? 'eager' : 'lazy'} />
   </div>;
 }
-export function RoomCard({
-  room,
-  compact = false,
-  onOpen,
-  }: {
-    room: Room;
-    compact?: boolean;
-    onOpen?: (room: Room) => void;
-  }) {
+export function RoomCard({ room, compact = false, onOpen }: { room: Room; compact?: boolean; onOpen?: (room: Room) => void; }) {
   const { t } = useI18n();
   const wishlist = useWishlist();
   const liked = wishlist.codes.includes(room.id);
-  const handleOpen = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (
-      !onOpen ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
-      return;
-    }
-
+  const handleOpen = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (!onOpen || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     onOpen(room);
   };
   return <article className="group flex h-full min-w-0 flex-col overflow-hidden border border-line bg-paper">
     <div className="relative">
-      <Link href={`/rooms?room=${encodeURIComponent(room.id)}`} onClick={handleOpen} scroll={false}>
+      <Link href={`/rooms?room=${encodeURIComponent(room.id)}`} scroll={false} onClick={handleOpen}>
         <Photo src={room.images[0]}
           alt={`${t(room.name)} hotel bedroom`}
           className={compact ? 'aspect-[5/4]' : 'aspect-[4/3]'}
@@ -195,8 +178,6 @@ export function InfoNote({ children }: { children: ReactNode; }) {
 }
 
 export function RoomShowcase({ items }: { items: Room[] }) {
-  const { t } = useI18n();
-  const [start, setStart] = useState(0);
   const [capacity, setCapacity] = useState(3);
 
   useEffect(() => {
@@ -213,25 +194,67 @@ export function RoomShowcase({ items }: { items: Room[] }) {
   }, []);
 
   if (!items.length) return null;
-  const count = Math.min(capacity, items.length);
-  const index = start % items.length;
-  const visible = items.length <= capacity ? items : Array.from({ length: count }, (_, offset) => items[(index + offset) % items.length]);
+  if (items.length <= capacity) {
+    return <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+      {items.map(room => <RoomCard key={room.id} room={room} />)}
+    </div>;
+  }
+  // Reset animation only when the available room IDs or breakpoint actually change.
+  return <SlidingRooms key={JSON.stringify([capacity, items.map(room => room.id)])} items={items} capacity={capacity} />;
+}
 
-  return (
-    <div>
-      {items.length > capacity && (
-        <div className="mb-6 flex justify-end gap-3">
-          <button type="button" className="carousel-nav" aria-label={t('Previous rooms')} onClick={() => setStart((current) => (current - 1 + items.length) % items.length)}>
-            <Icon name="arrow-left" size={18} />
-          </button>
-          <button type="button" className="carousel-nav" aria-label={t('Next rooms')} onClick={() => setStart((current) => (current + 1) % items.length)}>
-            <Icon name="arrow-right" size={18} />
-          </button>
-        </div>
-      )}
-      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3" aria-live="polite">
-        {visible.map((room) => <RoomCard key={room.id} room={room} />)}
+const slideDuration = 460;
+const wrapIndex = (index: number, length: number) => ((index % length) + length) % length;
+
+function SlidingRooms({ items, capacity }: { items: Room[]; capacity: number }) {
+  const { t } = useI18n();
+  const [start, setStart] = useState(0);
+  const [direction, setDirection] = useState<-1 | 0 | 1>(0);
+  const moving = useRef(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep one buffer card at both edges. Stable absolute keys preserve overlapping cards.
+  const slots = Array.from({ length: capacity + 2 }, (_, offset) => start + offset - 1);
+  useEffect(() => {
+    return () => { if (timer.current !== null) clearTimeout(timer.current); };
+  }, []);
+
+  function move(step: -1 | 1) {
+    if (moving.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setStart(value => value + step);
+      return;
+    }
+    moving.current = true;
+    setDirection(step);
+    timer.current = setTimeout(() => {
+      setStart(value => value + step);
+      setDirection(0);
+      moving.current = false;
+      timer.current = null;
+    }, slideDuration);
+  }
+
+  const style = { '--room-capacity': capacity, '--room-offset': 1 + direction, '--room-duration': `${slideDuration}ms` } as CSSProperties;
+  return <div className="room-showcase" style={style}>
+    <div className="mb-6 flex justify-end gap-3">
+      <button type="button" className="carousel-nav" aria-label={t('Previous rooms')} aria-disabled={direction !== 0} onClick={() => move(-1)}>
+        <Icon name="arrow-left" size={18} />
+      </button>
+      <button type="button" className="carousel-nav" aria-label={t('Next rooms')} aria-disabled={direction !== 0} onClick={() => move(1)}>
+        <Icon name="arrow-right" size={18} />
+      </button>
+    </div>
+    <div className="room-showcase-viewport">
+      <div className="room-showcase-track" data-sliding={direction !== 0}>
+        {slots.map((slot, offset) => {
+          const room = items[wrapIndex(slot, items.length)];
+          const hidden = offset === 0 || offset === capacity + 1;
+          return <div className="room-showcase-card" key={slot} inert={hidden} aria-hidden={hidden || undefined}>
+            <RoomCard room={room} />
+          </div>;
+        })}
       </div>
     </div>
-  );
+    <span className="sr-only" aria-live="polite">{items[wrapIndex(start, items.length)].name}</span>
+  </div>;
 }

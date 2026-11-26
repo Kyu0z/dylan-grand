@@ -281,7 +281,7 @@ export default function SiteShell({ children }: { children: ReactNode; }) {
             <Link href="/" className="site-footer-brand-link" aria-label="Dylan Grand Hotel — Home">
               <span className="site-brand-stacked" aria-hidden="true" />
             </Link>
-            <p className="mt-6 max-w-[260px] text-sm leading-8 text-surface/70"><T>{"An intimate escape in the heart of Saigon. Quietly extraordinary, effortlessly yours."}</T></p>
+            <p className="mt-6 max-w-[260px] text-sm leading-8 text-surface/70"><T>{"An intimate escape in southern England. Quietly extraordinary, effortlessly yours."}</T></p>
           </div>
           <div>
             <h3 className="eyebrow text-gold"><T>{"EXPLORE"}</T></h3>

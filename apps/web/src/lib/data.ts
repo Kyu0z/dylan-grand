@@ -14,6 +14,10 @@ export type Room = {
   images: string[];
 };
 const photo = (id: string, w = 1200) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=85`;
+// Editorial stock photography. Keep these separate from operational room images.
+const pexels = (id: number, width: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+
 export const photos = {
   hero: photo('photo-1566073771259-6a8506099945', 1800),
   lobby: photo('photo-1551882547-ff40c63fe5fa'),
@@ -25,7 +29,13 @@ export const photos = {
   wellness: photo('photo-1540555700478-4be289fbecef'),
   garden: photo('photo-1468824357306-a439d58ccb1c', 1600),
   coast: photo('photo-1506744038136-46273834b3fb', 1600),
-  editorialHero: photo('photo-1512918728675-ed5a9ecdebfd', 2000),
+  // British heritage stock alternative to the Estelle Manor reference.
+  editorialHero: pexels(35497484, 2400),
+  collectionExterior: pexels(11238596, 2000),
+  collectionRoom: pexels(40624401, 1400),
+  collectionLounge: pexels(7045699, 1400),
+  collectionDining: pexels(31084649, 1400),
+  collectionGarden: pexels(30193323, 1400),
   editorialDining: photo('photo-1551882547-ff40c63fe5fa', 1600),
   editorialExperience: photo('photo-1520250497591-112f2f40a3f4', 1800)
 };

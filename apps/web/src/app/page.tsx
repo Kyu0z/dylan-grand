@@ -5,34 +5,18 @@ import { DateField, SelectField } from '@/components/form-controls';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { photos, roomArtwork, addDays, dayISO } from '@/lib/data';
-import { useRooms, useLiveData, type Hotel } from '@/lib/live-data';
+import { photos, addDays, dayISO } from '@/lib/data';
+import { useRooms } from '@/lib/live-data';
 import { saveStay } from '@/lib/storage';
 import { Arrow, Eyebrow, Photo, RoomShowcase, SectionTitle } from '@/components/ui';
 import { Icon, type IconName } from '@/components/icons';
 
 const collectionPhotos = [
-  {
-    src: photos.facade,
-    alt: 'English boutique hotel exterior',
-    className: 'aspect-[4/3] md:col-span-2 md:row-span-2 md:aspect-auto md:h-full'
-  },
-  {
-    src: photos.interior,
-    alt: 'Refined hotel lounge',
-    className: 'aspect-[4/3]'
-  },
-  {
-    src: roomArtwork[1].images[0],
-    alt: 'Garden-facing guest room',
-    className: 'aspect-[4/3]'
-  },
-  {
-    src: photos.editorialDining,
-    alt: 'Elegant breakfast room',
-    className: 'aspect-[4/3]'
-  },
-  { src: photos.garden, alt: 'Hotel garden', className: 'aspect-[4/3]' }
+  { src: photos.collectionExterior, alt: 'English boutique hotel exterior', className: 'aspect-[4/3] md:col-span-2 md:row-span-2 md:aspect-auto md:h-full' },
+  { src: photos.collectionRoom, alt: 'Classic guest room', className: 'aspect-[4/3]' },
+  { src: photos.collectionLounge, alt: 'Refined hotel lounge', className: 'aspect-[4/3]' },
+  { src: photos.collectionDining, alt: 'Elegant dining room', className: 'aspect-[4/3]' },
+  { src: photos.collectionGarden, alt: 'English garden', className: 'aspect-[4/3]' },
 ];
 
 const amenities: { icon: IconName; title: string; copy: string }[] = [
@@ -87,9 +71,8 @@ const faqs = [
 ];
 
 export default function HomePage() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { rooms, loading, failed, reload } = useRooms();
-  const hotel = useLiveData<Hotel>('/hotel');
   const router = useRouter();
   const [checkin, setCheckin] = useState(addDays(dayISO(), 14));
   const [checkout, setCheckout] = useState(addDays(dayISO(), 17));
@@ -133,7 +116,7 @@ export default function HomePage() {
             <T>{'01 / 04 — THE DYLAN EXPERIENCE'}</T>
           </span>
         </div>
-        <Photo src={photos.editorialHero} alt={t('Hotel architecture')} className="min-h-[440px] lg:min-h-[680px] 2xl:min-h-[760px]" priority />
+        <Photo src={photos.editorialHero} alt={t('British heritage lounge')} className="min-h-[440px] lg:min-h-[680px] 2xl:min-h-[760px]" priority />
       </section>
 
       <section className="relative z-10 -mt-3 bg-surface pb-8 pt-6">
@@ -178,7 +161,7 @@ export default function HomePage() {
         </div>
         <div className="max-w-[540px]">
           <p className="body-copy text-[16px]">
-            {(locale === 'vi' ? hotel.data?.descriptionVi : hotel.data?.descriptionEn) || t('Dylan Grand Hotel is imagined as a quietly elegant retreat, where English charm, tactile interiors and contemporary comfort feel perfectly in step.')}
+            <T>{'Dylan Grand Hotel is imagined as a quietly elegant retreat, where English charm, tactile interiors and contemporary comfort feel perfectly in step.'}</T>
           </p>
           <p className="body-copy mt-5">
             <T>{'From leisurely breakfasts to softly lit evenings, every detail is composed to feel intuitive, restful and deeply personal.'}</T>
