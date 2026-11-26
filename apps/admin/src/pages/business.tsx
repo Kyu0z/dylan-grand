@@ -4,7 +4,7 @@ import { Badge, Button, Card, Metric, NativeSelect, PageHeader, SearchBox, TextI
 import { useAdminAuth } from '../lib/admin-auth';
 import { L, nav, type Localized } from '../lib/domain';
 import { useLocale } from '../lib/locale';
-import { Cash, DataState, RowActions, StatusValue, Table, col, date, field, num, obj, options, pathId, plusDays, rows, str, today, useAction, useData, type Action, type Field, type Row, type Values } from './business-ui';
+import { Cash, DataState, RowActions, StatusValue, Table, col, createDeleteAction, date, field, num, obj, options, pathId, plusDays, rows, str, today, useAction, useData, type Action, type Field, type Row, type Values } from './business-ui';
 const rcode = (r: Row) => str(r.code);
 const text = (r: Row, key: string) => str(r[key]);
 const amountField = field('amountVnd', 'Amount (VND)', 'Số tiền (VND)', { kind: 'number', min: 1, max: 2000000000 });
@@ -553,15 +553,13 @@ function Promotions() {
     }));
   };
   const remove = (r: Row, service: boolean) => {
-    const name = service ? serviceName(r) : rcode(r);
-    o.open({
+    const name = str(r.name) || rcode(r);
+    const target = service ? L(name, str(r.nameVi) || name) : rcode(r);
+    o.open(createDeleteAction({
       title: service ? L('Delete extra service', 'Xóa dịch vụ bổ sung') : L('Delete promotion', 'Xóa ưu đãi'),
-      detail: service
-        ? L(`Permanently delete “${name}” (${rcode(r)})? It will no longer be available to guests. Services with order history cannot be deleted; deactivate them in Edit instead. This action cannot be undone.`, `Xóa vĩnh viễn “${name}” (${rcode(r)})? Dịch vụ sẽ không còn khả dụng cho khách. Dịch vụ đã có lịch sử sử dụng không thể xóa; hãy tắt hoạt động trong form chỉnh sửa. Thao tác này không thể hoàn tác.`)
-        : L(`Permanently delete promotion “${name}”? Guests will no longer be able to redeem it. Promotions with booking history cannot be deleted; deactivate them in Edit instead. This action cannot be undone.`, `Xóa vĩnh viễn mã ưu đãi “${name}”? Khách sẽ không thể sử dụng mã này. Ưu đãi đã có lịch sử đặt phòng không thể xóa; hãy tắt hoạt động trong form chỉnh sửa. Thao tác này không thể hoàn tác.`),
-      fields: [], danger: true, confirmLabel: L('Delete', 'Xóa'),
+      target,
       run: () => o.api(service ? servicePath(r) : promotionPath(r), { method: 'DELETE' }),
-    });
+    }));
   };
   const active = (r: Row) => o.t(r.isActive ? L('Yes', 'Có') : L('No', 'Không'));
   return <Frame path="/promotions" reload={d.reload}>

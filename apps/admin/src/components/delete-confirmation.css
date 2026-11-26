@@ -1,0 +1,10 @@
+.delete-confirmation-message {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.delete-confirmation-message strong {
+  font-weight: 700;
+}

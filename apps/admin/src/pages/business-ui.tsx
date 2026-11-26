@@ -2,6 +2,7 @@ import { hotelNow, nextPickerValue, validPickerValue } from '../lib/date-picker'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Card, Empty, Modal, NativeSelect, SimpleTable, TextArea, TextInput } from '../components/ui';
 import { ImageUpload } from '../components/image-upload';
+import { DeleteConfirmation } from '../components/delete-confirmation';
 import { useAdminAuth } from '../lib/admin-auth';
 import { L, formatMoney, type Localized } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -149,9 +150,24 @@ export type Action = {
   fields: Field[];
   run: (v: Values, requestId: string) => Promise<unknown>;
   detail?: Localized;
+  deleteTarget?: Localized | string;
   danger?: boolean;
   confirmLabel?: Localized;
 };
+export function createDeleteAction({ title, target, run }: {
+  title: Localized;
+  target: Localized | string;
+  run: () => Promise<unknown>;
+}): Action {
+  return {
+    title,
+    deleteTarget: target,
+    fields: [],
+    danger: true,
+    confirmLabel: L('Delete', 'Xóa'),
+    run,
+  };
+}
 export function useAction(reload: () => void) {
   const [action, setAction] = useState<Action | null>(null);
   return {
@@ -301,6 +317,7 @@ function ActionDialog({ action, onClose, onDone }: {
       onClose();
   }}>
     <form className="live-form" onSubmit={submit}>
+      {action.deleteTarget !== undefined && <DeleteConfirmation target={action.deleteTarget} />}
       {action.detail && <p>
         {t(action.detail)}
       </p>}
