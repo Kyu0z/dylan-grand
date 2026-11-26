@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
+import { calendarCells, calendarIso, displayPickerValue, hotelNow, parseCalendarDate, pickerValueInRange, popupPosition, validPickerValue } from '../lib/date-picker';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageUpload } from './image-upload';
 import { IMAGE_ACCEPT, readImageFile } from '../lib/image-upload';
@@ -142,18 +143,7 @@ export function Icon({ name, size = 18, className = '' }: {
   size?: number;
   className?: string;
 }) {
-  return <svg
-    className={className}
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.65"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
+  return <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {paths[name] ?? paths.grid}
   </svg>;
 }
@@ -261,48 +251,6 @@ function emitInputValue(name: string | undefined, value: string, onChange?: (eve
 function emitSelectValue(name: string | undefined, value: string, onChange?: (event: ChangeEvent<HTMLSelectElement>) => void) {
   onChange?.({ target: { name, value } } as ChangeEvent<HTMLSelectElement>);
 }
-function parseIsoDate(value?: string | number | readonly string[]) {
-  if (typeof value !== 'string' || !value)
-    return null;
-  const [year, month, day] = value.split('-').map(Number);
-  if (!year || !month || !day)
-    return null;
-  return new Date(year, month - 1, day, 12, 0, 0);
-}
-function toIsoDate(date: Date) {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-function sameDate(a: Date | null, b: Date | null) {
-  if (!a || !b)
-    return false;
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0);
-}
-function addMonths(date: Date, amount: number) {
-  return new Date(date.getFullYear(), date.getMonth() + amount, 1, 12, 0, 0);
-}
-function calendarCells(month: Date) {
-  const first = startOfMonth(month);
-  const firstDay = first.getDay();
-  const start = new Date(first);
-  start.setDate(first.getDate() - firstDay);
-  return Array.from({ length: 42 }, (_, index) => {
-    const value = new Date(start);
-    value.setDate(start.getDate() + index);
-    return value;
-  });
-}
-function formatDisplayDate(value: string | number | readonly string[] | undefined, locale: string) {
-  const parsed = parseIsoDate(value);
-  if (!parsed)
-    return '';
-  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parsed);
-}
 export function Card({ children, className = '', title, subtitle, action }: {
   children: ReactNode;
   className?: string;
@@ -366,120 +314,180 @@ export function Metric({ label, value, delta, icon }: {
     </div>}
   </div>;
 }
-export function DateField({ label, placeholder, className = '', value, onChange, name, }: InputHTMLAttributes<HTMLInputElement> & {
+export function DateField({ label, placeholder, className = '', value, onChange, name, type, min, max, disabled, required, id, 'aria-label': ariaLabel, }: InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode;
-  placeholder?: string;
 }) {
   const { language, t } = useLocale();
-  const locale = language === 'vi' ? 'vi-VN' : 'en-US';
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const withTime = type === 'datetime-local';
+  const locale = language === 'vi' ? 'vi-VN' : 'en-GB';
+  const uid = useId();
+  const controlId = id ?? `${uid}-date`;
+  const panelId = `${uid}-calendar`;
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const selectedDate = parseIsoDate(value);
-  const [month, setMonth] = useState<Date>(() => selectedDate ?? new Date());
-  const today = useMemo(() => new Date(), []);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const current = typeof value === 'string' ? value : '';
+  const [draftDate, setDraftDate] = useState('');
+  const [time, setTime] = useState('14:00');
+  const [month, setMonth] = useState(() => parseCalendarDate(current.slice(0, 10)) ?? parseCalendarDate(hotelNow().slice(0, 10))!);
+  const hotelDate = hotelNow().slice(0, 10);
+  const minimum = typeof min === 'string' ? min : undefined;
+  const maximum = typeof max === 'string' ? max : undefined;
+  const selected = withTime ? draftDate : current;
+  const dayAllowed = (day: string) => pickerValueInRange(day, minimum?.slice(0, 10), maximum?.slice(0, 10));
+  const candidate = `${draftDate}T${time}`;
+  const canApply = validPickerValue(candidate, true) && pickerValueInRange(candidate, minimum, maximum);
+  const title = t(withTime ? L('Select date and time', 'Chọn ngày và giờ') : L('Select date', 'Chọn ngày'));
+  const close = () => { setOpen(false); buttonRef.current?.focus({ preventScroll: true }); };
+  const commit = (next: string) => { emitInputValue(name, next, onChange); close(); };
+  const toggle = () => {
+    if (open) {
+      close();
+      return;
+    }
+    const anchor = buttonRef.current;
+    if (!anchor)
+      return;
+    const now = hotelNow();
+    let initial = validPickerValue(current, withTime) ? current : (withTime ? now : now.slice(0, 10));
+    if (minimum && initial < minimum && validPickerValue(minimum, withTime)) {
+      initial = minimum;
+    }
+    if (maximum && initial > maximum && validPickerValue(maximum, withTime)) {
+      initial = maximum;
+    }
+    setDraftDate(initial.slice(0, 10));
+    setTime(withTime && initial.includes('T') ? initial.slice(11, 16) : '14:00');
+    setMonth(parseCalendarDate(initial.slice(0, 10))!);
+    // Portal into the dialog, outside its scrolling body, so its focus trap remains valid.
+    setHost(anchor.closest<HTMLElement>('.modal') ?? document.body);
+    setOpen(true);
+  };
+  useLayoutEffect(() => {
+    if (!open || !host)
+      return;
+    const anchor = buttonRef.current;
+    const panel = panelRef.current;
+    if (!anchor || !panel)
+      return;
+    const position = () => {
+      const rect = anchor.getBoundingClientRect();
+      const scroller = anchor.closest('.modal-body');
+      const bounds = scroller?.getBoundingClientRect();
+      if ((bounds && (rect.bottom <= bounds.top || rect.top >= bounds.bottom)) || rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        setOpen(false);
+        return;
+      }
+      const next = popupPosition(rect, panel.offsetWidth, panel.offsetHeight, window.innerWidth, window.innerHeight);
+      panel.style.left = `${next.left}px`;
+      panel.style.top = `${next.top}px`;
+    };
+    position();
+    (panel.querySelector<HTMLElement>('.date-day.selected:not(:disabled)') ?? panel.querySelector<HTMLElement>('.date-day.today:not(:disabled)') ?? panel.querySelector<HTMLElement>('.mini-icon-btn'))?.focus({ preventScroll: true });
+    const outside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node) || panel.contains(event.target) || anchor.contains(event.target))
+        return;
+      setOpen(false);
+    };
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(false);
+        anchor.focus({ preventScroll: true });
+      }
+      if (event.key === 'Tab') {
+        const items = Array.from(panel.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled)'));
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (first && last && ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last))) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus({ preventScroll: true });
+        }
+      }
+    };
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', keydown, true);
+    const observer = new ResizeObserver(position);
+    observer.observe(anchor);
+    observer.observe(panel);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', keydown, true);
+    };
+  }, [open, host]);
   useEffect(() => {
-    if (selectedDate)
-      setMonth(selectedDate);
-  }, [value]);
-  useDismissLayer(open, [wrapperRef], () => setOpen(false));
-  const weekNames = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(2026, 10, 1 + index);
-    return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(date);
-  });
-  const days = calendarCells(month);
-  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month);
-  return <label className="form-field">
-    {label && <span className="form-label">
-      {label}
-    </span>}
-    <div className="popover-control" ref={wrapperRef}>
-      <input type="hidden" name={name} value={typeof value === 'string' ? value : ''} />
-      <button
-        ref={buttonRef}
-        type="button"
-        className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className={`control-text ${value ? '' : 'placeholder'}`}>
-          {formatDisplayDate(value, locale) || placeholder || t(L('Select date', 'Chọn ngày'))}
-        </span>
+    if (disabled)
+      setOpen(false);
+  }, [disabled]);
+  const weekNames = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 10, 1 + index)));
+  const shiftMonth = (amount: number) => setMonth(old => new Date(old.getFullYear(), old.getMonth() + amount, 1, 12));
+  const selectDay = (day: string) => {
+    if (withTime)
+      setDraftDate(day);
+    else
+      commit(day);
+  };
+  const selectToday = () => {
+    const day = hotelNow().slice(0, 10);
+    if (!dayAllowed(day))
+      return;
+    setMonth(parseCalendarDate(day)!);
+    selectDay(day);
+  };
+  const timeOptions = (count: number) => Array.from({ length: count }, (_, i) => String(i).padStart(2, '0'));
+  return <div className="form-field picker-field">
+    {label && <label className="form-label" htmlFor={controlId}>{label}</label>}
+    <div className="popover-control">
+      <input type="hidden" name={name} value={current} disabled={disabled} />
+      <button ref={buttonRef} id={controlId} type="button" disabled={disabled} aria-label={ariaLabel ?? (label ? undefined : title)} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? panelId : undefined} aria-required={required} className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()} onClick={toggle}>
+        <span className={`control-text ${current ? '' : 'placeholder'}`}>{displayPickerValue(current, withTime) || placeholder || title}</span>
         <Icon name="calendar" size={16} className="control-icon" />
       </button>
-      {open && <div
-        className="popover-panel date-panel"
-        role="dialog"
-        aria-label={t(L('Select date', 'Chọn ngày'))}
-      >
-        <div className="popover-header">
-          <strong>
-            {monthLabel}
-          </strong>
-          <div className="popover-actions">
-            <button
-              type="button"
-              className="mini-icon-btn"
-              onClick={() => setMonth((current) => addMonths(current, -1))}
-            >
-              <Icon name="left" size={14} />
-            </button>
-            <button
-              type="button"
-              className="mini-icon-btn"
-              onClick={() => setMonth((current) => addMonths(current, 1))}
-            >
-              <Icon name="right" size={14} />
-            </button>
-          </div>
-        </div>
-        <div className="date-grid-head">
-          {weekNames.map((item) => <span key={item}>
-            {item}
-          </span>)}
-        </div>
-        <div className="date-grid-body">
-          {days.map((day) => {
-            const iso = toIsoDate(day);
-            const outside = day.getMonth() !== month.getMonth();
-            const chosen = sameDate(selectedDate, day);
-            const isToday = sameDate(today, day);
-            return <button
-              key={iso}
-              type="button"
-              className={`date-day ${outside ? 'outside' : ''} ${chosen ? 'selected' : ''} ${isToday ? 'today' : ''}`.trim()}
-              onClick={() => {
-                emitInputValue(name, iso, onChange);
-                setOpen(false);
-              }}
-            >
-              {day.getDate()}
-            </button>;
-          })}
-        </div>
-        <div className="popover-footer">
-          <button
-            type="button"
-            className="popover-link"
-            onClick={() => { emitInputValue(name, '', onChange); setOpen(false); }}
-          >
-            {t(L('Clear', 'Xóa'))}
-          </button>
-          <button
-            type="button"
-            className="popover-link strong"
-            onClick={() => { const next = toIsoDate(today); emitInputValue(name, next, onChange); setMonth(today); setOpen(false); }}
-          >
-            {t(L('Today', 'Hôm nay'))}
-          </button>
-        </div>
-      </div>}
     </div>
-  </label>;
+    {open && host && createPortal(<div ref={panelRef} id={panelId} className={`popover-panel date-panel picker-overlay ${withTime ? 'picker-with-time' : ''}`} role="dialog" aria-label={title}>
+      <div className="popover-header">
+        <strong>{new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(month)}</strong>
+        <div className="popover-actions">
+          <button type="button" className="mini-icon-btn" aria-label={t(L('Previous month', 'Tháng trước'))} onClick={() => shiftMonth(-1)}><Icon name="left" size={14} /></button>
+          <button type="button" className="mini-icon-btn" aria-label={t(L('Next month', 'Tháng sau'))} onClick={() => shiftMonth(1)}><Icon name="right" size={14} /></button>
+        </div>
+      </div>
+      <div className="date-grid-head">{weekNames.map((item, index) => <span key={index}>{item}</span>)}</div>
+      <div className="date-grid-body">
+        {calendarCells(month).map(day => {
+          const iso = calendarIso(day);
+          const chosen = iso === selected;
+          return <button key={iso} type="button" disabled={!dayAllowed(iso)} aria-label={displayPickerValue(iso, false)} aria-pressed={chosen} className={`date-day ${day.getMonth() !== month.getMonth() ? 'outside' : ''} ${chosen ? 'selected' : ''} ${iso === hotelDate ? 'today' : ''}`.trim()} onClick={() => selectDay(iso)}>{day.getDate()}</button>;
+        })}
+      </div>
+      {withTime && <div className="picker-time">
+        <div className="picker-time-heading"><strong>{t(L('Select time', 'Chọn giờ'))}</strong><span>UTC+7 · 24h</span></div>
+        <div className="picker-time-grid">
+          <NativeSelect label={t(L('Hour', 'Giờ'))} value={time.slice(0, 2)} choices={timeOptions(24).map(value => ({ value, label: value }))} onChange={event => setTime(`${event.target.value}:${time.slice(3)}`)} />
+          <NativeSelect label={t(L('Minute', 'Phút'))} value={time.slice(3)} choices={timeOptions(60).map(value => ({ value, label: value }))} onChange={event => setTime(`${time.slice(0, 2)}:${event.target.value}`)} />
+        </div>
+        <div className="picker-presets">{['08:00', '12:00', '14:00', '18:00'].map(preset => <Button key={preset} type="button" variant="secondary" aria-pressed={time === preset} onClick={() => setTime(preset)}>{preset}</Button>)}</div>
+        <div className="picker-summary">{displayPickerValue(candidate, true)}</div>
+      </div>}
+      <div className="popover-footer picker-footer">
+        <button type="button" className="popover-link" onClick={() => commit('')}>{t(L('Clear', 'Xóa'))}</button>
+        <button type="button" className="popover-link strong" disabled={!dayAllowed(hotelDate)} onClick={selectToday}>{t(L('Today', 'Hôm nay'))}</button>
+        {withTime && <><Button type="button" variant="secondary" onClick={close}>{t(L('Cancel', 'Hủy'))}</Button><Button type="button" disabled={!canApply} onClick={() => commit(candidate)}>{t(L('Apply', 'Áp dụng'))}</Button></>}
+      </div>
+    </div>, host)}
+  </div>;
 }
 export function TextInput({ label, type, ...props }: InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode;
 }) {
-  if (type === 'date') {
+  if (type === 'date' || type === 'datetime-local') {
     return <DateField label={label} type={type} {...props} />;
   }
   return <label className="form-field">
@@ -520,26 +528,17 @@ export function NativeSelect({ label, choices, placeholder, value, onChange, nam
     </span>}
     <div className="popover-control" ref={wrapperRef}>
       <input type="hidden" name={name} value={currentValue} />
-      <button
-        type="button"
-        className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()}
-        onClick={() => setOpen((current) => !current)}
-      >
+      <button type="button" className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()} onClick={() => setOpen((current) => !current)}>
         <span className={`control-text ${active ? '' : 'placeholder'}`}>
           {display}
         </span>
         <Icon name="down" size={15} className={`control-icon ${open ? 'rotate' : ''}`} />
       </button>
       {open && <div className="popover-panel select-panel" role="listbox">
-        {choices.map((choice) => <button
-          type="button"
-          key={choice.value}
-          className={`select-option ${choice.value === currentValue ? 'selected' : ''}`}
-          onClick={() => {
-            emitSelectValue(name, choice.value, onChange);
-            setOpen(false);
-          }}
-        >
+        {choices.map((choice) => <button type="button" key={choice.value} className={`select-option ${choice.value === currentValue ? 'selected' : ''}`} onClick={() => {
+          emitSelectValue(name, choice.value, onChange);
+          setOpen(false);
+        }}>
           <span>
             {choice.label}
           </span>
@@ -549,33 +548,18 @@ export function NativeSelect({ label, choices, placeholder, value, onChange, nam
     </div>
   </label>;
 }
-export function FileUploadField({
-  label,
-  value,
-  onChange,
-  help,
-  accept = IMAGE_ACCEPT,
-}: {
+export function FileUploadField({ label, value, onChange, help, accept = IMAGE_ACCEPT, }: {
   label?: ReactNode;
   value?: string;
   onChange: (next: string) => void;
   help?: ReactNode;
   accept?: string;
 }) {
-  return (
-    <ImageUpload
-      label={label}
-      images={value ? [value] : []}
-      multiple={false}
-      accept={accept}
-      help={help}
-      onFiles={async files => {
-        const file = files[0];
-        if (file) onChange(await readImageFile(file));
-      }}
-      onImagesChange={images => onChange(images[0] ?? '')}
-    />
-  );
+  return (<ImageUpload label={label} images={value ? [value] : []} multiple={false} accept={accept} help={help} onFiles={async (files) => {
+    const file = files[0];
+    if (file)
+      onChange(await readImageFile(file));
+  }} onImagesChange={images => onChange(images[0] ?? '')} />);
 }
 export function Modal({ title, onClose, children, footer, width = 'md' }: {
   title: string;
@@ -599,9 +583,7 @@ export function Modal({ title, onClose, children, footer, width = 'md' }: {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')).filter(element => element.tabIndex >= 0 && element.getClientRects().length > 0);
-    const firstField = focusable().find(element =>
-      element.matches('.modal-body input:not([readonly]), .modal-body textarea:not([readonly]), .modal-body select'),
-    );
+    const firstField = focusable().find(element => element.matches('.modal-body input:not([readonly]), .modal-body textarea:not([readonly]), .modal-body select'));
     (firstField ?? focusable()[0] ?? dialog).focus({ preventScroll: true });
     const key = (event: KeyboardEvent) => {
       if (event.defaultPrevented)
@@ -638,22 +620,11 @@ export function Modal({ title, onClose, children, footer, width = 'md' }: {
         previous.focus({ preventScroll: true });
     };
   }, []);
-  return createPortal(<div
-    className="modal-overlay"
-    role="presentation"
-    onMouseDown={event => {
-      if (event.target === event.currentTarget)
-        onClose();
-    }}
-  >
-    <div
-      ref={dialogRef}
-      tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      className={`modal modal-${width}`}
-    >
+  return createPortal(<div className="modal-overlay" role="presentation" onMouseDown={event => {
+    if (event.target === event.currentTarget)
+      onClose();
+  }}>
+    <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className={`modal modal-${width}`}>
       <header className="modal-header">
         <h2 id={titleId}>
           {title}
@@ -720,14 +691,7 @@ export function Tabs({ items, value, onChange }: {
   onChange: (s: string) => void;
 }) {
   return <div className="tabs" role="tablist">
-    {items.map((item) => <button
-      key={item.id}
-      type="button"
-      role="tab"
-      aria-selected={value === item.id}
-      className={value === item.id ? 'tab active' : 'tab'}
-      onClick={() => onChange(item.id)}
-    >
+    {items.map((item) => <button key={item.id} type="button" role="tab" aria-selected={value === item.id} className={value === item.id ? 'tab active' : 'tab'} onClick={() => onChange(item.id)}>
       {item.label}
     </button>)}
   </div>;
@@ -740,11 +704,7 @@ export function SearchBox({ value, onChange, placeholder }: {
   const { t } = useLocale();
   return <label className="search-box">
     <Icon name="search" size={17} />
-    <input
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder ?? t(L('Search records…', 'Tìm kiếm dữ liệu…'))}
-    />
+    <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder ?? t(L('Search records…', 'Tìm kiếm dữ liệu…'))} />
   </label>;
 }
 export function useToast() {
@@ -797,13 +757,7 @@ export function Switch({ checked, onChange, label }: {
     <span>
       {label}
     </span>
-    <input
-      id={id}
-      type="checkbox"
-      role="switch"
-      checked={checked}
-      onChange={(event) => onChange(event.target.checked)}
-    />
+    <input id={id} type="checkbox" role="switch" checked={checked} onChange={(event) => onChange(event.target.checked)} />
     <span className="switch-track" />
   </label>;
 }
@@ -824,11 +778,7 @@ export function MiniBarChart({ values, labels }: {
   const max = Math.max(...values, 1);
   return <div className="mini-chart">
     {values.map((value, index) => <div className="mini-col" key={index}>
-      <span
-        className="mini-column"
-        style={{ height: `${Math.max(5, value / max * 100)}%` }}
-        title={`${labels?.[index] ?? index + 1}: ${value}`}
-      />
+      <span className="mini-column" style={{ height: `${Math.max(5, value / max * 100)}%` }} title={`${labels?.[index] ?? index + 1}: ${value}`} />
       {labels && <small>
         {labels[index]}
       </small>}

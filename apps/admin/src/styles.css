@@ -3732,3 +3732,139 @@ body,
   object-fit: cover;
   border-radius: 8px;
 }
+
+/* Hotel calendar overlays are portaled outside the modal's scrollable body. */
+.picker-field {
+  min-width: 0;
+}
+
+.popover-panel.picker-overlay {
+  position: fixed;
+  inset: auto;
+  z-index: 70;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  color: var(--ink);
+}
+
+.popover-panel.picker-overlay.picker-with-time {
+  width: min(360px, calc(100vw - 24px));
+}
+
+.picker-overlay .date-day:disabled,
+.picker-overlay .popover-link:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.picker-overlay .popover-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.picker-time {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.picker-time-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.picker-time-heading span,
+.picker-summary {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.picker-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.picker-time-grid .field-control {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.picker-time-grid .select-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  max-height: 160px;
+  z-index: 2;
+}
+
+.picker-presets {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.picker-presets .btn,
+.picker-footer .btn {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.picker-presets .btn[aria-pressed='true'] {
+  border-color: var(--gold);
+  color: var(--forest);
+  background: color-mix(in srgb, var(--gold) 12%, var(--field));
+}
+
+.picker-summary {
+  text-align: center;
+}
+
+.picker-pair {
+  min-width: 0;
+  container-type: inline-size;
+}
+
+.picker-pair-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+@container (min-width: 640px) {
+  .picker-pair-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.promotion-code-field {
+  display: grid;
+  gap: 6px;
+}
+
+.promotion-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.promotion-code-row .btn {
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.promotion-code-field .field-help {
+  margin: 0;
+  line-height: 1.6;
+}

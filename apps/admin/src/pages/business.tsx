@@ -1,3 +1,4 @@
+import { displayPickerValue, hotelNow, nextPickerValue } from '../lib/date-picker';
 import { useState, type ReactNode } from 'react';
 import { Badge, Button, Card, Metric, NativeSelect, PageHeader, SearchBox, TextInput } from '../components/ui';
 import { useAdminAuth } from '../lib/admin-auth';
@@ -12,6 +13,10 @@ const dateFields = () => [field('checkIn', 'Check-in', 'Nhận phòng', { kind: 
 const statusCol = (key: string, en: string, vi: string) => col(key, en, vi, r => <StatusValue value={r[key]} />);
 const cashCol = (key: string, en: string, vi: string) => col(key, en, vi, r => <Cash value={r[key]} />);
 const dateCol = (key: string, en: string, vi: string) => col(key, en, vi, r => date(r[key]));
+const dateTimeCol = (key: string, en: string, vi: string) => col(key, en, vi, r => {
+  const instant = new Date(str(r[key]));
+  return Number.isFinite(instant.valueOf()) ? displayPickerValue(hotelNow(instant), true) : '—';
+});
 const roomName = (r: Row, vi: boolean) => str(r[vi ? 'nameVi' : 'nameEn']) || str(r.nameEn) || str(r.code);
 const typeChoices = (data: Row[], vi: boolean) => data.map(r => ({ value: rcode(r), label: roomName(r, vi) }));
 const own = (v: Values, fields: Field[]) => Object.fromEntries(fields.filter(f => v[f.key] !== '' || f.required !== false).map(f => [f.key, f.kind === 'number' ? Number(v[f.key]) : f.kind === 'datetime-local' ? new Date(`${v[f.key]}+07:00`).toISOString() : v[f.key]]));
@@ -32,11 +37,7 @@ function Frame({ path, reload, action, children }: {
   const { t } = useLocale();
   return <div className="page-stack">
     <PageHeader title={t(nav.find(n => n.path === path)!.label)} action={<RowActions>
-      <Button
-        variant="secondary"
-        icon="refresh"
-        onClick={reload}
-      >
+      <Button variant="secondary" icon="refresh" onClick={reload}>
         {t(L('Refresh', 'Tải lại'))}
       </Button>
       {action}
@@ -115,7 +116,6 @@ function RoomTypes() {
   const d = useData<Row[]>('/admin/room-types');
   const o = useOps(d.reload);
   const fields = (r: Row = {}) => [
-    ...(r.code ? [] : [field('code', 'Code (lowercase)', 'Mã (chữ thường)', { maxLength: 40 })]),
     field('nameEn', 'Name (EN)', 'Tên (EN)', { initial: text(r, 'nameEn'), maxLength: 100 }),
     field('nameVi', 'Name (VI)', 'Tên (VI)', { initial: text(r, 'nameVi'), maxLength: 100 }),
     field('maxGuests', 'Maximum guests', 'Số khách tối đa', { kind: 'number', min: 1, max: 20, initial: num(r.maxGuests) || 2 }),
@@ -130,13 +130,9 @@ function RoomTypes() {
     const f = fields(r);
     o.action(r.code ? L('Edit room type', 'Sửa hạng phòng') : L('Add room type', 'Thêm hạng phòng'), `/admin/room-types${r.code ? '/' + pathId(r.code) : ''}`, r.code ? 'PATCH' : 'POST', f, v => ({ ...own(v, f), amenities: str(v.amenities).split('\n').map(x => x.trim()).filter(Boolean), imageUrls: str(v.imageUrls).split('\n').map(x => x.trim()).filter(Boolean) }));
   };
-  return <Frame
-    path="/room-types"
-    reload={d.reload}
-    action={<Button icon="plus" onClick={() => save()}>
-      {o.t(L('Add room type', 'Thêm hạng phòng'))}
-    </Button>}
-  >
+  return <Frame path="/room-types" reload={d.reload} action={<Button icon="plus" onClick={() => save()}>
+    {o.t(L('Add room type', 'Thêm hạng phòng'))}
+  </Button>}>
     <DataState {...d}>
       <Card>
         <Table data={rows(d.data)} columns={[
@@ -160,20 +156,12 @@ function Physical() {
   const d = useData<Row[]>('/admin/physical-rooms');
   const types = useData<Row[]>('/admin/room-types');
   const o = useOps(d.reload);
-  return <Frame
-    path="/physical-rooms"
-    reload={() => {
-      d.reload();
-      types.reload();
-    }}
-    action={<Button
-      icon="plus"
-      disabled={!types.data?.length}
-      onClick={() => o.action(L('Add physical room', 'Thêm phòng vật lý'), '/admin/physical-rooms', 'POST', [field('number', 'Room number', 'Số phòng', { maxLength: 20 }), field('roomTypeCode', 'Room type', 'Hạng phòng', { kind: 'select', choices: typeChoices(rows(types.data), o.vi) }), field('floor', 'Floor', 'Tầng', { kind: 'number', min: 0, max: 200 })])}
-    >
-      {o.t(L('Add room', 'Thêm phòng'))}
-    </Button>}
-  >
+  return <Frame path="/physical-rooms" reload={() => {
+    d.reload();
+    types.reload();
+  }} action={<Button icon="plus" disabled={!types.data?.length} onClick={() => o.action(L('Add physical room', 'Thêm phòng vật lý'), '/admin/physical-rooms', 'POST', [field('number', 'Room number', 'Số phòng', { maxLength: 20 }), field('roomTypeCode', 'Room type', 'Hạng phòng', { kind: 'select', choices: typeChoices(rows(types.data), o.vi) }), field('floor', 'Floor', 'Tầng', { kind: 'number', min: 0, max: 200 })])}>
+    {o.t(L('Add room', 'Thêm phòng'))}
+  </Button>}>
     <DataState {...d}>
       <Card>
         <Table data={rows(d.data)} columns={[
@@ -206,44 +194,24 @@ function Inventory() {
       <StatusValue value={state} />
     </span>;
   };
-  return <Frame
-    path="/inventory"
-    reload={d.reload}
-    action={o.manager && <Button
-      icon="plus"
-      disabled={!rooms.length}
-      onClick={() => o.action(L('Block room for maintenance', 'Chặn phòng bảo trì'), '/admin/inventory/blocks', 'POST', [
-        field('roomNumber', 'Room', 'Phòng', { kind: 'select', choices: rooms.map(r => ({ value: str(r.number), label: str(r.number) })) }),
-        field('startDate', 'From', 'Từ ngày', { kind: 'date', initial: from }),
-        field('endDate', 'Until (exclusive)', 'Đến ngày (không bao gồm)', { kind: 'date', initial: plusDays(from, 1) }),
-        reason
-      ])}
-    >
-      {o.t(L('Maintenance block', 'Chặn bảo trì'))}
-    </Button>}
-  >
+  return <Frame path="/inventory" reload={d.reload} action={o.manager && <Button icon="plus" disabled={!rooms.length} onClick={() => o.action(L('Block room for maintenance', 'Chặn phòng bảo trì'), '/admin/inventory/blocks', 'POST', [
+    field('roomNumber', 'Room', 'Phòng', { kind: 'select', choices: rooms.map(r => ({ value: str(r.number), label: str(r.number) })) }),
+    field('startDate', 'From', 'Từ ngày', { kind: 'date', initial: from }),
+    field('endDate', 'Until (exclusive)', 'Đến ngày (không bao gồm)', { kind: 'date', initial: plusDays(from, 1) }),
+    reason
+  ])}>
+    {o.t(L('Maintenance block', 'Chặn bảo trì'))}
+  </Button>}>
     <Card>
       <div className="table-toolbar">
         <Button variant="secondary" onClick={() => setFrom(plusDays(from, -length))}>←</Button>
-        <TextInput
-          type="date"
-          value={from}
-          onChange={e => {
-            if (e.target.value)
-              setFrom(e.target.value);
-          }}
-        />
+        <TextInput type="date" value={from} onChange={e => {
+          if (e.target.value)
+            setFrom(e.target.value);
+        }} />
         <Button variant="secondary" onClick={() => setFrom(plusDays(from, length))}>→</Button>
-        <NativeSelect
-          value={String(length)}
-          choices={[{ value: '7', label: '7 ' + o.t(L('days', 'ngày')) }, { value: '14', label: '14 ' + o.t(L('days', 'ngày')) }]}
-          onChange={e => setLength(Number(e.target.value))}
-        />
-        <SearchBox
-          value={search}
-          onChange={setSearch}
-          placeholder={o.t(L('Search room', 'Tìm phòng'))}
-        />
+        <NativeSelect value={String(length)} choices={[{ value: '7', label: '7 ' + o.t(L('days', 'ngày')) }, { value: '14', label: '14 ' + o.t(L('days', 'ngày')) }]} onChange={e => setLength(Number(e.target.value))} />
+        <SearchBox value={search} onChange={setSearch} placeholder={o.t(L('Search room', 'Tìm phòng'))} />
       </div>
     </Card>
     <DataState {...d}>
@@ -256,11 +224,7 @@ function Inventory() {
           dateCol('startDate', 'From', 'Từ ngày'),
           dateCol('endDate', 'Until', 'Đến ngày'),
           col('reason', 'Reason', 'Lý do'),
-          ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <Act
-            danger
-            label={L('Remove block', 'Bỏ chặn')}
-            onClick={() => o.action(L('Remove maintenance block', 'Bỏ chặn bảo trì'), `/admin/inventory/blocks/${pathId(r.id)}`, 'DELETE', [], undefined, L('This will release the blocked dates.', 'Các ngày bị chặn sẽ được giải phóng.'), true)}
-          />)] : [])
+          ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <Act danger label={L('Remove block', 'Bỏ chặn')} onClick={() => o.action(L('Remove maintenance block', 'Bỏ chặn bảo trì'), `/admin/inventory/blocks/${pathId(r.id)}`, 'DELETE', [], undefined, L('This will release the blocked dates.', 'Các ngày bị chặn sẽ được giải phóng.'), true)} />)] : [])
         ]} />
       </Card>
     </DataState>
@@ -342,36 +306,16 @@ function Reservations() {
   const actions = (r: Row) => <RowActions>
     <Act label={L('Details', 'Chi tiết')} onClick={() => setDetail(rcode(r))} />
     {r.status === 'PENDING' && <Act label={L('Confirm hold', 'Xác nhận giữ chỗ')} onClick={() => o.action(L('Confirm reservation', 'Xác nhận đặt phòng'), `/admin/reservations/${pathId(r.code)}/confirm`, 'POST', [], undefined, L('Confirm only after verifying the guarantee.', 'Chỉ xác nhận sau khi kiểm tra bảo đảm.'))} />}
-    {['PENDING', 'CONFIRMED'].includes(str(r.status)) && <Act
-      danger
-      label={L('Cancel', 'Hủy')}
-      onClick={() => o.action(L('Cancel reservation', 'Hủy đặt phòng'), `/admin/reservations/${pathId(r.code)}/cancel`, 'POST', [reason], undefined, L('Cancellation fees are calculated by the server. Refunds are separate.', 'Phí hủy do máy chủ tính. Hoàn tiền là giao dịch riêng.'), true)}
-    />}
+    {['PENDING', 'CONFIRMED'].includes(str(r.status)) && <Act danger label={L('Cancel', 'Hủy')} onClick={() => o.action(L('Cancel reservation', 'Hủy đặt phòng'), `/admin/reservations/${pathId(r.code)}/cancel`, 'POST', [reason], undefined, L('Cancellation fees are calculated by the server. Refunds are separate.', 'Phí hủy do máy chủ tính. Hoàn tiền là giao dịch riêng.'), true)} />}
   </RowActions>;
-  return <Frame
-    path="/reservations"
-    reload={d.reload}
-    action={<Button
-      icon="plus"
-      disabled={!types.data?.length}
-      onClick={create}
-    >
-      {o.t(L('New reservation', 'Tạo đặt phòng'))}
-    </Button>}
-  >
+  return <Frame path="/reservations" reload={d.reload} action={<Button icon="plus" disabled={!types.data?.length} onClick={create}>
+    {o.t(L('New reservation', 'Tạo đặt phòng'))}
+  </Button>}>
     <DataState {...d}>
       <Card>
         <div className="table-toolbar">
-          <SearchBox
-            value={search}
-            onChange={setSearch}
-            placeholder={o.t(L('Search booking or guest', 'Tìm mã đặt hoặc tên khách'))}
-          />
-          <NativeSelect
-            value={status}
-            choices={[{ value: '', label: o.t(L('All statuses', 'Tất cả trạng thái')) }, ...options(['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW', 'EXPIRED']).map(x => ({ value: x.value, label: o.t(x.label) }))]}
-            onChange={e => setStatus(e.target.value)}
-          />
+          <SearchBox value={search} onChange={setSearch} placeholder={o.t(L('Search booking or guest', 'Tìm mã đặt hoặc tên khách'))} />
+          <NativeSelect value={status} choices={[{ value: '', label: o.t(L('All statuses', 'Tất cả trạng thái')) }, ...options(['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW', 'EXPIRED']).map(x => ({ value: x.value, label: o.t(x.label) }))]} onChange={e => setStatus(e.target.value)} />
         </div>
         <Table data={rows(d.data).filter(r => (!status || r.status === status) && `${r.code} ${obj(r.guest).name} ${obj(r.guest).email}`.toLowerCase().includes(search.toLowerCase()))} columns={[...bookingCols, col('actions', 'Actions', 'Thao tác', actions)]} />
       </Card>
@@ -412,11 +356,7 @@ function FrontDesk() {
       {r.status === 'CONFIRMED' ? <>
         <Act label={L('Check in', 'Nhận phòng')} onClick={() => o.action(L('Check in guest', 'Nhận phòng cho khách'), `${base}/check-in`, 'POST', [], undefined, L('Verify the guest identity and inspected room before confirming.', 'Kiểm tra danh tính khách và phòng đã kiểm tra trước khi xác nhận.'))} />
         <Act label={L('Late arrival', 'Đến muộn')} onClick={() => o.action(L('Expected arrival (hotel time)', 'Giờ đến dự kiến (giờ khách sạn)'), `${base}/late-arrival`, 'POST', [field('expectedArrivalAt', 'Expected arrival (UTC+7)', 'Dự kiến đến (UTC+7)', { kind: 'datetime-local' }), reason])} />
-        {date(r.checkIn) < today() && <Act
-          danger
-          label={L('No-show', 'Không đến')}
-          onClick={() => o.action(L('Record no-show', 'Ghi nhận không đến'), `${base}/no-show`, 'POST', [reason], undefined, L('Only after the cutoff. Fees and inventory release are handled by the server.', 'Chỉ sau hạn đến. Máy chủ tính phí và giải phóng phòng.'), true)}
-        />}
+        {date(r.checkIn) < today() && <Act danger label={L('No-show', 'Không đến')} onClick={() => o.action(L('Record no-show', 'Ghi nhận không đến'), `${base}/no-show`, 'POST', [reason], undefined, L('Only after the cutoff. Fees and inventory release are handled by the server.', 'Chỉ sau hạn đến. Máy chủ tính phí và giải phóng phòng.'), true)} />}
       </> : <Act label={L('Check out', 'Trả phòng')} onClick={() => o.action(L('Check out guest', 'Trả phòng cho khách'), `${base}/check-out`, 'POST', [], undefined, L('Settle the folio and all service orders first.', 'Hoàn tất công nợ và tất cả yêu cầu dịch vụ trước.'))} />}
       <Act label={L('Extend stay', 'Gia hạn')} onClick={() => o.action(L('Extend stay', 'Gia hạn lưu trú'), `${base}/extend`, 'POST', [field('checkOut', 'New check-out', 'Ngày trả phòng mới', { kind: 'date', initial: plusDays(date(r.checkOut), 1) })])} />
     </RowActions>;
@@ -424,20 +364,11 @@ function FrontDesk() {
   return <Frame path="/front-desk" reload={d.reload}>
     <DataState {...d}>
       <div className="metric-grid three">
-        {[['arrivals', 'Arrivals / overdue', 'Khách đến / quá hạn'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures / overdue', 'Khách đi / quá hạn']].map(([key, en, vi]) => <Metric
-          key={key}
-          label={o.t(L(en, vi))}
-          value={rows(d.data?.[key]).length}
-          icon="key"
-        />)}
+        {[['arrivals', 'Arrivals / overdue', 'Khách đến / quá hạn'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures / overdue', 'Khách đi / quá hạn']].map(([key, en, vi]) => <Metric key={key} label={o.t(L(en, vi))} value={rows(d.data?.[key]).length} icon="key" />)}
       </div>
       <Card>
         <div className="table-toolbar">
-          {[['arrivals', 'Arrivals', 'Khách đến'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures', 'Khách đi']].map(([key, en, vi]) => <Button
-            key={key}
-            variant={tab === key ? 'primary' : 'secondary'}
-            onClick={() => setTab(key)}
-          >
+          {[['arrivals', 'Arrivals', 'Khách đến'], ['inHouse', 'In-house', 'Đang lưu trú'], ['departures', 'Departures', 'Khách đi']].map(([key, en, vi]) => <Button key={key} variant={tab === key ? 'primary' : 'secondary'} onClick={() => setTab(key)}>
             {o.t(L(en, vi))}
           </Button>)}
         </div>
@@ -482,12 +413,7 @@ function Payments() {
     services.reload();
   }}>
     <Card title={o.t(L('Reservation folio', 'Công nợ đặt phòng'))}>
-      <NativeSelect
-        label={o.t(L('Reservation', 'Đặt phòng'))}
-        value={code}
-        choices={rows(bookings.data).map(r => ({ value: rcode(r), label: `${r.code} · ${obj(r.guest).name}` }))}
-        onChange={e => setCode(e.target.value)}
-      />
+      <NativeSelect label={o.t(L('Reservation', 'Đặt phòng'))} value={code} choices={rows(bookings.data).map(r => ({ value: rcode(r), label: `${r.code} · ${obj(r.guest).name}` }))} onChange={e => setCode(e.target.value)} />
       {code && <DataState {...folio}>
         {b && <>
           <div className="metric-grid three">
@@ -507,11 +433,7 @@ function Payments() {
             cashCol('totalVnd', 'Total', 'Tổng'),
             statusCol('status', 'Status', 'Trạng thái'),
             col('actions', 'Actions', 'Thao tác', r => r.status === 'REQUESTED' && <RowActions>
-              {['fulfill', 'cancel'].map(kind => <Act
-                key={kind}
-                label={kind === 'fulfill' ? L('Fulfill', 'Đã cung cấp') : L('Cancel', 'Hủy')}
-                onClick={() => o.action(kind === 'fulfill' ? L('Fulfill service', 'Cung cấp dịch vụ') : L('Cancel service', 'Hủy dịch vụ'), `${serviceBase}/orders/${pathId(r.id)}/${kind}`, 'POST')}
-              />)}
+              {['fulfill', 'cancel'].map(kind => <Act key={kind} label={kind === 'fulfill' ? L('Fulfill', 'Đã cung cấp') : L('Cancel', 'Hủy')} onClick={() => o.action(kind === 'fulfill' ? L('Fulfill service', 'Cung cấp dịch vụ') : L('Cancel service', 'Hủy dịch vụ'), `${serviceBase}/orders/${pathId(r.id)}/${kind}`, 'POST')} />)}
             </RowActions>)
           ]} />
           <Table data={rows(b.adjustments)} columns={[cashCol('amountVnd', 'Adjustment', 'Điều chỉnh'), col('reason', 'Reason', 'Lý do'), dateCol('createdAt', 'Date', 'Ngày')]} />
@@ -539,12 +461,7 @@ function Housekeeping() {
   return <Frame path="/housekeeping" reload={d.reload}>
     <DataState {...d}>
       <div className="metric-grid three">
-        {['DIRTY', 'CLEAN', 'INSPECTED'].map(s => <Metric
-          key={s}
-          label={o.t(L(s === 'DIRTY' ? 'Dirty' : s === 'CLEAN' ? 'Clean' : 'Inspected', s === 'DIRTY' ? 'Cần dọn' : s === 'CLEAN' ? 'Đã dọn' : 'Đã kiểm tra'))}
-          value={rows(d.data).filter(r => r.cleaningStatus === s).length}
-          icon="sparkles"
-        />)}
+        {['DIRTY', 'CLEAN', 'INSPECTED'].map(s => <Metric key={s} label={o.t(L(s === 'DIRTY' ? 'Dirty' : s === 'CLEAN' ? 'Clean' : 'Inspected', s === 'DIRTY' ? 'Cần dọn' : s === 'CLEAN' ? 'Đã dọn' : 'Đã kiểm tra'))} value={rows(d.data).filter(r => r.cleaningStatus === s).length} icon="sparkles" />)}
       </div>
       <Card>
         <Table data={rows(d.data)} columns={[
@@ -552,11 +469,7 @@ function Housekeeping() {
           col('floor', 'Floor', 'Tầng'),
           statusCol('cleaningStatus', 'Status', 'Trạng thái'),
           col('actions', 'Actions', 'Thao tác', r => <RowActions>
-            {(r.cleaningStatus === 'DIRTY' ? ['CLEAN'] : r.cleaningStatus === 'CLEAN' ? ['DIRTY', 'INSPECTED'] : ['DIRTY']).map(s => <Act
-              key={s}
-              label={s === 'CLEAN' ? L('Mark clean', 'Đã dọn') : s === 'INSPECTED' ? L('Inspect', 'Đã kiểm tra') : L('Mark dirty', 'Cần dọn')}
-              onClick={() => o.action(L('Update housekeeping', 'Cập nhật buồng phòng'), `/admin/housekeeping/rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ status: s }))}
-            />)}
+            {(r.cleaningStatus === 'DIRTY' ? ['CLEAN'] : r.cleaningStatus === 'CLEAN' ? ['DIRTY', 'INSPECTED'] : ['DIRTY']).map(s => <Act key={s} label={s === 'CLEAN' ? L('Mark clean', 'Đã dọn') : s === 'INSPECTED' ? L('Inspect', 'Đã kiểm tra') : L('Mark dirty', 'Cần dọn')} onClick={() => o.action(L('Update housekeeping', 'Cập nhật buồng phòng'), `/admin/housekeeping/rooms/${pathId(r.number)}`, 'PATCH', [], () => ({ status: s }))} />)}
           </RowActions>)
         ]} />
       </Card>
@@ -578,11 +491,7 @@ function Guests() {
   }}>
     <DataState {...d}>
       <Card title={o.t(L('Guest directory', 'Danh sách khách'))}>
-        <SearchBox
-          value={query}
-          onChange={setQuery}
-          placeholder={o.t(L('Find guest', 'Tìm khách'))}
-        />
+        <SearchBox value={query} onChange={setQuery} placeholder={o.t(L('Find guest', 'Tìm khách'))} />
         <Table data={rows(d.data).filter(r => `${r.name} ${r.email}`.toLowerCase().includes(query.toLowerCase()))} columns={[
           col('name', 'Name', 'Họ tên'),
           col('email', 'Email', 'Email'),
@@ -613,7 +522,7 @@ function Promotions() {
   return <Frame path="/promotions" reload={d.reload}>
     <DataState {...d}>
       <Card title={o.t(L('Promotion codes', 'Mã ưu đãi'))} action={<Button icon="plus" onClick={() => o.action(L('Create promotion', 'Tạo ưu đãi'), '/admin/promotions', 'POST', [
-        field('code', 'Code (uppercase)', 'Mã (chữ hoa)'),
+        field('code', 'Promotion code', 'Mã ưu đãi', { kind: 'promotion-code', required: false, maxLength: 32 }),
         field('discountPercent', 'Discount (%)', 'Giảm (%)', { kind: 'number', min: 1, max: 30 }),
         field('startsAt', 'Start (UTC+7)', 'Bắt đầu (UTC+7)', { kind: 'datetime-local' }),
         field('endsAt', 'End (UTC+7)', 'Kết thúc (UTC+7)', { kind: 'datetime-local' }),
@@ -624,8 +533,8 @@ function Promotions() {
         <Table data={rows(d.data?.promotions)} columns={[
           col('code', 'Code', 'Mã'),
           col('discountPercent', 'Discount (%)', 'Giảm (%)'),
-          dateCol('startsAt', 'Start', 'Bắt đầu'),
-          dateCol('endsAt', 'End', 'Kết thúc'),
+          dateTimeCol('startsAt', 'Start', 'Bắt đầu'),
+          dateTimeCol('endsAt', 'End', 'Kết thúc'),
           col('usageCount', 'Used', 'Đã dùng'),
           col('usageLimit', 'Limit', 'Giới hạn'),
           col('isActive', 'Active', 'Hoạt động', r => o.t(r.isActive ? L('Yes', 'Có') : L('No', 'Không'))),
@@ -633,7 +542,6 @@ function Promotions() {
         ]} />
       </Card>
       <Card title={o.t(L('Extra services', 'Dịch vụ bổ sung'))} action={<Button icon="plus" onClick={() => o.action(L('Create extra service', 'Tạo dịch vụ'), '/admin/promotions/services', 'POST', [
-        field('code', 'Code (uppercase)', 'Mã (chữ hoa)'),
         field('name', 'Service name', 'Tên dịch vụ', { maxLength: 120 }),
         field('unit', 'Unit', 'Đơn vị', { maxLength: 40 }),
         { ...amountField, key: 'priceVnd', min: 0 }
@@ -676,21 +584,11 @@ function Reports() {
     <Card>
       <form className="table-toolbar" onSubmit={e => {
         e.preventDefault();
-        if (range.to > range.from)
+        if (range.from && range.to > range.from)
           setFilter({ ...range });
       }}>
-        <TextInput
-          type="date"
-          label={t(L('From', 'Từ ngày'))}
-          value={range.from}
-          onChange={e => setRange(v => ({ ...v, from: e.target.value }))}
-        />
-        <TextInput
-          type="date"
-          label={t(L('To (exclusive)', 'Đến (không bao gồm)'))}
-          value={range.to}
-          onChange={e => setRange(v => ({ ...v, to: e.target.value }))}
-        />
+        <TextInput type="date" label={t(L('From', 'Từ ngày'))} value={range.from} onChange={e => setRange(v => ({ ...v, from: e.target.value }))} />
+        <TextInput type="date" label={t(L('To (exclusive)', 'Đến (không bao gồm)'))} value={range.to} min={nextPickerValue(range.from, false)} onChange={e => setRange(v => ({ ...v, to: e.target.value }))} />
         <Button type="submit">
           {t(L('Apply period', 'Áp dụng kỳ'))}
         </Button>
@@ -698,12 +596,7 @@ function Reports() {
     </Card>
     <DataState {...d}>
       <div className="metric-grid three">
-        {metrics.map(([key, label, money]) => <Metric
-          key={key}
-          label={t(label)}
-          value={data ? (money ? <Cash value={data[key]} /> : str(data[key])) : '—'}
-          icon="chart"
-        />)}
+        {metrics.map(([key, label, money]) => <Metric key={key} label={t(label)} value={data ? (money ? <Cash value={data[key]} /> : str(data[key])) : '—'} icon="chart" />)}
       </div>
       <Card>
         <p>

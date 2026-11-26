@@ -1,3 +1,4 @@
+import { hotelNow, nextPickerValue, validPickerValue } from '../lib/date-picker';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Card, Empty, Modal, NativeSelect, SimpleTable, TextArea, TextInput } from '../components/ui';
 import { ImageUpload } from '../components/image-upload';
@@ -11,7 +12,7 @@ export const str = (v: unknown): string => typeof v === 'string' || typeof v ===
 export const num = (v: unknown): number => typeof v === 'number' ? v : Number(v || 0);
 export const date = (v: unknown) => str(v).slice(0, 10);
 export const pathId = (v: unknown) => encodeURIComponent(str(v));
-export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+export const today = () => hotelNow().slice(0, 10);
 export function plusDays(d: string, n: number) {
   const x = new Date(`${d}T00:00:00Z`);
   x.setUTCDate(x.getUTCDate() + n);
@@ -129,7 +130,7 @@ export function Table({ data, columns }: {
 export type Field = {
   key: string;
   label: Localized;
-  kind?: 'text' | 'number' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images';
+  kind?: 'text' | 'promotion-code' | 'number' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images';
   initial?: string | number | boolean;
   required?: boolean;
   min?: number;
@@ -168,6 +169,7 @@ function ActionDialog({ action, onClose, onDone }: {
   const { notify, api } = useAdminAuth();
   const [values, setValues] = useState<Values>(() => Object.fromEntries(action.fields.map(f => [f.key, f.initial ?? (f.kind === 'check' ? false : '')])));
   const [busy, setBusy] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const lock = useRef(false);
   const requestId = useRef('');
   const lastPayload = useRef('');
@@ -181,8 +183,22 @@ function ActionDialog({ action, onClose, onDone }: {
         notify(t(L('Please complete all required fields.', 'Vui lòng điền đầy đủ trường bắt buộc.')), true);
         return;
       }
+      if ((f.kind === 'date' || f.kind === 'datetime-local') && v !== '' && !validPickerValue(str(v), f.kind === 'datetime-local')) {
+        notify(t(L('Invalid date or time.', 'Ngày hoặc giờ không hợp lệ.')), true);
+        return;
+      }
+      if (f.kind === 'promotion-code' && str(v).trim() && !/^[A-Z0-9_-]{3,32}$/.test(str(v).trim().toUpperCase())) {
+        notify(t(L('Use 3–32 letters, numbers, hyphens or underscores for the promotion code.', 'Mã ưu đãi gồm 3–32 chữ cái, chữ số, dấu gạch ngang hoặc gạch dưới.')), true);
+        return;
+      }
       if (f.kind === 'number' && v !== '' && (!Number.isSafeInteger(Number(v)) || Number(v) < (f.min ?? 0) || Number(v) > (f.max ?? 2000000000))) {
         notify(t(L('Invalid numeric value.', 'Giá trị số không hợp lệ.')), true);
+        return;
+      }
+    }
+    for (const [start, end] of [['startDate', 'endDate'], ['checkIn', 'checkOut'], ['startsAt', 'endsAt']]) {
+      if (values[start] && values[end] && str(values[end]) <= str(values[start])) {
+        notify(t(L('The end date and time must be after the start.', 'Ngày giờ kết thúc phải sau ngày giờ bắt đầu.')), true);
         return;
       }
     }
@@ -234,6 +250,50 @@ function ActionDialog({ action, onClose, onDone }: {
     }
   };
   const change = (k: string, v: string | number | boolean) => setValues(old => ({ ...old, [k]: v }));
+  const renderField = (f: Field, dateMinimum?: string) => {
+    const label = t(f.label);
+    const value = values[f.key];
+    if (f.kind === 'promotion-code')
+      return <div key={f.key} className="promotion-code-field">
+        <div className="promotion-code-row">
+          <TextInput label={label} value={str(value)} maxLength={f.maxLength} disabled={busy || generating} onChange={event => change(f.key, event.target.value.toUpperCase())} />
+          <Button type="button" variant="secondary" icon="refresh" disabled={busy || generating} onClick={async () => {
+            if (lock.current)
+              return;
+            lock.current = true;
+            setGenerating(true);
+            try {
+              const result = await api<{
+                code: string;
+              }>('/admin/promotions/generate-code', { method: 'POST', silentSuccess: true });
+              change(f.key, result.code);
+            }
+            catch { /* API error toast already emitted. */ }
+            finally {
+              lock.current = false;
+              setGenerating(false);
+            }
+          }}>{t(generating ? L('Generating…', 'Đang tạo…') : L('Generate', 'Tạo mã'))}</Button>
+        </div>
+        <p className="field-help">{t(L('Enter a code, generate one, or leave blank to generate on save.', 'Nhập mã, tạo mã hoặc để trống để hệ thống tự sinh khi lưu.'))}</p>
+      </div>;
+    return f.kind === 'images' ? (<ImageUpload key={f.key} label={label} images={str(value).split('\n').filter(Boolean)} busy={busy} onFiles={files => upload(f.key, files)} onImagesChange={images => change(f.key, images.join('\n'))} onInvalid={message => notify(message, true)} />) : f.kind === 'check' ? <label className="live-check" key={f.key}>
+      <input type="checkbox" checked={Boolean(value)} onChange={e => change(f.key, e.target.checked)} />
+      {label}
+    </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={dateMinimum ?? f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
+  };
+  const pairs: Record<string, string> = { startDate: 'endDate', checkIn: 'checkOut', startsAt: 'endsAt' };
+  const renderedFields: ReactNode[] = [];
+  for (let i = 0; i < action.fields.length; i++) {
+    const f = action.fields[i];
+    const next = action.fields[i + 1];
+    if (next && pairs[f.key] === next.key && f.kind === next.kind && (f.kind === 'date' || f.kind === 'datetime-local')) {
+      renderedFields.push(<div key={f.key} className="picker-pair"><div className="picker-pair-grid">{renderField(f)}{renderField(next, nextPickerValue(str(values[f.key]), f.kind === 'datetime-local'))}</div></div>);
+      i++;
+    }
+    else
+      renderedFields.push(renderField(f));
+  }
   return <Modal title={t(action.title)} width="lg" onClose={() => {
     if (!lock.current)
       onClose();
@@ -242,29 +302,12 @@ function ActionDialog({ action, onClose, onDone }: {
       {action.detail && <p>
         {t(action.detail)}
       </p>}
-      {action.fields.map(f => {
-        const label = t(f.label);
-        const value = values[f.key];
-        return f.kind === 'images' ? (
-          <ImageUpload
-            key={f.key}
-            label={label}
-            images={str(value).split('\n').filter(Boolean)}
-            busy={busy}
-            onFiles={files => upload(f.key, files)}
-            onImagesChange={images => change(f.key, images.join('\n'))}
-            onInvalid={message => notify(message, true)}
-          />
-        ) : f.kind === 'check' ? <label className="live-check" key={f.key}>
-          <input type="checkbox" checked={Boolean(value)} onChange={e => change(f.key, e.target.checked)} />
-          {label}
-        </label> : f.kind === 'select' ? <NativeSelect key={f.key} label={label} value={str(value)} choices={(f.choices ?? []).map(c => ({ value: c.value, label: t(c.label) }))} onChange={e => change(f.key, e.target.value)} /> : f.kind === 'textarea' ? <TextArea key={f.key} label={label} value={str(value)} maxLength={f.maxLength} required={f.required !== false} onChange={e => change(f.key, e.target.value)} /> : <TextInput key={f.key} label={label} type={f.kind ?? 'text'} value={str(value)} required={f.required !== false} min={f.min} max={f.max} maxLength={f.maxLength} step={f.kind === 'number' ? 1 : undefined} onChange={e => change(f.key, e.target.value)} />;
-      })}
+      {renderedFields}
       <div className="live-actions">
-        <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>
+        <Button type="button" variant="secondary" disabled={busy || generating} onClick={onClose}>
           {t(L('Cancel', 'Hủy'))}
         </Button>
-        <Button type="submit" variant={action.danger ? 'danger' : 'primary'} disabled={busy}>
+        <Button type="submit" variant={action.danger ? 'danger' : 'primary'} disabled={busy || generating}>
           {t(busy ? L('Processing…', 'Đang xử lý…') : L('Confirm', 'Xác nhận'))}
         </Button>
       </div>
