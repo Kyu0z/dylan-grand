@@ -1,3 +1,4 @@
+import { MoneyInput } from '../components/money-input';
 import { useState, type FormEvent } from 'react';
 import { L, formatMoney, type Room, type RoomType } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -33,7 +34,7 @@ export function HotelContent() {
   const fields = (items: { key: keyof typeof settings; label: string; }[]) => items.map(item => <TextInput key={item.key} label={item.label} value={settings[item.key]} onChange={e => change(item.key, e.target.value)} />);
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Hotel information', 'Thông tin khách sạn'))}
       description={t(L('Manage the identity, content and public-facing hotel details.', 'Quản lý nhận diện, nội dung và thông tin hiển thị trên website.'))}
       action={<Button icon="check" onClick={saveSettings}>
@@ -56,7 +57,7 @@ export function HotelContent() {
             {t(L('A refined stay, thoughtfully curated.', 'Một kỳ nghỉ tinh tế, được chăm chút.'))}
           </p>
         </div>
-        
+
       </Card>
     </div>}
     {tab === 'content' && <div className="two-column-layout">
@@ -169,7 +170,7 @@ export function RoomTypesPage() {
   const filtered = roomTypes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Rooms & suites', 'Hạng phòng & suite'))}
       description={t(L('Curate the room categories shown to your guests.', 'Quản lý các hạng phòng được giới thiệu và mở bán cho khách.'))}
       action={<Button icon="plus" onClick={() => open()}>
@@ -259,12 +260,11 @@ export function RoomTypesPage() {
             min={1}
             value={draft.capacity}
             onChange={e => setDraft({ ...draft, capacity: Number(e.target.value) })} />
-          <TextInput
-            label={t(L('Base rate (VND)', 'Giá cơ bản (VND)'))}
-            type="number"
+          <MoneyInput
             min={0}
+            label={t(L('Base rate (VND)', 'Giá cơ bản (VND)'))}
             value={draft.price}
-            onChange={e => setDraft({ ...draft, price: Number(e.target.value) })} />
+            onValueChange={raw => setDraft({ ...draft, price: Number(raw) })} />
           <NativeSelect
             label={t(L('Publication status', 'Trạng thái mở bán'))}
             value={draft.status}
@@ -275,7 +275,7 @@ export function RoomTypesPage() {
           label={t(L('Room hero image', 'Ảnh đại diện hạng phòng'))}
           value={draft.image}
           onChange={(next) => setDraft({ ...draft, image: next })}
-           />
+        />
         <TextInput
           label={t(L('Amenities (comma separated)', 'Tiện ích (cách nhau bằng dấu phẩy)'))}
           value={draft.amenities.join(', ')}
@@ -301,7 +301,7 @@ export function PhysicalRoomsPage() {
   const save = (e: FormEvent) => { e.preventDefault(); if (!draft) return; if (rooms.some(r => r.number === draft.number && r.number !== original)) { notify(t(L('Room number already exists.', 'Số phòng đã tồn tại.'))); return; } update('rooms', original ? rooms.map(r => r.number === original ? draft : r) : [...rooms, draft]); setDraft(null); notify(t(L('This module is not available yet.', 'Chức năng này hiện chưa khả dụng.'))); };
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Room directory', 'Danh sách phòng vật lý'))}
       description={t(L('Manage individual rooms, floors, sellability and maintenance.', 'Quản lý từng phòng, tầng, khả năng bán và tình trạng bảo trì.'))}
       action={<Button icon="plus" onClick={() => open()}>

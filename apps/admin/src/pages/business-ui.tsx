@@ -1,3 +1,5 @@
+import { MoneyInput } from '../components/money-input';
+import { numericDraftValid } from '../lib/money-input';
 import { hotelNow, nextPickerValue, validPickerValue } from '../lib/date-picker';
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Card, Empty, Modal, NativeSelect, SimpleTable, TextArea, TextInput } from '../components/ui';
@@ -132,7 +134,7 @@ export function Table({ data, columns }: {
 export type Field = {
   key: string;
   label: Localized;
-  kind?: 'text' | 'promotion-code' | 'number' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images' | 'service-image';
+  kind?: 'text' | 'promotion-code' | 'number' | 'money' | 'date' | 'datetime-local' | 'email' | 'textarea' | 'select' | 'check' | 'images' | 'service-image';
   initial?: string | number | boolean;
   required?: boolean;
   min?: number;
@@ -212,7 +214,7 @@ function ActionDialog({ action, onClose, onDone }: {
         notify(t(L('Use 3–32 letters, numbers, hyphens or underscores for the promotion code.', 'Mã ưu đãi gồm 3–32 chữ cái, chữ số, dấu gạch ngang hoặc gạch dưới.')), true);
         return;
       }
-      if (f.kind === 'number' && v !== '' && (!Number.isSafeInteger(Number(v)) || Number(v) < (f.min ?? 0) || Number(v) > (f.max ?? 2000000000))) {
+      if ((f.kind === 'money' && v !== '' && !numericDraftValid(String(v), f.min ?? 0, f.max ?? 2000000000)) || (f.kind === 'number' && v !== '' && (!Number.isSafeInteger(Number(v)) || Number(v) < (f.min ?? 0) || Number(v) > (f.max ?? 2000000000)))) {
         notify(t(L('Invalid numeric value.', 'Giá trị số không hợp lệ.')), true);
         return;
       }
@@ -279,6 +281,9 @@ function ActionDialog({ action, onClose, onDone }: {
   const renderField = (f: Field, dateMinimum?: string) => {
     const label = t(f.label);
     const value = values[f.key];
+    if (f.kind === 'money') {
+      return <MoneyInput key={f.key} label={label} value={str(value)} required={f.required !== false} signed={(f.min ?? 0) < 0} disabled={busy} onValueChange={raw => change(f.key, raw)} />;
+    }
     if (f.kind === 'promotion-code')
       return <div key={f.key} className="promotion-code-field">
         <div className="promotion-code-row">

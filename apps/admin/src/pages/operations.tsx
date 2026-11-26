@@ -1,3 +1,4 @@
+import { MoneyInput } from '../components/money-input';
 import { useState } from 'react';
 import { L, formatMoney, type Guest, type Promotion, type Service } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -23,7 +24,7 @@ export function HousekeepingPage() {
   };
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Housekeeping board', 'Bảng công việc buồng phòng'))}
       description={t(L('A room is ready only when service and front desk are aligned.', 'Phòng chỉ sẵn sàng khi tình trạng vệ sinh và vận hành phù hợp.'))} />
     <div className="metric-grid three">
@@ -113,7 +114,7 @@ export function GuestsPage() {
   const { notify, Toast } = useToast();
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Guests & reviews', 'Khách hàng & đánh giá'))}
       description={t(L('Know your guests, remember their preferences and respond thoughtfully.', 'Theo dõi lịch sử, nhu cầu của khách và phản hồi đánh giá.'))} />
     <div className="metric-grid three">
@@ -285,7 +286,7 @@ export function PromotionsPage() {
   const { notify, Toast } = useToast();
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Offers & extra services', 'Ưu đãi & dịch vụ bổ sung'))}
       description={t(L('Create meaningful offers and curated guest experiences.', 'Quản lý chương trình ưu đãi và những trải nghiệm dành cho khách.'))}
       action={<Button
@@ -362,9 +363,7 @@ export function PromotionsPage() {
               {formatMoney(s.price, language)}
             </b>
           </div>
-          <button className="icon-btn" aria-label={t(L('Edit service', 'Sửa dịch vụ'))} onClick={() => setService({ ...s })}>
-            <Icon name="edit" />
-          </button>
+          <IconAction name="edit" label={t(L('Edit service', 'Sửa dịch vụ'))} onClick={() => setService({ ...s })} />
         </div>)}
       </div>}
     </Card>
@@ -390,12 +389,12 @@ export function PromotionsPage() {
             value={promo.type}
             onChange={e => setPromo({ ...promo, type: e.target.value })}
             choices={[{ value: 'Percent', label: t(L('Percentage', 'Phần trăm')) }, { value: 'Fixed', label: t(L('Fixed amount', 'Số tiền cố định')) }]} />
-          <TextInput
+          {promo.type === 'Fixed' ? <MoneyInput min={0} label={t(L('Discount value', 'Giá trị giảm'))} value={promo.value} onValueChange={raw => setPromo({ ...promo, value: Number(raw) })} /> : <TextInput
             label={t(L('Discount value', 'Giá trị giảm'))}
             type="number"
             min={0}
             value={promo.value}
-            onChange={e => setPromo({ ...promo, value: Number(e.target.value) })} />
+            onChange={e => setPromo({ ...promo, value: Number(e.target.value) })} />}
           <TextInput label={t(L('Start date', 'Ngày bắt đầu'))} type="date" value={promo.from} onChange={e => setPromo({ ...promo, from: e.target.value })} />
           <TextInput label={t(L('End date', 'Ngày kết thúc'))} type="date" value={promo.to} onChange={e => setPromo({ ...promo, to: e.target.value })} />
           <TextInput
@@ -425,12 +424,11 @@ export function PromotionsPage() {
       </>}>
       <div className="stack-fields">
         <TextInput label={t(L('Service name', 'Tên dịch vụ'))} value={service.name} onChange={e => setService({ ...service, name: e.target.value })} />
-        <TextInput
-          label={t(L('Unit price (VND)', 'Đơn giá (VND)'))}
-          type="number"
+        <MoneyInput
           min={0}
+          label={t(L('Unit price (VND)', 'Đơn giá (VND)'))}
           value={service.price}
-          onChange={e => setService({ ...service, price: Number(e.target.value) })} />
+          onValueChange={raw => setService({ ...service, price: Number(raw) })} />
         <div className="form-grid two">
           <NativeSelect
             label={t(L('Unit', 'Đơn vị'))}

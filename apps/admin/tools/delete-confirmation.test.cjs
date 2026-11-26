@@ -82,6 +82,8 @@ test('shared delete action keeps the existing async handler and destructive cont
     '../lib/date-picker': {},
     '../components/ui': {},
     '../components/image-upload': {},
+    '../components/money-input': {},
+    '../lib/money-input': {},
     '../components/delete-confirmation': {},
     '../lib/admin-auth': {},
     '../lib/domain': { L },

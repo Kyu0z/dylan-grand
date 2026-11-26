@@ -1,3 +1,5 @@
+import { IconAction } from '../components/ui';
+import { MoneyInput } from '../components/money-input';
 import { useState } from 'react';
 import { L, formatMoney } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -20,7 +22,7 @@ export function PricingPage() {
   const selected = roomTypes.find(r => r.id === roomId) ?? roomTypes[0];
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Rates & pricing', 'Giá phòng & gói giá'))}
       description={t(L('Thoughtful pricing for every room type and rate plan.', 'Thiết lập giá theo từng hạng phòng và các gói giá.'))}
       action={<Button icon="plus" onClick={() => setModal(true)}>
@@ -97,9 +99,7 @@ export function PricingPage() {
                 {t(L('plans', 'gói'))}
               </td>
               <td>
-                <Button variant="ghost" onClick={() => { setRoomId(r.id); setModal(true); }}>
-                  {t(L('Edit price', 'Sửa giá'))}
-                </Button>
+                <IconAction name="edit" label={t(L('Edit price', 'Sửa giá'))} onClick={() => { setRoomId(r.id); setModal(true); }} />
               </td>
             </tr>)}
           </tbody>
@@ -108,7 +108,7 @@ export function PricingPage() {
     </Card>}
     {tab === 'calendar' && <Card
       title={t(L('Daily rate calendar', 'Lịch giá theo ngày'))}
-      >
+    >
       <div className="table-toolbar">
         <NativeSelect
           label={t(L('Room category', 'Hạng phòng'))}
@@ -206,14 +206,13 @@ export function PricingPage() {
           choices={roomTypes.map(r => ({ value: r.id, label: r.name }))}
           value={roomId}
           onChange={e => setRoomId(e.target.value)} />
-        <TextInput
-          label={t(L('Price per night (VND)', 'Giá mỗi đêm (VND)'))}
-          type="number"
+        <MoneyInput
           min={0}
+          label={t(L('Price per night (VND)', 'Giá mỗi đêm (VND)'))}
           value={dayRate}
           placeholder={String(selected?.price ?? 0)}
-          onChange={e => setDayRate(e.target.value)} />
-        
+          onValueChange={raw => setDayRate(raw)} />
+
       </div>
     </Modal>}
     <Toast />

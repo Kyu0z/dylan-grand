@@ -1,3 +1,4 @@
+import { MoneyInput } from '../components/money-input';
 import { useMemo, useState, type FormEvent } from 'react';
 import { L, formatDate, formatMoney, type Reservation } from '../lib/domain';
 import { useLocale } from '../lib/locale';
@@ -23,7 +24,7 @@ export function ReservationsPage() {
   const csv = () => { const header = ['ID', 'Guest', 'Email', 'Room Type', 'Room', 'Check In', 'Check Out', 'Status', 'Payment', 'Total']; const lines = [header, ...filtered.map(b => [b.id, b.guest, b.email, b.roomType, b.room, b.checkIn, b.checkOut, b.status, b.payment, String(b.total)])]; const csvData = lines.map(line => line.map(value => '"' + String(value).replaceAll('"', '""') + '"').join(',')).join('\r\n'); const url = URL.createObjectURL(new Blob(['\ufeff', csvData], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = 'dylan-grand-reservations.csv'; link.click(); URL.revokeObjectURL(url); };
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Reservation management', 'Quản lý đặt phòng'))}
       description={t(L('Every guest journey, carefully organized.', 'Theo dõi và quản lý mọi hành trình lưu trú của khách.'))}
       action={<>
@@ -237,7 +238,7 @@ export function ReservationsPage() {
           value={selected.status}
           onChange={e => changeStatus(e.target.value)}
           choices={statusOptions.map(s => ({ value: s, label: s }))} />
-        
+
       </div>
     </Modal>}
     {draft && <Modal
@@ -283,12 +284,11 @@ export function ReservationsPage() {
             value={draft.status}
             onChange={e => setDraft({ ...draft, status: e.target.value })}
             choices={statusOptions.map(s => ({ value: s, label: s }))} />
-          <TextInput
-            label={t(L('Total amount (VND)', 'Tổng tiền (VND)'))}
-            type="number"
+          <MoneyInput
             min={0}
+            label={t(L('Total amount (VND)', 'Tổng tiền (VND)'))}
             value={draft.total}
-            onChange={e => setDraft({ ...draft, total: Number(e.target.value) })} />
+            onValueChange={raw => setDraft({ ...draft, total: Number(raw) })} />
         </div>
         <TextArea rows={3} label={t(L('Internal notes', 'Ghi chú nội bộ'))} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} />
         <button id="save-reservation" type="submit" hidden />

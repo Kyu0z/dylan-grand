@@ -1,8 +1,9 @@
+import { MoneyInput } from '../components/money-input';
 import { useState } from 'react';
 import { L, formatDate, formatMoney, type Payment } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { useDemoStore } from '../lib/demo-store';
-import { Button, Card, Metric, MiniBarChart, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, TextInput, useToast } from '../components/ui';
+import { Button, Card, Metric, MiniBarChart, Modal, NativeSelect, PageHeader, SearchBox, Status, Tabs, useToast } from '../components/ui';
 
 export function PaymentsPage() {
   const { t, language } = useLocale();
@@ -24,7 +25,7 @@ export function PaymentsPage() {
   };
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Payments & refunds', 'Thanh toán & hoàn tiền'))}
       description={t(L('Monitor every transaction and outstanding guest balance.', 'Theo dõi giao dịch và các khoản thanh toán của khách.'))}
       action={<>
@@ -113,7 +114,7 @@ export function PaymentsPage() {
         </table>
       </div>
     </Card>
-    
+
     {modal && <Modal
       title={modal === 'payment' ? t(L('Record a payment', 'Ghi nhận thanh toán')) : t(L('Record a refund', 'Ghi nhận hoàn tiền'))}
       onClose={() => setModal(null)}
@@ -131,19 +132,18 @@ export function PaymentsPage() {
           value={draft.booking}
           onChange={e => setDraft({ ...draft, booking: e.target.value })}
           choices={bookings.map(b => ({ value: b.id, label: `${b.id} — ${b.guest}` }))} />
-        <TextInput
-          type="number"
-          min="1"
+        <MoneyInput
+          min={1}
           required
           label={t(L('Amount (VND)', 'Số tiền (VND)'))}
           value={draft.amount}
-          onChange={e => setDraft({ ...draft, amount: e.target.value })} />
+          onValueChange={raw => setDraft({ ...draft, amount: raw })} />
         <NativeSelect
           label={t(L('Payment method', 'Phương thức thanh toán'))}
           value={draft.method}
           onChange={e => setDraft({ ...draft, method: e.target.value })}
           choices={['Cash', 'Card', 'Transfer'].map(x => ({ value: x, label: x }))} />
-        
+
       </div>
     </Modal>}
     <Toast />
@@ -168,7 +168,7 @@ export function ReportsPage() {
   const exportCSV = () => { const rows = [['Room Type', 'Confirmed Bookings', 'Revenue'], ...roomTypes.map(r => [r.name, confirmed.filter(b => b.roomType === r.name).length, String(confirmed.filter(b => b.roomType === r.name).reduce((s, b) => s + b.total, 0))])]; const body = rows.map(r => r.map(v => `"${String(v).replaceAll('"', '""')}"`).join(',')).join('\n'); const url = URL.createObjectURL(new Blob(['\ufeff', body], { type: 'text/csv;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = 'dylan-grand-report.csv'; a.click(); URL.revokeObjectURL(url); };
   return <div className="page-stack">
     <PageHeader
-      
+
       title={t(L('Reports & insights', 'Báo cáo & phân tích'))}
       description={t(L('Understand your hotel’s performance through a considered lens.', 'Theo dõi hiệu quả vận hành và doanh thu một cách trực quan.'))}
       action={<>
@@ -186,7 +186,7 @@ export function ReportsPage() {
     <div className="overview-main-grid">
       <Card
         title={t(L('Performance trend', 'Xu hướng hoạt động'))}
-        
+
         action={<NativeSelect
           value={metric}
           onChange={e => setMetric(e.target.value)}
@@ -205,7 +205,7 @@ export function ReportsPage() {
       </Card>
       <Card
         title={t(L('Revenue by room category', 'Doanh thu theo hạng phòng'))}
-        >
+      >
         <div className="room-revenue-list">
           {roomTypes.map(r => {
             const value = confirmed.filter(b => b.roomType === r.name).reduce((s, b) => s + b.total, 0); return <div key={r.id}>
@@ -247,6 +247,6 @@ export function ReportsPage() {
         </strong>
       </div>
     </div>
-    
+
   </div>;
 }

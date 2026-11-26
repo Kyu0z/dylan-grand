@@ -1,13 +1,14 @@
+import { mergePricingRates } from '../lib/pricing-table';
 import { displayPickerValue, hotelNow, nextPickerValue } from '../lib/date-picker';
 import { useState, type ReactNode } from 'react';
-import { Badge, Button, Card, Metric, Modal, NativeSelect, PageHeader, SearchBox, TextInput } from '../components/ui';
+import { Badge, Button, Card, IconAction, Metric, Modal, NativeSelect, PageHeader, SearchBox, TextInput } from '../components/ui';
 import { useAdminAuth } from '../lib/admin-auth';
 import { L, nav, type Localized } from '../lib/domain';
 import { useLocale } from '../lib/locale';
 import { Cash, DataState, RowActions, StatusValue, Table, col, createDeleteAction, date, displayDate, field, num, obj, options, pathId, plusDays, rows, str, today, useAction, useData, type Action, type Field, type Row, type Values } from './business-ui';
 const rcode = (r: Row) => str(r.code);
 const text = (r: Row, key: string) => str(r[key]);
-const amountField = field('amountVnd', 'Amount (VND)', 'Số tiền (VND)', { kind: 'number', min: 1, max: 2000000000 });
+const amountField = field('amountVnd', 'Amount (VND)', 'Số tiền (VND)', { kind: 'money', min: 1, max: 2000000000 });
 const reason = field('reason', 'Reason', 'Lý do', { kind: 'textarea', maxLength: 300 });
 const dateFields = () => [field('checkIn', 'Check-in', 'Nhận phòng', { kind: 'date', initial: today() }), field('checkOut', 'Check-out', 'Trả phòng', { kind: 'date', initial: plusDays(today(), 1) })];
 const statusCol = (key: string, en: string, vi: string) => col(key, en, vi, r => <StatusValue value={r[key]} />);
@@ -19,7 +20,7 @@ const dateTimeCol = (key: string, en: string, vi: string) => col(key, en, vi, r 
 });
 const roomName = (r: Row, vi: boolean) => str(r[vi ? 'nameVi' : 'nameEn']) || str(r.nameEn) || str(r.code);
 const typeChoices = (data: Row[], vi: boolean) => data.map(r => ({ value: rcode(r), label: roomName(r, vi) }));
-const own = (v: Values, fields: Field[]) => Object.fromEntries(fields.filter(f => v[f.key] !== '' || f.required !== false).map(f => [f.key, f.kind === 'number' ? Number(v[f.key]) : f.kind === 'datetime-local' ? new Date(`${v[f.key]}+07:00`).toISOString() : v[f.key]]));
+const own = (v: Values, fields: Field[]) => Object.fromEntries(fields.filter(f => v[f.key] !== '' || f.required !== false).map(f => [f.key, (f.kind === 'number' || f.kind === 'money') ? Number(v[f.key]) : f.kind === 'datetime-local' ? new Date(`${v[f.key]}+07:00`).toISOString() : v[f.key]]));
 function useOps(reload: () => void) {
   const { api, user } = useAdminAuth();
   const { t, language } = useLocale();
@@ -145,7 +146,7 @@ function RoomTypes() {
           col('isPublished', 'Status', 'Trạng thái', r => <Badge tone={r.isPublished ? 'success' : 'neutral'}>
             {o.t(r.isPublished ? L('Published', 'Công khai') : L('Draft', 'Bản nháp'))}
           </Badge>),
-          col('action', 'Actions', 'Thao tác', r => <Act label={L('Edit', 'Sửa')} onClick={() => save(r)} />)
+          col('action', 'Actions', 'Thao tác', r => <IconAction name="edit" label={o.t(L('Edit', 'Sửa'))} onClick={() => save(r)} />)
         ]} />
       </Card>
     </DataState>
@@ -245,12 +246,14 @@ function Pricing() {
   const reload = () => { d.reload(); calendar.reload(); };
   const o = useOps(reload);
   const weekend = obj(d.data?.weekend);
-  const special = rows(d.data?.specialRates);
+  // Keep legacy overrides accessible in the same table through their existing API.
+  const rateRows = mergePricingRates(rows(d.data?.specialRates), rows(d.data?.dailyRates), types);
+  const rateName = (r: Row) => r.legacyDaily ? o.t(L('Daily rate', 'Giá theo ngày')) : str(r.name);
   const feeOptions = [{ value: 'FIRST_NIGHT', label: L('First night', 'Đêm đầu') }, { value: 'FULL', label: L('Full room charge', 'Toàn bộ tiền phòng') }, { value: 'NONE', label: L('No fee', 'Không tính phí') }];
   const feeLabel = (value: unknown) => o.t(feeOptions.find(x => x.value === value)?.label ?? L('Unknown', 'Không xác định'));
   const editWeekend = () => o.action(L('Weekend pricing', 'Giá cuối tuần'), '/admin/pricing/weekend', 'PUT', [
     field('enabled', 'Enabled · Saturday and Sunday', 'Áp dụng · Thứ Bảy và Chủ nhật', { kind: 'check', required: false, initial: Boolean(weekend.enabled) }),
-    field('surchargeVnd', 'Surcharge (VND)', 'Phụ thu (VND)', { kind: 'number', min: 0, initial: num(weekend.surchargeVnd) })
+    field('surchargeVnd', 'Surcharge (VND)', 'Phụ thu (VND)', { kind: 'money', min: 0, initial: num(weekend.surchargeVnd) })
   ], undefined, L('The surcharge applies to future weekend nights unless a special rate exists.', 'Phụ thu áp dụng cho các đêm cuối tuần trong tương lai, trừ ngày có giá đặc biệt.'));
   const specialTypes = (r: Row) => rows(r.dailyRates).map(x => obj(x.roomType));
   const saveSpecial = (r?: Row) => {
@@ -291,16 +294,25 @@ function Pricing() {
           <p className="pricing-note">{o.t(L('Special rates override both base rates and weekend surcharges.', 'Giá đặc biệt ưu tiên hơn giá cơ bản và phụ thu cuối tuần.'))}</p>
         </Card>
         <Card title={o.t(L('Room base rates', 'Giá cơ bản từng hạng phòng'))}><Table data={types} columns={[
-          col('code', 'Code', 'Mã'), col('name', 'Room type', 'Hạng phòng', r => roomName(r, o.vi)), cashCol('baseRateVnd', 'Weekday / night', 'Ngày thường / đêm'), col('weekend', 'Weekend / night', 'Cuối tuần / đêm', r => <Cash value={num(r.baseRateVnd) + (weekend.enabled ? num(weekend.surchargeVnd) : 0)} />), col('actions', 'Actions', 'Thao tác', r => <Act label={L('Edit', 'Chỉnh sửa')} onClick={() => o.action(L('Set base rate', 'Đặt giá cơ bản'), `/admin/pricing/room-types/${pathId(r.code)}/base-rate`, 'PUT', [{ ...amountField, initial: num(r.baseRateVnd) }], undefined, L('Update the future base price without changing existing reservations.', 'Cập nhật giá cơ bản, không đổi giá booking đã tạo.'))} />)
+          col('code', 'Code', 'Mã'), col('name', 'Room type', 'Hạng phòng', r => roomName(r, o.vi)), cashCol('baseRateVnd', 'Weekday / night', 'Ngày thường / đêm'), col('weekend', 'Weekend / night', 'Cuối tuần / đêm', r => <Cash value={num(r.baseRateVnd) + (weekend.enabled ? num(weekend.surchargeVnd) : 0)} />), col('actions', 'Actions', 'Thao tác', r => <IconAction name="edit" label={o.t(L('Edit', 'Chỉnh sửa'))} onClick={() => o.action(L('Set base rate', 'Đặt giá cơ bản'), `/admin/pricing/room-types/${pathId(r.code)}/base-rate`, 'PUT', [{ ...amountField, initial: num(r.baseRateVnd) }], undefined, L('Update the future base price without changing existing reservations.', 'Cập nhật giá cơ bản, không đổi giá booking đã tạo.'))} />)
         ]} /></Card>
       </>}
       {tab === 'special' && <>
         <Card title={o.t(L('Special rate periods', 'Đợt giá đặc biệt'))} action={<Button icon="plus" disabled={!types.length} onClick={() => saveSpecial()}>{o.t(L('Add special rate', 'Thêm giá đặc biệt'))}</Button>}>
           <div className="table-toolbar"><SearchBox value={search} onChange={setSearch} placeholder={o.t(L('Search special rates', 'Tìm đợt giá'))} /><NativeSelect value={filterType} choices={[{ value: '', label: o.t(L('All room types', 'Tất cả hạng phòng')) }, ...typeChoices(types, o.vi)]} onChange={e => setFilterType(e.target.value)} /></div>
-          <Table data={special.filter(r => str(r.name).toLowerCase().includes(search.toLowerCase()) && (!filterType || specialTypes(r).some(t => t.code === filterType)))} columns={[col('name', 'Rate name', 'Tên đợt giá'), col('rooms', 'Room types', 'Hạng phòng', r => specialTypes(r).map(t => roomName(t, o.vi)).join(', ')), dateCol('startDate', 'Start', 'Bắt đầu'), dateCol('endDate', 'End (inclusive)', 'Kết thúc'), cashCol('amountVnd', 'Price / night', 'Giá / đêm'), col('actions', 'Actions', 'Thao tác', r => date(r.startDate) >= today() ? <RowActions><Act label={L('Edit', 'Sửa')} onClick={() => saveSpecial(r)} /><Act danger label={L('Delete', 'Xóa')} onClick={() => o.open(createDeleteAction({ title: L('Delete special rate', 'Xóa giá đặc biệt'), target: str(r.name), run: () => o.api(`/admin/pricing/special-rates/${pathId(r.id)}`, { method: 'DELETE' }) }))} /></RowActions> : '—')]} />
-        </Card>
-        <Card title={o.t(L('Existing daily overrides', 'Giá theo ngày đã thiết lập'))}>
-          <Table data={rows(d.data?.dailyRates)} columns={[col('roomType', 'Room type', 'Hạng phòng', r => str(obj(r.roomType).code)), dateCol('date', 'Date', 'Ngày'), cashCol('amountVnd', 'Rate', 'Giá'), col('actions', 'Actions', 'Thao tác', r => date(r.date) >= today() ? <RowActions><Act label={L('Edit', 'Sửa')} onClick={() => dayRate(r)} /><Act danger label={L('Delete', 'Xóa')} onClick={() => o.open(createDeleteAction({ title: L('Delete daily rate', 'Xóa giá theo ngày'), target: displayDate(r.date), run: () => o.api(`/admin/pricing/room-types/${pathId(obj(r.roomType).code)}/daily-rates/${pathId(date(r.date))}`, { method: 'DELETE' }) }))} /></RowActions> : '—')]} />
+          <Table data={rateRows.filter(r => rateName(r).toLowerCase().includes(search.toLowerCase()) && (!filterType || specialTypes(r).some(t => t.code === filterType)))} columns={[
+            col('name', 'Rate name', 'Tên đợt giá', rateName),
+            col('rooms', 'Room types', 'Hạng phòng', r => specialTypes(r).map(t => roomName(t, o.vi)).join(', ')),
+            dateCol('startDate', 'Start', 'Bắt đầu'), dateCol('endDate', 'End (inclusive)', 'Kết thúc'), cashCol('amountVnd', 'Price / night', 'Giá / đêm'),
+            col('actions', 'Actions', 'Thao tác', r => date(r.startDate) >= today() ? <RowActions>
+              <IconAction name="edit" label={o.t(L('Edit rate', 'Sửa giá'))} onClick={() => r.legacyDaily ? dayRate(r) : saveSpecial(r)} />
+              <IconAction name="trash" danger label={o.t(L('Delete rate', 'Xóa giá'))} onClick={() => o.open(createDeleteAction({
+                title: r.legacyDaily ? L('Delete daily rate', 'Xóa giá theo ngày') : L('Delete special rate', 'Xóa giá đặc biệt'),
+                target: r.legacyDaily ? `${roomName(specialTypes(r)[0] ?? {}, o.vi)} · ${displayDate(r.date)}` : str(r.name),
+                run: () => o.api(r.legacyDaily ? `/admin/pricing/room-types/${pathId(obj(r.roomType).code)}/daily-rates/${pathId(date(r.date))}` : `/admin/pricing/special-rates/${pathId(r.id)}`, { method: 'DELETE' })
+              }))} />
+            </RowActions> : '—')
+          ]} />
         </Card>
       </>}
       {tab === 'plans' && <div className="pricing-plan-grid">{rows(d.data?.plans).map(r => <Card key={rcode(r)} title={o.t(L(r.code === 'FLEXIBLE' ? 'Flexible' : 'Non-refundable', r.code === 'FLEXIBLE' ? 'Linh hoạt' : 'Không hoàn tiền'))} action={<Act label={L('Edit policy', 'Sửa chính sách')} onClick={() => editPlan(r)} />}>
@@ -640,8 +652,8 @@ function Promotions() {
           col('usageLimit', 'Limit', 'Giới hạn'),
           col('isActive', 'Active', 'Hoạt động', active),
           ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <RowActions>
-            <Act label={L('Edit', 'Sửa')} onClick={() => o.action(L('Edit promotion', 'Chỉnh sửa ưu đãi'), promotionPath(r), 'PATCH', promotionFields(r), undefined, L(`Promotion code: ${rcode(r)} (cannot be changed).`, `Mã ưu đãi: ${rcode(r)} (không thể thay đổi).`))} />
-            <Act danger label={L('Delete', 'Xóa')} onClick={() => remove(r, false)} />
+            <IconAction name="edit" label={o.t(L('Edit', 'Sửa'))} onClick={() => o.action(L('Edit promotion', 'Chỉnh sửa ưu đãi'), promotionPath(r), 'PATCH', promotionFields(r), undefined, L(`Promotion code: ${rcode(r)} (cannot be changed).`, `Mã ưu đãi: ${rcode(r)} (không thể thay đổi).`))} />
+            <IconAction name="trash" danger label={o.t(L('Delete', 'Xóa'))} onClick={() => remove(r, false)} />
           </RowActions>)] : []),
         ]} />
       </Card>
@@ -653,8 +665,8 @@ function Promotions() {
           cashCol('priceVnd', 'Price', 'Giá'),
           col('isActive', 'Active', 'Hoạt động', active),
           ...(o.manager ? [col('actions', 'Actions', 'Thao tác', r => <RowActions>
-            <Act label={L('Edit', 'Sửa')} onClick={() => saveService(r)} />
-            <Act danger label={L('Delete', 'Xóa')} onClick={() => remove(r, true)} />
+            <IconAction name="edit" label={o.t(L('Edit', 'Sửa'))} onClick={() => saveService(r)} />
+            <IconAction name="trash" danger label={o.t(L('Delete', 'Xóa'))} onClick={() => remove(r, true)} />
           </RowActions>)] : []),
         ]} />
       </Card>

@@ -1,8 +1,8 @@
+import { PickerFooter } from './picker-footer';
 import { calendarCells, calendarIso, displayPickerValue, hotelNow, parseCalendarDate, pickerValueInRange, popupPosition, validPickerValue } from '../lib/date-picker';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
 import { createPortal } from 'react-dom';
 import { ImageUpload } from './image-upload';
-import { PickerFooter } from './picker-footer';
 import { IMAGE_ACCEPT, readImageFile } from '../lib/image-upload';
 import { useLocale } from '../lib/locale';
 import { L, formatMoney, type Language } from '../lib/domain';
@@ -477,28 +477,13 @@ export function DateField({ label, placeholder, className = '', value, onChange,
         <div className="picker-presets">{['08:00', '12:00', '14:00', '18:00'].map(preset => <Button key={preset} type="button" variant="secondary" aria-pressed={time === preset} onClick={() => setTime(preset)}>{preset}</Button>)}</div>
         <div className="picker-summary">{displayPickerValue(candidate, true)}</div>
       </div>}
-      <PickerFooter
-        shortcuts={(
-          <>
-            <button type="button" className="popover-link" onClick={() => commit('')}>
-              {t(L('Clear', 'Xóa'))}
-            </button>
-            <button type="button" className="popover-link strong" disabled={!dayAllowed(hotelDate)} onClick={selectToday}>
-              {t(L('Today', 'Hôm nay'))}
-            </button>
-          </>
-        )}
-        actions={withTime ? (
-          <>
-            <Button type="button" variant="secondary" onClick={close}>
-              {t(L('Cancel', 'Hủy'))}
-            </Button>
-            <Button type="button" disabled={!canApply} onClick={() => commit(candidate)}>
-              {t(L('Apply', 'Áp dụng'))}
-            </Button>
-          </>
-        ) : undefined}
-      />
+      <PickerFooter shortcuts={<>
+        <button type="button" className="popover-link" onClick={() => commit('')}>{t(L('Clear', 'Xóa'))}</button>
+        <button type="button" className="popover-link strong" disabled={!dayAllowed(hotelDate)} onClick={selectToday}>{t(L('Today', 'Hôm nay'))}</button>
+      </>} actions={withTime ? <>
+        <Button type="button" variant="secondary" onClick={close}>{t(L('Cancel', 'Hủy'))}</Button>
+        <Button type="button" disabled={!canApply} onClick={() => commit(candidate)}>{t(L('Apply', 'Áp dụng'))}</Button>
+      </> : undefined} />
     </div>, host)}
   </div>;
 }
@@ -820,12 +805,13 @@ export function StatList({ items }: {
     </div>)}
   </div>;
 }
-export function IconAction({ label, name, onClick }: {
+export function IconAction({ label, name, onClick, danger = false }: {
   label: string;
   name: string;
   onClick: () => void;
+  danger?: boolean;
 }) {
-  return <button type="button" className="icon-btn" title={label} aria-label={label} onClick={onClick}>
+  return <button type="button" className={`icon-btn${name === 'edit' || name === 'trash' ? ' icon-row-action' : ''}${danger || name === 'trash' ? ' icon-row-danger' : ''}`} title={label} aria-label={label} onClick={onClick}>
     <Icon name={name} />
   </button>;
 }
