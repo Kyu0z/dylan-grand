@@ -266,7 +266,7 @@ export default function AccountPage() {
             <form className="mt-8 grid gap-5" onSubmit={saveProfile} onInvalid={() => notify('error', 'Please check the information you entered.')} aria-busy={pending}>
               <label>
                 <span className="field-label"><T>{"FULL NAME"}</T></span>
-                <input className="field-control" value={name} maxLength={120} disabled={pending} onChange={e => setName(e.target.value)} required />
+                <input className="field-control" placeholder={t('Enter your full name')} value={name} maxLength={120} disabled={pending} onChange={e => setName(e.target.value)} required />
               </label>
               <label>
                 <span className="field-label"><T>{"EMAIL ADDRESS"}</T></span>
@@ -274,7 +274,7 @@ export default function AccountPage() {
               </label>
               <label>
                 <span className="field-label"><T>{"PHONE"}</T></span>
-                <input className="field-control" value={phone} maxLength={32} disabled={pending} onChange={e => setPhone(e.target.value)} />
+                <input className="field-control" placeholder={locale === 'vi' ? 'Nhập số điện thoại' : 'Enter phone number'} value={phone} maxLength={32} disabled={pending} onChange={e => setPhone(e.target.value)} />
               </label>
               <label>
                 <span className="field-label"><T>{"STAY PREFERENCES"}</T></span>

@@ -1,4 +1,5 @@
 import { PickerFooter } from './picker-footer';
+import { fieldPlaceholder } from '../lib/field-placeholder';
 import { calendarCells, calendarIso, displayPickerValue, hotelNow, parseCalendarDate, pickerValueInRange, popupPosition, validPickerValue } from '../lib/date-picker';
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes, } from 'react';
 import { createPortal } from 'react-dom';
@@ -448,7 +449,7 @@ export function DateField({ label, placeholder, className = '', value, onChange,
     <div className="popover-control">
       <input type="hidden" name={name} value={current} disabled={disabled} />
       <button ref={buttonRef} id={controlId} type="button" disabled={disabled} aria-label={ariaLabel ?? (label ? undefined : title)} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? panelId : undefined} aria-required={required} className={`field-control control-button ${className} ${open ? 'is-open' : ''}`.trim()} onClick={toggle}>
-        <span className={`control-text ${current ? '' : 'placeholder'}`}>{displayPickerValue(current, withTime) || placeholder || title}</span>
+        <span className={`control-text ${current ? '' : 'placeholder'}`}>{displayPickerValue(current, withTime) || fieldPlaceholder(language, withTime ? 'datetime-local' : 'date', label, placeholder)}</span>
         <Icon name="calendar" size={16} className="control-icon" />
       </button>
     </div>
@@ -490,6 +491,7 @@ export function DateField({ label, placeholder, className = '', value, onChange,
 export function TextInput({ label, type, ...props }: InputHTMLAttributes<HTMLInputElement> & {
   label?: ReactNode;
 }) {
+  const { language } = useLocale();
   if (type === 'date' || type === 'datetime-local') {
     return <DateField label={label} type={type} {...props} />;
   }
@@ -497,17 +499,18 @@ export function TextInput({ label, type, ...props }: InputHTMLAttributes<HTMLInp
     {label && <span className="form-label">
       {label}
     </span>}
-    <input {...props} type={type} className={`field-control ${props.className ?? ''}`.trim()} />
+    <input {...props} type={type} placeholder={props.readOnly || type === 'hidden' || type === 'checkbox' || type === 'radio' || type === 'file' || type === 'range' ? props.placeholder : fieldPlaceholder(language, type ?? 'text', label ?? props['aria-label'], props.placeholder)} className={`field-control ${props.className ?? ''}`.trim()} />
   </label>;
 }
 export function TextArea({ label, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & {
   label?: ReactNode;
 }) {
+  const { language } = useLocale();
   return <label className="form-field">
     {label && <span className="form-label">
       {label}
     </span>}
-    <textarea {...props} className={`field-control field-textarea ${props.className ?? ''}`.trim()} />
+    <textarea {...props} placeholder={props.readOnly ? props.placeholder : fieldPlaceholder(language, 'textarea', label ?? props['aria-label'], props.placeholder)} className={`field-control field-textarea ${props.className ?? ''}`.trim()} />
   </label>;
 }
 export function NativeSelect({ label, choices, placeholder, value, onChange, name, className = '', }: SelectHTMLAttributes<HTMLSelectElement> & {
@@ -518,13 +521,13 @@ export function NativeSelect({ label, choices, placeholder, value, onChange, nam
   }[];
   placeholder?: string;
 }) {
-  const { t } = useLocale();
+  const { language } = useLocale();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   useDismissLayer(open, [wrapperRef], () => setOpen(false));
   const currentValue = typeof value === 'string' ? value : '';
   const active = choices.find((choice) => choice.value === currentValue);
-  const display = active?.label ?? placeholder ?? t(L('Select value', 'Chọn giá trị'));
+  const display = active?.label ?? fieldPlaceholder(language, 'select', label, placeholder);
   return <label className="form-field">
     {label && <span className="form-label">
       {label}

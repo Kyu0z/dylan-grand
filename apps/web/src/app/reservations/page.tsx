@@ -229,6 +229,7 @@ export default function ReservationsPage() {
                 min={1}
                 max={5}
                 step={1}
+                placeholder="1–5"
                 required
                 value={stars}
                 onChange={e => setStars(Number(e.target.value))}
@@ -240,6 +241,7 @@ export default function ReservationsPage() {
               </span>
               <textarea
                 className="field-control min-h-24"
+                placeholder={dialog === 'cancel' ? tr('Enter your reason for cancellation', 'Nhập lý do hủy đặt phòng') : tr('Share your experience at the hotel', 'Chia sẻ trải nghiệm lưu trú của bạn')}
                 required
                 minLength={dialog === 'cancel' ? 3 : 10}
                 maxLength={dialog === 'cancel' ? 300 : 2000}
@@ -269,6 +271,7 @@ export default function ReservationsPage() {
             <input
               className="field-control"
               required
+              placeholder={tr('Enter booking reference', 'Nhập mã đặt phòng')}
               value={lookup.code}
               onChange={e => setLookup(v => ({ ...v, code: e.target.value }))}
             />
@@ -282,6 +285,7 @@ export default function ReservationsPage() {
               className="field-control"
               minLength={32}
               required
+              placeholder={tr('Enter your private lookup key', 'Nhập mã tra cứu riêng')}
               value={lookup.lookupToken}
               onChange={e => setLookup(v => ({ ...v, lookupToken: e.target.value }))}
             />

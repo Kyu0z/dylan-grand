@@ -28,6 +28,7 @@ export function PasswordField({ label, value, onChange, current = false, login =
       <Icon name="lock" size={17} />
       <input
         type={show ? 'text' : 'password'}
+        placeholder={label === t(L('Confirm password', 'Xác nhận mật khẩu')) ? t(L('Re-enter your password', 'Nhập lại mật khẩu')) : current ? t(L('Enter current password', 'Nhập mật khẩu hiện tại')) : login ? t(L('Enter your password', 'Nhập mật khẩu')) : t(L('At least 12 characters', 'Tối thiểu 12 ký tự'))}
         required
         minLength={login || current ? undefined : 12}
         maxLength={128}
@@ -50,7 +51,7 @@ export function PasswordField({ label, value, onChange, current = false, login =
     </div>
   </label>;
 }
-export function PasswordStrength({ password }: { password: string }) {
+export function PasswordStrength({ password }: { password: string; }) {
   const score = [
     password.length >= 12,
     password.length >= 16,
@@ -164,7 +165,7 @@ export function AuthPage({ path, go }: {
     }
     let alive = true;
     window.history.replaceState({}, '', window.location.pathname);
-    api<{ email: string; role: StaffRole; fullName: string | null }>(
+    api<{ email: string; role: StaffRole; fullName: string | null; }>(
       `/auth/staff${screen}/verify`,
       { method: 'POST', body: { token }, auth: false, silentSuccess: true, silentError: true },
     )

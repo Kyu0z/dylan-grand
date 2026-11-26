@@ -176,7 +176,7 @@ export function SelectField({
         onClick={() => setOpen((previous) => !previous)}
         className={`field-control lux-trigger flex items-center justify-between gap-3 text-left ${open ? 'lux-trigger-open' : ''}`}
       >
-        <span id={`${id}-value`} className="truncate">{t(chosen?.label ?? placeholder)}</span>
+        <span id={`${id}-value`} className={`truncate ${chosen ? '' : 'text-muted'}`}>{t(chosen?.label ?? placeholder)}</span>
         <span className={`lux-chevron shrink-0 ${open ? 'rotate-180' : ''}`}><ChevronIcon /></span>
       </button>
 
@@ -242,7 +242,7 @@ export function DateField({
   const monthTitle = new Intl.DateTimeFormat(locale === 'vi' ? 'vi-VN' : 'en-US', { month: 'long', year: 'numeric' }).format(visibleMonth);
   const selectedLabel = value
     ? value.split('-').reverse().join('/')
-    : 'Select date';
+    : t('Select date');
 
   const days = useMemo(() => {
     const first = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1, 12);
@@ -276,7 +276,7 @@ export function DateField({
         onClick={() => setOpen((previous) => !previous)}
         className={`field-control lux-trigger flex items-center justify-between gap-3 text-left ${open ? 'lux-trigger-open' : ''}`}
       >
-        <span id={`${id}-value`} className="truncate">{selectedLabel}</span>
+        <span id={`${id}-value`} className={`truncate ${value ? '' : 'text-muted'}`}>{selectedLabel}</span>
         <CalendarIcon />
       </button>
 

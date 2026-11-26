@@ -162,18 +162,18 @@ export default function ExperiencesPage() {
             <span className="field-label">
               {tr('YOUR NAME', 'HỌ TÊN')}
             </span>
-            <input className="field-control" required maxLength={120} value={contact.name} onChange={e => setContact(v => ({ ...v, name: e.target.value }))} />
+            <input className="field-control" required maxLength={120} placeholder={tr('Enter your full name', 'Nhập họ và tên')} value={contact.name} onChange={e => setContact(v => ({ ...v, name: e.target.value }))} />
           </label>
           <label>
             <span className="field-label">EMAIL</span>
-            <input className="field-control" required type="email" maxLength={180} value={contact.email} onChange={e => setContact(v => ({ ...v, email: e.target.value }))} />
+            <input className="field-control" required type="email" maxLength={180} placeholder="name@example.com" value={contact.email} onChange={e => setContact(v => ({ ...v, email: e.target.value }))} />
           </label>
           <SelectField label={tr('SUBJECT', 'CHỦ ĐỀ')} value={contact.topic} options={[{ value: 'General enquiry', label: tr('General enquiry', 'Câu hỏi chung') }, { value: 'Reservation enquiry', label: tr('Reservation enquiry', 'Đặt phòng') }, { value: 'Experiences', label: tr('Experiences', 'Trải nghiệm') }]} onValueChange={topic => setContact(v => ({ ...v, topic }))} />
           <label>
             <span className="field-label">
               {tr('MESSAGE', 'NỘI DUNG')}
             </span>
-            <textarea className="field-control min-h-40" required minLength={10} maxLength={2000} value={contact.message} onChange={e => setContact(v => ({ ...v, message: e.target.value }))} />
+            <textarea className="field-control min-h-40" required minLength={10} maxLength={2000} placeholder={tr('How can we help you?', 'Chúng tôi có thể giúp gì cho bạn?')} value={contact.message} onChange={e => setContact(v => ({ ...v, message: e.target.value }))} />
           </label>
           <button type="submit" className="btn-primary" disabled={busy}>
             {busy ? tr('Sending…', 'Đang gửi…') : tr('SEND ENQUIRY', 'GỬI LIÊN HỆ')}

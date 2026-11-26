@@ -225,14 +225,14 @@ export default function BookingPage() {
                   </strong>
                   <span className="body-copy block">{money(s.priceVnd)} / {(locale === 'vi' ? s.unitVi : null) || s.unit}</span>
                 </span>
-                <input aria-label={(locale === 'vi' ? s.nameVi : null) || s.name} type="number" min={0} max={30} step={1} className="field-control max-w-24" value={extras[s.code] ?? 0} onChange={e => setExtras(v => ({ ...v, [s.code]: Number(e.target.value) }))} />
+                <input aria-label={(locale === 'vi' ? s.nameVi : null) || s.name} type="number" min={0} max={30} step={1} className="field-control max-w-24" placeholder="0" value={extras[s.code] ?? 0} onChange={e => setExtras(v => ({ ...v, [s.code]: Number(e.target.value) }))} />
               </label>)}
             </div>}
             <label className="block mt-7">
               <span className="field-label">
                 {tr('PROMOTION CODE (OPTIONAL)', 'MÃ ƯU ĐÃI (TÙY CHỌN)')}
               </span>
-              <input className="field-control" maxLength={32} value={promo} onChange={e => setPromo(e.target.value)} />
+              <input className="field-control" maxLength={32} placeholder={tr('Enter promotion code', 'Nhập mã ưu đãi')} value={promo} onChange={e => setPromo(e.target.value)} />
             </label>
           </>}
           {stage === 2 && <>
@@ -247,13 +247,13 @@ export default function BookingPage() {
                 <span className="field-label">
                   {label}
                 </span>
-                <input className="field-control" type={type} maxLength={max} required={key !== 'guestPhone'} value={guest[key]} onChange={e => updateGuest(key, e.target.value)} />
+                <input className="field-control" type={type} placeholder={key === 'guestName' ? tr('Enter your full name', 'Nhập họ và tên') : key === 'guestEmail' ? 'name@example.com' : tr('Enter phone number', 'Nhập số điện thoại')} maxLength={max} required={key !== 'guestPhone'} value={guest[key]} onChange={e => updateGuest(key, e.target.value)} />
               </label>)}
               <label className="md:col-span-2">
                 <span className="field-label">
                   {tr('SPECIAL REQUESTS', 'YÊU CẦU ĐẶC BIỆT')}
                 </span>
-                <textarea className="field-control min-h-24" maxLength={500} value={guest.specialRequests} onChange={e => updateGuest('specialRequests', e.target.value)} />
+                <textarea className="field-control min-h-24" maxLength={500} placeholder={tr('e.g. A quiet room or dietary requirements', 'VD: Phòng yên tĩnh hoặc yêu cầu ăn uống')} value={guest.specialRequests} onChange={e => updateGuest('specialRequests', e.target.value)} />
               </label>
             </div>
           </>}

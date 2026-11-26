@@ -53,7 +53,7 @@ export function MoneyInput({ label, value, onValueChange, required, signed = fal
       value={display}
       required={required}
       disabled={disabled}
-      placeholder={placeholder}
+      placeholder={placeholder === undefined ? '1.000.000' : /^-?\d+$/.test(placeholder) ? formatMoneyDraft(placeholder) : placeholder}
       onChange={event => update(event.currentTarget, event.currentTarget.value, event.currentTarget.selectionStart ?? event.currentTarget.value.length)}
       onPaste={event => {
         event.preventDefault();
