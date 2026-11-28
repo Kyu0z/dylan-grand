@@ -75,6 +75,10 @@ model User {
   id           String    @id @default(cuid())
   email        String    @unique @db.VarChar(180)
   passwordHash String    @db.VarChar(240)
+  googleId         String?   @unique @db.VarChar(255)
+  avatarUrl        String?   @db.VarChar(2048)
+  emailVerifiedAt  DateTime?
+  hasLocalPassword Boolean   @default(true)
   role         UserRole  @default(CUSTOMER)
   isActive     Boolean   @default(true)
   fullName     String?   @db.VarChar(120)
@@ -335,4 +339,12 @@ model ContactInquiry {
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
   @@index([resolved, createdAt])
+}
+
+model GoogleAuthChallenge {
+  nonce     String   @id @db.VarChar(64)
+  origin    String   @db.VarChar(300)
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Header, Patch, Put, Param, Req, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Get, Header, Patch, Put, Param, Post, HttpCode, Req, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../../common/auth/auth.guard';
+import { GoogleLinkDto } from '../../shared/auth/dto/google-auth.dto';
 import { AuthService } from '../../../core/auth.service';
 import { IsString, Matches, MaxLength, IsOptional, IsBoolean } from 'class-validator';
 import { PrismaService } from '../../../database/prisma.service';
@@ -25,6 +26,11 @@ export class CustomerAccountController {
   @Patch() @Header('Cache-Control', 'no-store') @ApiOperation({ summary: '[DB] Update customer name and phone' })
   update(@Req() req: { user: { id: string; email: string; }; }, @Body() dto: UpdateProfileDto) {
     return this.auth.updateCustomerProfile(req.user.id, req.user.email, dto.fullName, dto.phone, dto.preferences);
+  }
+  @Post('google') @HttpCode(200) @Header('Cache-Control', 'no-store')
+  @ApiOperation({ summary: 'Link Google to a signed-in customer after password confirmation' })
+  linkGoogle(@Req() req: { user: { id: string }; ip?: string; headers: { origin?: string } }, @Body() dto: GoogleLinkDto) {
+    return this.auth.linkGoogle(req.user.id, dto.credential, dto.nonce, dto.password, req.headers.origin, req.ip ?? 'unknown');
   }
   @Get('wishlist') @Header('Cache-Control', 'no-store')
   async wishlist(@Req() req: { user: { id: string; }; }) { const guest = await this.db.guest.findUnique({ where: { accountId: req.user.id }, select: { favoriteRoomCodes: true } }); return { codes: guest?.favoriteRoomCodes ?? [] }; }

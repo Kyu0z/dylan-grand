@@ -7,6 +7,7 @@ export const API_MESSAGE_HEADER = 'X-Dylan-Message';
 const successMessages: Record<string, string> = {
   'POST /api/v1/auth/staff/login': 'Signed in successfully.',
   'POST /api/v1/auth/staff/logout': 'Signed out successfully.',
+  'POST /api/v1/auth/google': 'Signed in successfully.',
   'POST /api/v1/auth/login': 'Signed in successfully.',
   'POST /api/v1/auth/register': 'Account created successfully.',
   'POST /api/v1/auth/setup-admin': 'Admin account created successfully.',

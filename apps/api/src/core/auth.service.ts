@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { issueResetToken, readResetToken, verifyResetToken, passwordVersion, sendResetEmail, resetEmailConfig, limitResetRequest } from './password-reset';
+import { assertGoogleOrigin, googleClientId, verifyGoogleIdentity } from './google-identity';
 import { PrismaService } from '../database/prisma.service';
 import { CreateEmployeeDto, RegisterDto, SetupAdminDto, UpdateRoleDto } from './contracts';
 
@@ -27,6 +28,96 @@ function base64(value: object): string { return Buffer.from(JSON.stringify(value
 @Injectable()
 export class AuthService {
   constructor(private readonly db: PrismaService) { }
+
+  async googleChallenge(origin: string | undefined, ip: string) {
+    assertGoogleOrigin(origin);
+    googleClientId();
+    limitResetRequest('google-challenge-ip', ip, 120, 15 * 60_000);
+    const nonce = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60_000);
+    await this.db.googleAuthChallenge.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+    await this.db.googleAuthChallenge.create({ data: { nonce, origin, expiresAt } });
+    return { nonce, expiresAt: expiresAt.toISOString() };
+  }
+
+  private async googleIdentity(credential: string, nonce: string, origin: string | undefined, ip: string) {
+    assertGoogleOrigin(origin);
+    limitResetRequest('google-auth-ip', ip, 40, 15 * 60_000);
+    const identity = await verifyGoogleIdentity(credential, nonce);
+    // The nonce can only be consumed once, even across API instances.
+    const result = await this.db.googleAuthChallenge.deleteMany({
+      where: { nonce, origin, expiresAt: { gt: new Date() } },
+    });
+    if (result.count !== 1) throw new UnauthorizedException('Google sign-in expired. Please try again.');
+    return identity;
+  }
+
+  async googleLogin(credential: string, nonce: string, origin: string | undefined, ip: string) {
+    const identity = await this.googleIdentity(credential, nonce, origin, ip);
+    const existing = await this.db.user.findUnique({ where: { googleId: identity.sub } });
+    if (existing) {
+      this.assertGoogleCustomer(existing);
+      if (existing.email !== identity.email) throw new UnauthorizedException('Google email no longer matches your account.');
+      return this.issueSession(existing);
+    }
+    const byEmail = await this.db.user.findUnique({ where: { email: identity.email } });
+    if (byEmail) {
+      this.assertGoogleCustomer(byEmail);
+      throw new ConflictException('Sign in with your password first, then link Google in your account.');
+    }
+    try {
+      const user = await this.db.user.create({
+        data: {
+          email: identity.email,
+          googleId: identity.sub,
+          avatarUrl: identity.picture,
+          emailVerifiedAt: new Date(),
+          passwordHash: passwordHash(randomBytes(32).toString('base64url')),
+          hasLocalPassword: false,
+          role: 'CUSTOMER',
+          guestProfile: { create: { name: identity.name, email: identity.email } },
+        }
+      });
+      return this.issueSession(user);
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+        throw new ConflictException('Account changed. Please try Google sign-in again.');
+      }
+      throw error;
+    }
+  }
+
+  private assertGoogleCustomer(user: { role: string; isActive: boolean; pendingActivation: boolean }) {
+    if (user.role !== 'CUSTOMER' || !user.isActive || user.pendingActivation) {
+      throw new UnauthorizedException('Google sign-in is not available for this account.');
+    }
+  }
+
+  async linkGoogle(userId: string, credential: string, nonce: string, password: string, origin: string | undefined, ip: string) {
+    limitResetRequest('google-link-user', userId, 10, 15 * 60_000);
+    const identity = await this.googleIdentity(credential, nonce, origin, ip);
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Account not found.');
+    this.assertGoogleCustomer(user);
+    if (!user.hasLocalPassword || !passwordMatches(password, user.passwordHash)) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+    if (user.email !== identity.email) throw new BadRequestException('Google email must match your account email.');
+    if (user.googleId && user.googleId !== identity.sub) throw new ConflictException('A different Google account is already linked.');
+    try {
+      const result = await this.db.user.updateMany({
+        where: { id: userId, role: 'CUSTOMER', isActive: true, pendingActivation: false, passwordHash: user.passwordHash, googleId: user.googleId },
+        data: { googleId: identity.sub, avatarUrl: identity.picture, emailVerifiedAt: new Date() },
+      });
+      if (result.count !== 1) throw new ConflictException('Account changed. Please try Google sign-in again.');
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+        throw new ConflictException('A different Google account is already linked.');
+      }
+      throw error;
+    }
+    return { message: 'Google account linked successfully.' };
+  }
 
   async setup(dto: SetupAdminDto) {
     if (process.env.NODE_ENV === 'production') throw new ForbiddenException('Admin bootstrap is disabled in production.');
@@ -63,7 +154,11 @@ export class AuthService {
   async login(email: string, password: string, staffOnly = false, ip?: string) {
     if (ip) limitResetRequest('login-ip', ip, 40, 15 * 60_000);
     const user = await this.db.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user || !user.isActive || user.pendingActivation || (staffOnly && user.role === 'CUSTOMER') || !passwordMatches(password, user.passwordHash)) throw new UnauthorizedException('Invalid credentials.');
+    if (!user || !user.isActive || user.pendingActivation || (staffOnly && user.role === 'CUSTOMER') || user.hasLocalPassword === false || !passwordMatches(password, user.passwordHash)) throw new UnauthorizedException('Invalid credentials.');
+    return this.issueSession(user);
+  }
+
+  private issueSession(user: { id: string; role: string; passwordHash: string; staffSessionVersion: number }) {
     const issuedAt = Math.floor(Date.now() / 1000);
     const header = base64({ alg: 'HS256', typ: 'JWT' });
     const payload = base64({ sub: user.id, iss: 'dylan-grand-api', aud: 'dylan-grand', iat: issuedAt, exp: issuedAt + 8 * 3600, pv: passwordVersion(user.passwordHash, secret()), ...(user.role === 'CUSTOMER' ? {} : { sv: user.staffSessionVersion }) });
@@ -119,7 +214,7 @@ export class AuthService {
     // Atomic compare-and-swap: a successful reset invalidates every outstanding link and customer JWT.
     const result = await this.db.user.updateMany({
       where: { id: user.id, passwordHash: user.passwordHash, isActive: true, role: 'CUSTOMER' },
-      data: { passwordHash: passwordHash(password) },
+      data: { passwordHash: passwordHash(password), hasLocalPassword: true },
     });
     if (result.count !== 1) throw invalid();
     return { message: 'Password updated. Please sign in.' };
@@ -128,22 +223,22 @@ export class AuthService {
   async customerProfile(userId: string) {
     const user = await this.db.user.findUnique({
       where: { id: userId }, select: {
-        id: true, email: true, guestProfile: { select: { name: true, phone: true, preferences: true } },
+        id: true, email: true, googleId: true, avatarUrl: true, hasLocalPassword: true, guestProfile: { select: { name: true, phone: true, preferences: true } },
       }
     });
     if (!user) throw new UnauthorizedException('Account not found.');
-    return { id: user.id, email: user.email, fullName: user.guestProfile?.name ?? '', phone: user.guestProfile?.phone ?? '', preferences: user.guestProfile?.preferences ?? '' };
+    return { id: user.id, email: user.email, fullName: user.guestProfile?.name ?? '', phone: user.guestProfile?.phone ?? '', preferences: user.guestProfile?.preferences ?? '', googleLinked: Boolean(user.googleId), avatarUrl: user.avatarUrl, hasLocalPassword: user.hasLocalPassword };
   }
 
   async updateCustomerProfile(userId: string, email: string, fullName: string, phone: string, preferences?: string) {
     const name = fullName.trim();
     if (!name) throw new BadRequestException('Full name is required.');
-    const guest = await this.db.guest.upsert({
+    await this.db.guest.upsert({
       where: { accountId: userId },
       create: { accountId: userId, email, name, phone: phone.trim() || null, ...(preferences !== undefined ? { preferences: preferences.trim() } : {}) },
       update: { name, phone: phone.trim() || null, ...(preferences !== undefined ? { preferences: preferences.trim() } : {}) },
     });
-    return { id: userId, email, fullName: guest.name, phone: guest.phone ?? '', preferences: guest.preferences ?? '' };
+    return this.customerProfile(userId);
   }
 
   private readonly staffSelect = { id: true, email: true, fullName: true, role: true, isActive: true, pendingActivation: true, createdAt: true } as const;

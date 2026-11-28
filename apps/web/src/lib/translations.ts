@@ -1,4 +1,17 @@
 export const vietnamese: Record<string, string> = {
+  'Google sign-in is not configured.': 'Chưa cấu hình đăng nhập Google.',
+  'Loading Google sign-in…': 'Đang tải đăng nhập Google…',
+  'Retry Google sign-in': 'Thử lại đăng nhập Google',
+  'Current password': 'Mật khẩu hiện tại',
+  'Cancel': 'Hủy',
+  'Sign-in methods': 'Phương thức đăng nhập',
+  'Google account linked.': 'Đã liên kết tài khoản Google.',
+  'Google account not linked.': 'Chưa liên kết tài khoản Google.',
+  'Link Google account': 'Liên kết tài khoản Google',
+  'Confirm your current password and choose the Google account with the same email.': 'Xác nhận mật khẩu hiện tại và chọn tài khoản Google có cùng email.',
+  'Set a password using a secure link sent to your email.': 'Thiết lập mật khẩu qua liên kết bảo mật gửi đến email của bạn.',
+  'Send password setup link': 'Gửi liên kết thiết lập mật khẩu',
+
   "British heritage lounge": "Phòng khách mang nét cổ điển Anh",
   "English boutique hotel exterior": "Kiến trúc khách sạn cổ điển Anh",
   "Classic guest room": "Phòng nghỉ phong cách cổ điển",

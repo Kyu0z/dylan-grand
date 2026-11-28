@@ -1,6 +1,21 @@
 // Stable server messages are translated at render time, so existing toasts react
 // to language changes. Unknown future messages stay readable in their original language.
 const viMessages: Record<string, string> = {
+  'Google sign-in is not configured.': 'Chưa cấu hình đăng nhập Google.',
+  'Google sign-in origin is not allowed.': 'Địa chỉ website không được phép đăng nhập Google.',
+  'Google sign-in failed. Please try again.': 'Đăng nhập Google thất bại. Vui lòng thử lại.',
+  'Google identity could not be verified. Use a Gmail or Google Workspace account.': 'Không xác minh được danh tính Google. Hãy dùng tài khoản Gmail hoặc Google Workspace.',
+  'Google sign-in expired. Please try again.': 'Phiên đăng nhập Google đã hết hạn. Vui lòng thử lại.',
+  'Google sign-in is not available for this account.': 'Tài khoản này không thể đăng nhập bằng Google.',
+  'Sign in with your password first, then link Google in your account.': 'Hãy đăng nhập bằng mật khẩu trước, sau đó liên kết Google trong tài khoản.',
+  'Account changed. Please try Google sign-in again.': 'Tài khoản đã thay đổi. Hãy thử đăng nhập Google lại.',
+  'Google email no longer matches your account.': 'Email Google không còn trùng với tài khoản của bạn.',
+  'Google email must match your account email.': 'Email Google phải trùng với email tài khoản.',
+  'A different Google account is already linked.': 'Một tài khoản Google khác đã được liên kết.',
+  'Google account linked successfully.': 'Liên kết tài khoản Google thành công.',
+  'Google sign-in failed to load. Please refresh the page.': 'Không tải được đăng nhập Google. Hãy tải lại trang.',
+  'Current password is incorrect.': 'Mật khẩu hiện tại không chính xác.',
+
   "Pricing changed or dates overlap. Refresh and retry.": "Giá đã thay đổi hoặc ngày bị trùng. Tải lại và thử lại.",
   "Cannot change past rates.": "Không thể sửa giá ngày đã qua.",
   "Edit the special rate period instead.": "Hãy chỉnh sửa đợt giá đặc biệt tương ứng.",

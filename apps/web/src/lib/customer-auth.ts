@@ -2,8 +2,8 @@ import { apiRequest, ApiError } from './api-client';
 import { notify } from './toast';
 export { ApiError as AuthError } from './api-client';
 
-export type CustomerProfile = { id: string; email: string; fullName: string; phone: string; preferences?: string; };
-export type Account = { name: string; email: string; phone: string; preferences: string; };
+export type CustomerProfile = { id: string; email: string; fullName: string; phone: string; preferences?: string; googleLinked?: boolean; avatarUrl?: string | null; hasLocalPassword?: boolean; };
+export type Account = { name: string; email: string; phone: string; preferences: string; googleLinked?: boolean; avatarUrl?: string | null; hasLocalPassword?: boolean; };
 type Session = { accessToken: string; expiresAt: number; profile: CustomerProfile; };
 type LoginResponse = { accessToken: string; expiresIn: number; role: string; };
 const sessionKey = 'dylan-grand-customer-session-v1';
@@ -35,15 +35,34 @@ export function getCustomerAccount(): Account | null {
   const { profile } = session;
   return {
     name: profile.fullName, email: profile.email, phone: profile.phone,
-    preferences: profile.preferences ?? ''
+    preferences: profile.preferences ?? '', googleLinked: profile.googleLinked, avatarUrl: profile.avatarUrl, hasLocalPassword: profile.hasLocalPassword
   };
 }
 export async function signInCustomer(email: string, password: string) {
   const { data: login, messages } = await request<LoginResponse>('/auth/login', 'POST', { email, password });
+  return completeSignIn(login, messages);
+}
+async function completeSignIn(login: LoginResponse, messages: string[]) {
   if (login.role !== 'CUSTOMER') throw new ApiError(403, 'Please sign in with a customer account.');
   const expiresAt = Date.now() + login.expiresIn * 1000;
   const { data: profile } = await request<CustomerProfile>('/me', 'GET', undefined, login.accessToken);
   setSession({ accessToken: login.accessToken, expiresAt, profile });
+  return messages;
+}
+export async function googleChallenge() {
+  return (await request<{ nonce: string; expiresAt: string }>('/auth/google/challenge', 'POST', {})).data;
+}
+export async function signInWithGoogle(credential: string, nonce: string) {
+  const { data, messages } = await request<LoginResponse>('/auth/google', 'POST', { credential, nonce });
+  return completeSignIn(data, messages);
+}
+export async function linkGoogleAccount(credential: string, nonce: string, password: string) {
+  const session = getSession();
+  if (!session) throw new ApiError(401, 'Your session has expired. Please sign in.');
+  const { messages } = await request('/me/google', 'POST', { credential, nonce, password }, session.accessToken);
+  const current = getSession();
+  if (current?.accessToken !== session.accessToken) throw new ApiError(401, 'Your session has expired. Please sign in.');
+  setSession({ ...current, profile: { ...current.profile, googleLinked: true } });
   return messages;
 }
 export async function registerCustomer(fullName: string, email: string, password: string) {

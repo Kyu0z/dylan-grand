@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { photos, money } from '@/lib/data';
 import { useRooms, useWishlist } from '@/lib/live-data';
-import { getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signOutCustomer } from '@/lib/customer-auth';
+import { getCustomerAccount, registerCustomer, requestPasswordReset, resetCustomerPassword, saveCustomerProfile, signInCustomer, signInWithGoogle, linkGoogleAccount, signOutCustomer } from '@/lib/customer-auth';
+import { GoogleSignIn } from '@/components/google-sign-in';
 import { errorMessages } from '@/lib/api-client';
 import { notify } from '@/lib/toast';
 import { Photo, PageIntro, Eyebrow, Arrow } from '@/components/ui';
@@ -25,6 +26,10 @@ export default function AccountPage() {
     [pending, setPending] = useState(false),
     [resetToken, setResetToken] = useState(''),
     [confirmPassword, setConfirmPassword] = useState('');
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [hasLocalPassword, setHasLocalPassword] = useState(true);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkPassword, setLinkPassword] = useState('');
   const formHeading = useRef<HTMLHeadingElement>(null);
   const focusOnChange = useRef(false);
   const activeSession = useRef<string | null | undefined>(undefined);
@@ -32,11 +37,15 @@ export default function AccountPage() {
     const syncSession = () => {
       const validAccount = getCustomerAccount();
       const nextSession = validAccount?.email ?? null;
+      setGoogleLinked(Boolean(validAccount?.googleLinked));
+      setHasLocalPassword(validAccount?.hasLocalPassword !== false);
       if (activeSession.current !== nextSession) {
         const previousSession = activeSession.current;
         activeSession.current = nextSession;
         setSigned(Boolean(validAccount));
         setPassword('');
+        setLinkPassword('');
+        setLinkOpen(false);
         setShowPassword(false);
         if (validAccount) {
           setName(validAccount.name);
@@ -223,16 +232,13 @@ export default function AccountPage() {
                 {t(pending ? 'PLEASE WAIT…' : mode === 'forgot' ? 'SEND RESET LINK' : mode === 'reset' ? 'RESET PASSWORD' : mode === 'register' ? 'CREATE ACCOUNT' : 'SIGN IN')} <Arrow />
               </button>
             </form>
-            {mode === 'login' && <div className="account-auth-social">
+            {(mode === 'login' || mode === 'register') && <div className="account-auth-social">
               <div className="account-auth-social-divider"><T>{"OR"}</T></div>
-              <button type="button" className="account-auth-google" disabled={pending} onClick={() => notify('info', 'Google sign-in is not available yet.')}>
-                <svg aria-hidden="true" width="19" height="19" viewBox="0 0 48 48">
-                  <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.2h6.7c3.9-3.6 6-8.9 6-15.1z" />
-                  <path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.4l-6.7-5.2c-1.8 1.2-4.1 1.9-6.8 1.9-5.3 0-9.8-3.6-11.4-8.4H5.7v5.4A20 20 0 0 0 24 44z" />
-                  <path fill="#FBBC05" d="M12.6 27.9a12 12 0 0 1 0-7.8v-5.4H5.7a20 20 0 0 0 0 18.6z" />
-                  <path fill="#EA4335" d="M24 11.7c3 0 5.7 1 7.8 3l5.8-5.8A19.2 19.2 0 0 0 24 4 20 20 0 0 0 5.7 14.7l6.9 5.4c1.6-4.8 6.1-8.4 11.4-8.4z" />
-                </svg><T>{"Continue with Google"}</T>
-              </button>
+              <GoogleSignIn disabled={pending} onCredential={async (credential, nonce) => {
+                setPending(true);
+                try { notify('success', await signInWithGoogle(credential, nonce)); }
+                finally { setPending(false); }
+              }} />
             </div>}
             <div className={`account-auth-alternative ${(mode === 'forgot' || mode === 'reset') ? 'account-auth-alternative-back' : ''}`}>
               {(mode === 'forgot' || mode === 'reset') ? (
@@ -253,7 +259,7 @@ export default function AccountPage() {
           <>
             <div className="flex flex-wrap justify-between gap-4">
               <Eyebrow><T>{"YOUR PRIVATE PROFILE"}</T></Eyebrow>
-              <button onClick={() => {
+              <button disabled={pending} onClick={() => {
                 signOutCustomer();
                 setSigned(false);
                 notify('success', 'Signed out.');
@@ -288,6 +294,35 @@ export default function AccountPage() {
               </label>
               <button className="btn-primary disabled:opacity-60" type="submit" disabled={pending}><T>{pending ? "PLEASE WAIT…" : "SAVE PROFILE"}</T>{" "}<Arrow /></button>
             </form>
+            <div className="mt-8 grid gap-4 border-t border-line pt-6">
+              <h3 className="font-display text-2xl">{t('Sign-in methods')}</h3>
+              <p className="body-copy">{t(googleLinked ? 'Google account linked.' : 'Google account not linked.')}</p>
+              {!googleLinked && !linkOpen && <button type="button" disabled={pending} className="line-link justify-self-start" onClick={() => setLinkOpen(true)}>{t('Link Google account')}</button>}
+              {!googleLinked && linkOpen && <div className="grid gap-3">
+                <p className="body-copy">{t('Confirm your current password and choose the Google account with the same email.')}</p>
+                <label>
+                  <span className="field-label">{t('Current password')}</span>
+                  <input className="field-control" type="password" autoComplete="current-password" maxLength={128} value={linkPassword} disabled={pending} placeholder={t('Enter your password')} onChange={e => setLinkPassword(e.target.value)} />
+                </label>
+                <GoogleSignIn disabled={pending || !linkPassword} onCredential={async (credential, nonce) => {
+                  setPending(true);
+                  try {
+                    notify('success', await linkGoogleAccount(credential, nonce, linkPassword));
+                    setLinkOpen(false);
+                  } finally { setLinkPassword(''); setPending(false); }
+                }} />
+                <button type="button" className="line-link justify-self-start" disabled={pending} onClick={() => { setLinkOpen(false); setLinkPassword(''); }}>{t('Cancel')}</button>
+              </div>}
+              {!hasLocalPassword && <>
+                <p className="body-copy">{t('Set a password using a secure link sent to your email.')}</p>
+                <button type="button" className="line-link justify-self-start" disabled={pending} onClick={async () => {
+                  setPending(true);
+                  try { notify('success', await requestPasswordReset(email, locale)); }
+                  catch (error) { notify('error', errorMessages(error)); }
+                  finally { setPending(false); }
+                }}>{t('Send password setup link')}</button>
+              </>}
+            </div>
           </>}
       </div>
     </section>
