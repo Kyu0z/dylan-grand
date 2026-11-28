@@ -31,11 +31,26 @@ export function readGoogleIdentity(payload: TokenPayload | undefined, nonce: str
   return { sub: payload.sub, email, name: (payload.name?.trim() || email.split('@')[0] || 'Guest').slice(0, 120), picture };
 }
 
-export async function verifyGoogleIdentity(credential: string, nonce: string) {
+export async function verifyGoogleIdentity(credential: string, nonce: string, codeVerifier?: string, origin?: string) {
   const audience = googleClientId();
+  let codeClient: OAuth2Client | undefined;
+  let redirectUri: string | undefined;
+  if (codeVerifier) {
+    assertGoogleOrigin(origin);
+    const secret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+    if (!secret) throw new ServiceUnavailableException('Google sign-in is not configured.');
+    redirectUri = `${origin}/account/google-callback`;
+    codeClient = new OAuth2Client(audience, secret, redirectUri);
+  }
   let payload: TokenPayload | undefined;
   try {
-    const ticket = await client.verifyIdToken({ idToken: credential, audience });
+    let idToken = credential;
+    if (codeClient) {
+      const { tokens } = await codeClient.getToken({ code: credential, codeVerifier, redirect_uri: redirectUri });
+      if (!tokens.id_token) throw new Error('Missing Google ID token');
+      idToken = tokens.id_token;
+    }
+    const ticket = await client.verifyIdToken({ idToken, audience });
     payload = ticket.getPayload();
   } catch {
     throw new UnauthorizedException('Google sign-in failed. Please try again.');

@@ -38,9 +38,9 @@ export class AuthController {
   @Post('google')
   @HttpCode(200)
   @Header('Cache-Control', 'no-store')
-  @ApiOperation({ summary: 'Authenticate a customer using a verified Google ID token' })
+  @ApiOperation({ summary: 'Authenticate a customer using a Google authorization code or verified ID token' })
   googleLogin(@Body() dto: GoogleLoginDto, @Req() req: { ip?: string; headers: { origin?: string } }) {
-    return this.auth.googleLogin(dto.credential, dto.nonce, req.headers.origin, req.ip ?? 'unknown');
+    return this.auth.googleLogin(dto.credential, dto.nonce, req.headers.origin, req.ip ?? 'unknown', dto.codeVerifier);
   }
   @Post('login')
   @Header('Cache-Control', 'no-store')

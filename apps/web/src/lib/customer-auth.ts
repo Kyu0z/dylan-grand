@@ -52,14 +52,14 @@ async function completeSignIn(login: LoginResponse, messages: string[]) {
 export async function googleChallenge() {
   return (await request<{ nonce: string; expiresAt: string }>('/auth/google/challenge', 'POST', {})).data;
 }
-export async function signInWithGoogle(credential: string, nonce: string) {
-  const { data, messages } = await request<LoginResponse>('/auth/google', 'POST', { credential, nonce });
+export async function signInWithGoogle(credential: string, nonce: string, codeVerifier?: string) {
+  const { data, messages } = await request<LoginResponse>('/auth/google', 'POST', { credential, nonce, codeVerifier });
   return completeSignIn(data, messages);
 }
-export async function linkGoogleAccount(credential: string, nonce: string, password: string) {
+export async function linkGoogleAccount(credential: string, nonce: string, password: string, codeVerifier?: string) {
   const session = getSession();
   if (!session) throw new ApiError(401, 'Your session has expired. Please sign in.');
-  const { messages } = await request('/me/google', 'POST', { credential, nonce, password }, session.accessToken);
+  const { messages } = await request('/me/google', 'POST', { credential, nonce, password, codeVerifier }, session.accessToken);
   const current = getSession();
   if (current?.accessToken !== session.accessToken) throw new ApiError(401, 'Your session has expired. Please sign in.');
   setSession({ ...current, profile: { ...current.profile, googleLinked: true } });

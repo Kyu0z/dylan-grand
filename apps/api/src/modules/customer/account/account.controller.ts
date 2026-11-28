@@ -30,7 +30,7 @@ export class CustomerAccountController {
   @Post('google') @HttpCode(200) @Header('Cache-Control', 'no-store')
   @ApiOperation({ summary: 'Link Google to a signed-in customer after password confirmation' })
   linkGoogle(@Req() req: { user: { id: string }; ip?: string; headers: { origin?: string } }, @Body() dto: GoogleLinkDto) {
-    return this.auth.linkGoogle(req.user.id, dto.credential, dto.nonce, dto.password, req.headers.origin, req.ip ?? 'unknown');
+    return this.auth.linkGoogle(req.user.id, dto.credential, dto.nonce, dto.password, req.headers.origin, req.ip ?? 'unknown', dto.codeVerifier);
   }
   @Get('wishlist') @Header('Cache-Control', 'no-store')
   async wishlist(@Req() req: { user: { id: string; }; }) { const guest = await this.db.guest.findUnique({ where: { accountId: req.user.id }, select: { favoriteRoomCodes: true } }); return { codes: guest?.favoriteRoomCodes ?? [] }; }

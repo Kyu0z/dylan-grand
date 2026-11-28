@@ -83,7 +83,7 @@ test('existing password account requires explicit linking; original customer ID 
   const { auth, users } = fixture();
   const original = await auth.register({ email: 'guest@gmail.com', fullName: 'Existing Name', password });
   const nonce = await credential(t, auth);
-  await assert.rejects(login(auth, nonce), /link Google/);
+  await assert.rejects(login(auth, nonce), error => error.getStatus() === 409 && error.message === 'Account already exists. Sign in with your password to link Google.');
   assert.equal(users.size, 1);
   assert.equal(users.get(original.id).googleId, null);
 });
@@ -185,4 +185,72 @@ test('concurrent reuse of the same nonce succeeds only once', async t => {
   const results = await Promise.allSettled([login(auth, nonce), login(auth, nonce)]);
   assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
   assert.equal(users.size, 1);
+});
+
+// Custom button uses authorization code + PKCE, then exactly the same ID-token and account checks.
+const verifier = 'a'.repeat(64);
+async function codeCredential(t, auth, changes = {}) {
+  const nonce = await credential(t, auth, changes);
+  t.mock.method(OAuth2Client.prototype, 'getToken', async options => {
+    assert.equal(options.code, 'mock-code');
+    assert.equal(options.codeVerifier, verifier);
+    assert.equal(options.redirect_uri, `${origin}/account/google-callback`);
+    return { tokens: { id_token: 'mock-token' } };
+  });
+  return nonce;
+}
+process.env.GOOGLE_CLIENT_SECRET = 'mock-secret';
+const codeLogin = (auth, nonce) => auth.googleLogin('mock-code', nonce, origin, 'code-test', verifier);
+
+test('authorization code exchanges server-side and creates customer; nonce replay fails', async t => {
+  const { auth, users } = fixture();
+  const nonce = await codeCredential(t, auth);
+  const result = await codeLogin(auth, nonce);
+  assert.equal(result.role, 'CUSTOMER');
+  assert.equal(users.size, 1);
+  await assert.rejects(codeLogin(auth, nonce), /expired/);
+});
+
+test('custom button preserves 409 and requires password to link', async t => {
+  const { auth, users } = fixture();
+  const original = await auth.register({ email: 'guest@gmail.com', fullName: 'Existing', password });
+  const nonce = await codeCredential(t, auth);
+  await assert.rejects(codeLogin(auth, nonce), error => error.getStatus() === 409 && error.message === 'Account already exists. Sign in with your password to link Google.');
+  assert.equal(users.get(original.id).googleId, null);
+  t.mock.restoreAll();
+  const linkNonce = await codeCredential(t, auth);
+  await auth.linkGoogle(original.id, 'mock-code', linkNonce, password, origin, 'link-test', verifier);
+  assert.equal(users.get(original.id).googleId, 'google-123');
+  t.mock.restoreAll();
+  const next = await codeCredential(t, auth);
+  const session = await auth.verify((await codeLogin(auth, next)).accessToken);
+  assert.equal(session.id, original.id);
+  assert.equal(users.size, 1);
+});
+
+test('code exchange without an ID token does not create an account', async t => {
+  const { auth, users } = fixture();
+  const { nonce } = await auth.googleChallenge(origin, 'challenge-test');
+  t.mock.method(OAuth2Client.prototype, 'getToken', async () => ({ tokens: {} }));
+  await assert.rejects(codeLogin(auth, nonce), /Google sign-in failed/);
+  assert.equal(users.size, 0);
+});
+
+test('code exchange still rejects mismatched nonce', async t => {
+  const { auth, users } = fixture();
+  const nonce = await codeCredential(t, auth, { nonce: 'incorrect' });
+  await assert.rejects(codeLogin(auth, nonce), /could not be verified/);
+  assert.equal(users.size, 0);
+});
+
+test('missing server client secret returns 503 for code flow', async t => {
+  const { auth } = fixture();
+  const { nonce } = await auth.googleChallenge(origin, 'challenge-test');
+  const secret = process.env.GOOGLE_CLIENT_SECRET;
+  delete process.env.GOOGLE_CLIENT_SECRET;
+  try {
+    await assert.rejects(codeLogin(auth, nonce), error => error.getStatus() === 503);
+  } finally {
+    process.env.GOOGLE_CLIENT_SECRET = secret;
+  }
 });

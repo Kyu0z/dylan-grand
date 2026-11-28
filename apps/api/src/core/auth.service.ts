@@ -40,10 +40,10 @@ export class AuthService {
     return { nonce, expiresAt: expiresAt.toISOString() };
   }
 
-  private async googleIdentity(credential: string, nonce: string, origin: string | undefined, ip: string) {
+  private async googleIdentity(credential: string, nonce: string, origin: string | undefined, ip: string, codeVerifier?: string) {
     assertGoogleOrigin(origin);
     limitResetRequest('google-auth-ip', ip, 40, 15 * 60_000);
-    const identity = await verifyGoogleIdentity(credential, nonce);
+    const identity = await verifyGoogleIdentity(credential, nonce, codeVerifier, origin);
     // The nonce can only be consumed once, even across API instances.
     const result = await this.db.googleAuthChallenge.deleteMany({
       where: { nonce, origin, expiresAt: { gt: new Date() } },
@@ -52,8 +52,8 @@ export class AuthService {
     return identity;
   }
 
-  async googleLogin(credential: string, nonce: string, origin: string | undefined, ip: string) {
-    const identity = await this.googleIdentity(credential, nonce, origin, ip);
+  async googleLogin(credential: string, nonce: string, origin: string | undefined, ip: string, codeVerifier?: string) {
+    const identity = await this.googleIdentity(credential, nonce, origin, ip, codeVerifier);
     const existing = await this.db.user.findUnique({ where: { googleId: identity.sub } });
     if (existing) {
       this.assertGoogleCustomer(existing);
@@ -63,7 +63,7 @@ export class AuthService {
     const byEmail = await this.db.user.findUnique({ where: { email: identity.email } });
     if (byEmail) {
       this.assertGoogleCustomer(byEmail);
-      throw new ConflictException('Sign in with your password first, then link Google in your account.');
+      throw new ConflictException('Account already exists. Sign in with your password to link Google.');
     }
     try {
       const user = await this.db.user.create({
@@ -93,9 +93,9 @@ export class AuthService {
     }
   }
 
-  async linkGoogle(userId: string, credential: string, nonce: string, password: string, origin: string | undefined, ip: string) {
+  async linkGoogle(userId: string, credential: string, nonce: string, password: string, origin: string | undefined, ip: string, codeVerifier?: string) {
     limitResetRequest('google-link-user', userId, 10, 15 * 60_000);
-    const identity = await this.googleIdentity(credential, nonce, origin, ip);
+    const identity = await this.googleIdentity(credential, nonce, origin, ip, codeVerifier);
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account not found.');
     this.assertGoogleCustomer(user);

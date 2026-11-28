@@ -234,9 +234,9 @@ export default function AccountPage() {
             </form>
             {(mode === 'login' || mode === 'register') && <div className="account-auth-social">
               <div className="account-auth-social-divider"><T>{"OR"}</T></div>
-              <GoogleSignIn disabled={pending} onCredential={async (credential, nonce) => {
+              <GoogleSignIn disabled={pending} onCredential={async (credential, nonce, codeVerifier) => {
                 setPending(true);
-                try { notify('success', await signInWithGoogle(credential, nonce)); }
+                try { notify('success', await signInWithGoogle(credential, nonce, codeVerifier)); }
                 finally { setPending(false); }
               }} />
             </div>}
@@ -304,10 +304,10 @@ export default function AccountPage() {
                   <span className="field-label">{t('Current password')}</span>
                   <input className="field-control" type="password" autoComplete="current-password" maxLength={128} value={linkPassword} disabled={pending} placeholder={t('Enter your password')} onChange={e => setLinkPassword(e.target.value)} />
                 </label>
-                <GoogleSignIn disabled={pending || !linkPassword} onCredential={async (credential, nonce) => {
+                <GoogleSignIn disabled={pending || !linkPassword} onCredential={async (credential, nonce, codeVerifier) => {
                   setPending(true);
                   try {
-                    notify('success', await linkGoogleAccount(credential, nonce, linkPassword));
+                    notify('success', await linkGoogleAccount(credential, nonce, linkPassword, codeVerifier));
                     setLinkOpen(false);
                   } finally { setLinkPassword(''); setPending(false); }
                 }} />

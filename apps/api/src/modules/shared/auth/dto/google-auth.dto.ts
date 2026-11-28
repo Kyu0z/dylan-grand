@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Matches, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, Matches, MaxLength } from 'class-validator';
 
 export class GoogleLoginDto {
   @ApiProperty({ writeOnly: true })
@@ -12,6 +12,14 @@ export class GoogleLoginDto {
   @IsString()
   @Matches(/^[a-f0-9]{64}$/)
   nonce!: string;
+
+  // Optional for compatibility with the original Google GIS ID-token flow.
+  // When present, credential contains the authorization code instead.
+  @ApiProperty({ required: false, writeOnly: true })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9._~-]{43,128}$/)
+  codeVerifier?: string;
 }
 
 export class GoogleLinkDto extends GoogleLoginDto {
